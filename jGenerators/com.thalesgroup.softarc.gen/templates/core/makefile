@@ -10,7 +10,7 @@ AR = ar
 
 CFLAGS   = -std=gnu99 -ggdb -W -Wall -Wno-unused-parameter -Wextra -Wformat -DSARC_IS_LDP
 
-LDFLAGS  = "-lrt" "-lpthread" "-lcunit" -lm
+LDFLAGS  = "-lrt" "-lpthread" -lm
 
 INCDIRS = ../../01-Components/*/*/inc* ../../00-Types/*/*/inc-gen
 SRCDIRS = ../../01-Components/*/*/src*/*.c ../../00-Types/*/*/src-gen/*.c
