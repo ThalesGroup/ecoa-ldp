@@ -24,7 +24,7 @@ ant exe
 # Press Ctrl-C to interrupt execution and kill the application.
 ```
 
-See also: [](Examples/Philosopher/README.md).
+See also: [Examples/Philosopher/README.md](Examples/Philosopher/README.md).
 
 ## Introduction to Ant
 
@@ -127,20 +127,31 @@ The steps **gen** and **exe** can be combined in a single step **all**:
 ant all
 ```
 
-This supposes the 'deploymentname' property has been set.
+This supposes the _deploymentname_ property has been set.
 
 ## Running the application
 
-The application is simply run as an ordinary program. The executable is named `a.out`:
+The application is run as an ordinary program. 
+
+The executable corresponding to the application is always named _a.out_:
 
 ```
 ./a.out
 ```
 
-**Note**: The current directory must be writeable. 
+The executable is standalone, no other file is needed for execution.
+
+Note that there is always a _single_ executable file, even for 
+[applications with several executables](#applications-with-several-executables). 
+
+There is no command-line argument.
+
+The current directory must be writeable. 
 Running the application creates Unix-domain sockets which appear as files in the current directory,
 with names following the pattern `*.socket`.
 These files are normally automatically removed when the application is terminated.
+In case of abnormal termination, it may be necessary to remove them manually with
+`rm *.socket`.
 
 ## Integrated console; scripting
 

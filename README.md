@@ -13,15 +13,15 @@ The Lightweight Development Platform is developed by [Thales] Defence Mission Sy
 
 ## Installation
 
-Refer to [](INSTALLING.md) to install the LDP on a Linux machine.
+Refer to the [Installation guide](INSTALLING.md) to install the LDP on a Linux machine.
 
 ## User's guide
 
 See the [User's guide](USAGE.md) to get started.
 
-## Features and non features
+## Features (and non-features)
 
-See [FEATURES.md]() for a list of what this ECOA platform supports, and what is does not support.
+See [LDP Features](FEATURES.md) for a list of what this ECOA platform supports, and what is does not support.
 
 ## Design and architecture
 
@@ -29,7 +29,7 @@ Read the [Design document](DESIGN.md) to understand the design of the LDP.
 
 ## Examples
 
-The [Examples]() folder contains examples of LDP use, including an implementation of the philosophers' dinner problem.
+The [Examples](Examples) folder contains examples of LDP use, including an implementation of the philosophers' dinner problem.
 
 ## Contributing
 

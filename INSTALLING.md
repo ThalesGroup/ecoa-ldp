@@ -5,7 +5,7 @@
 
 * The following software must be available:
     * A Java JRE, version 11 (tested with OpenJDK [](https://openjdk.org) 11)
-    * Ant [](https://ant.apache.org/), version 1.10.8
+    * [Ant](https://ant.apache.org/), version 1.10.8
       * **Warning**: It is recommended to use this version. Newer versions may cause Java compilation errors with JAXB.
         Install it in `/opt` if needed, and set the `$PATH`.
     * The `make` build tool (tested with version 4.2.1)
