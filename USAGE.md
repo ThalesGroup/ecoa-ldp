@@ -24,7 +24,7 @@ ant exe
 # Press Ctrl-C to interrupt execution and kill the application.
 ```
 
-See also: [Examples/Philosopher/README.md]().
+See also: [](Examples/Philosopher/README.md).
 
 ## Introduction to Ant
 

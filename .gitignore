@@ -19,6 +19,7 @@ local.properties
 04-Integration
 inc-gen
 src-gen
+a.out
 
 # Eclipse artefacts
 .settings
