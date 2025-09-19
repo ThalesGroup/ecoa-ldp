@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project>
+
+  <property name="deploymentname" value="D1"/>
+
+  <!-- use ant libraries provided by Softarc -->
+  <property environment="env"/>
+  <property name="softarc_home" location="${env.SOFTARC_HOME}"/>
+  <echo message="${softarc_home}" />
+  <import file="${softarc_home}/Ant/softarc.ant" />
+
+  <echo message="SOFTARC_HOME=${softarc_home}" />
+</project>

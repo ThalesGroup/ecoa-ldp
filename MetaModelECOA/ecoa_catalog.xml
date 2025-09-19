@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+  <!-- For Eclipse, register this file with Preferences/XML/Catalogs/Add... -->
+  <!-- For VS Code, install XML extension from Red Hat and edit settings XML:Catalogs -->
+
+  <uri name="http://www.ecoa.technology/DataTypes/3.0" uri="DataTypes.xsd"/>
+  <uri name="http://www.ecoa.technology/ComponentType/3.0" uri="ComponentType.xsd"/>
+  <uri name="http://www.ecoa.technology/Implementation/3.0" uri="Implementation.xsd"/>
+  <uri name="http://www.ecoa.technology/Assembly/3.0" uri="Assembly.xsd"/>
+  <uri name="http://www.ecoa.technology/Deployment/3.0" uri="Deployment.xsd"/>
+  <uri name="http://www.ecoa.technology/Workspace/3.0" uri="Workspace.xsd"/>
+
+</catalog>

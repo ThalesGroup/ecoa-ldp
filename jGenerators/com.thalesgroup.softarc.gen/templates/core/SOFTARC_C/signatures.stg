@@ -1,0 +1,218 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+// Signatures of functions declared/implemented by the container
+//==================================================================
+
+//=========================================================
+//@name Generic parameter list
+//@param paramsList Parameter
+//@param addFinalSeparator Boolean
+//@param isIn Boolean
+parameters(paramsList, addFinalSeparator, isIn) ::=<<
+<first(paramsList) : { param | <parameter(param, isIn)>}><rest(paramsList) : { param |,
+<parameter(param, isIn)>}><if (addFinalSeparator && paramsList)>,<endif>
+>>
+
+//======================================================
+//@name Generic parameter description
+//@param param Parameter
+//@param isIn Boolean
+parameter(param, isIn) ::=<<
+<if (isIn)>const <endif><param.qType> *<param.name>
+>>
+
+//==========================================================
+//@name Input parameter list
+//@param paramsList Parameter
+//@param addFinalSeparator Boolean
+inParameters(paramsList, addFinalSeparator) ::=<<
+<parameters(paramsList, addFinalSeparator, true)>
+>>
+
+outParameters(paramsList, addFinalSeparator) ::=<<
+<parameters(paramsList, addFinalSeparator, false)>
+>>
+
+operationCallParameters(operation) ::=<<
+<first([operation.inParameters,operation.outParameters]) : { param | <param.name>}><rest([operation.inParameters,operation.outParameters]) : { param | , <param.name>}>
+>>
+
+operationCallParametersVoid(operation) ::=<<
+<first([operation.inParameters,operation.outParameters]) : { param | (void*)<param.name>}><rest([operation.inParameters,operation.outParameters]) : { param | ,
+  (void*)<param.name>}>
+>>
+
+parametersVoid(paramsList, addFinalSeparator, isIn) ::=<<
+<first(paramsList) : { param | <parameterVoid(param,isIn)>}><rest(paramsList) : { param |,
+  <parameterVoid(param,isIn)>}><if (addFinalSeparator && paramsList)>,<endif>
+>>
+
+parameterVoid(param, isIn) ::=<<
+void * <param.name>
+>>
+
+inParametersVoid(paramsList, addFinalSeparator) ::=<<
+<parametersVoid(paramsList, addFinalSeparator, true)>
+>>
+outParametersVoid(paramsList, addFinalSeparator) ::=<<
+<parametersVoid(paramsList, addFinalSeparator, false)>
+>>
+
+
+//=========================================================
+//@name Sent event signature
+//@param event Operation
+//@param componentType Component
+sentEventSignature(event, componentType) ::=<<
+SARC_Ecode <componentType.package>_<event.name>_EVENT_send(<componentType.package>_context *sarc_ctxt<if (event.hasInParameters)>,<endif>
+  /*-- Beginning of <event.name> input parameters definition --*/
+  <inParameters(event.inParameters, false)>
+  /*----- End of <event.name> input parameters definition -----*/
+)>>
+
+//=========================================================
+//
+requiredRequestResponseCallSignature(svc, componentType) ::=<<
+SARC_Ecode <componentType.package>_<svc.name>_SERVICE_call(<componentType.package>_context *sarc_ctxt<if (svc.hasParameters)>,<endif>
+  /*-- Beginning of <svc.name> input parameters definition --*/
+  <inParameters(svc.inParameters, svc.hasOutParameters)>
+  /*----- End of <svc.name> input parameters definition -----*/
+  /*-- Beginning of <svc.name> output parameters definition --*/
+  <outParameters(svc.outParameters, false)>
+  /*----- End of <svc.name> output parameters definition -----*/
+)>>
+
+//=========================================================
+//
+asyncRequestResponseCallSignature(svc, componentType) ::=<<
+SARC_Ecode <componentType.package>_<svc.name>_ASYNC_SERVICE_call(<componentType.package>_context *sarc_ctxt,
+  SARC_uint32 *request_id<if (svc.hasInParameters)>,<endif>
+  /*-- Beginning of <svc.name> input parameters definition --*/
+  <inParameters(svc.inParameters, false)>
+  /*----- End of <svc.name> input parameters definition -----*/
+)>>
+
+triggerSetSignature (trigger, componentType) ::=<<
+SARC_Ecode <componentType.package>_<trigger.name>_TRIGGER_set (<componentType.package>_context *sarc_ctxt,
+   SARC_int64 trigger_delay)
+>>
+
+triggerCancelSignature (trigger, componentType) ::=<<
+SARC_Ecode <componentType.package>_<trigger.name>_TRIGGER_cancel (<componentType.package>_context *sarc_ctxt)
+>>
+
+deferredRequestResponseResponseSignature (svc, componentType) ::=<<
+SARC_Ecode <componentType.package>_<svc.name>_SERVICE_reply (<componentType.package>_context *sarc_ctxt,
+   SARC_uint32 sarc_request_id<if(svc.outParameters)>,<endif>
+   /*-- Beginning of <svc.name> output parameters definition --*/
+   <outParameters(svc.outParameters, false)>
+   /*-- End of <svc.name> output parameters definition --------*/
+   )>>
+
+deferredRequestResponseCancelSignature (svc, model) ::=<<
+void <model.package>_<svc.name>_SERVICE_cancel (<model.package>_context *sarc_ctxt,
+   SARC_uint32 sarc_request_id)>>
+
+//==================================================
+//@name Data is_initialized signature
+//@param data Operation
+//@param componentType Component
+dataIsInitializedSignature(data, componentType) ::=<<
+SARC_boolean8
+<componentType.package>_<data.name>_DATA_is_initialized
+  (<componentType.package>_context * const sarc_ctxt)>>
+
+//==================================================
+//@name Data get_reader signature
+//@param data Operation
+//@param componentType Component
+dataReaderSignature(data, componentType) ::=<<
+SARC_Ecode
+<componentType.package>_<data.name>_DATA_get_reader
+  (<componentType.package>_context * const sarc_ctxt,
+   t_<data.name>_handle * const sarc_handle)>>
+
+//=================================================
+//@name Data release signature
+//@param data Operation
+//@param componentType Component
+dataReleaseSignature(data, componentType) ::=<<
+SARC_Ecode
+<componentType.package>_<data.name>_DATA_release
+  (<componentType.package>_context * const sarc_ctxt,
+   t_<data.name>_handle * const sarc_handle)>>
+
+//================================================
+//@name Data get_writer signature
+//@param data Operation
+//@param componentType Component
+dataWriterSignature(data, componentType) ::=<<
+SARC_Ecode
+<componentType.package>_<data.name>_DATA_get_writer
+  (<componentType.package>_context * const sarc_ctxt,
+   t_<data.name>_handle * const sarc_handle,
+   SARC_DataValue init)>>
+
+//===============================================
+//@name Data publish signature
+//@param data Operation
+//@param componentType Component
+dataPublishSignature(data, componentType) ::=<<
+SARC_Ecode
+<componentType.package>_<data.name>_DATA_publish
+  (<componentType.package>_context * const sarc_ctxt,
+   t_<data.name>_handle * const sarc_handle)>>
+
+//===============================================
+//@name Data cancel signature
+//@param data Operation
+//@param componentType Component
+dataCancelSignature(data, componentType) ::=<<
+SARC_Ecode
+<componentType.package>_<data.name>_DATA_cancel
+  (<componentType.package>_context * const sarc_ctxt,
+   t_<data.name>_handle * const sarc_handle)>>
+
+//===============================================
+//@name get_internal signature
+//@param attribute Parameter
+//@param componentType Component
+getAttributeSignature(attr, componentType) ::=<<
+SARC_Ecode <componentType.package>_get_attribute_<attr.name>(<componentType.package>_context *sarc_ctxt,
+  <attr.qType>* <attr.name>)>>
+
+
+//===============================================
+//@name PINFO read signature
+//@param pinfo Pinfo
+//@param componentType Component
+pinfoReadSignature(pinfo, componentType) ::=<<
+SARC_Ecode
+<componentType.package>_<pinfo.name>_PINFO_read (
+  <componentType.package>_context *sarc_ctxt,
+  void *data, SARC_MwSize capacity, SARC_MwSize * size)>>
+
+
+//===============================================
+//@name PINFO seek signature
+//@param pinfo Pinfo
+//@param componentType Component
+pinfoSeekSignature(pinfo, componentType) ::=<<
+SARC_Ecode
+<componentType.package>_<pinfo.name>_PINFO_seek (
+  <componentType.package>_context *sarc_ctxt,
+  SARC_int32 offset, SARC_PInfoOrigin origin, SARC_MwSize * position)>>
+
+
+//=========================================================
+//
+//@name stop_external_thread signature
+//@param componentType Component
+externalStopSignature(componentType) ::=<<
+SARC_Ecode <componentType.package>_stop_external_thread (<componentType.package>_context *sarc_ctxt)>>
+
+//=============================================
+//@name start_external_thread signature
+//@param componentType Component
+externalStartSignature(componentType) ::=<<
+SARC_Ecode <componentType.package>_start_external_thread (<componentType.package>_context *sarc_ctxt)>>

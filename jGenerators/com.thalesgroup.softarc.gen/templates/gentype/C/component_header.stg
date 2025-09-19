@@ -1,0 +1,82 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "common.stg"
+
+//#############################################################################
+// Creates the <component>.h file
+//#############################################################################
+
+//=========================================================
+//@name Main body of the component header file.
+//@param model Component
+component_header(model) ::=<<
+#ifndef _<model.fileprefix>_H
+#define _<model.fileprefix>_H
+
+#include "<model.fileprefix>_container.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void <model.package>_initialize(<model.package>_context *ctxt);
+void <model.package>_start(<model.package>_context *ctxt);
+<! The stop method exists in SOFTARC-CERT for SOFTARC product-line compatibility purpose !>
+void <model.package>_stop(<model.package>_context *ctxt);
+<! The reset method exists in SOFTARC-CERT for SOFTARC product-line compatibility purpose !>
+void <model.package>_reset(<model.package>_context *ctxt);
+<! The shutdown method exists in SOFTARC-CERT for SOFTARC product-line compatibility purpose !>
+void <model.package>_shutdown(<model.package>_context *ctxt);
+
+<if (model.isExternal)>
+<externalInitSignature(model)>;
+<externalRoutineSignature(model)>;
+<endif>
+
+<if (model.isSupervisor)>void <model.package>_startSequence(<model.package>_context *ctxt);
+void <model.package>_onStateChange(<model.package>_context *ctxt, SARC_int32 componentId, SARC_int32 state, SARC_int32 oldState);
+<endif>
+<declareReceivedEvents(model)>
+<declareProvidedRequestResponses(model)>
+<declareRequiredRequestResponsesCallbacks(model)>
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* _<model.fileprefix>_H */
+
+>>
+
+//=========================================================
+//@name Declarations of functions for handling received events.
+//@param model Component
+declareReceivedEvents(model) ::=<<
+<model.receivedEvents : { event |
+<documentOpAndParams(event)>
+<receivedEventSignature(event, model)>;
+}>
+>>
+
+//=========================================================
+declareProvidedRequestResponses(model) ::=<<
+<model.providedRequestResponses : { svc | 
+<documentOpAndParams(svc)>
+<if(svc.isDeferred)>
+<deferredRequestResponseSignature(svc, model)>;
+<else>
+<providedRequestResponseSignature(svc, model)>;
+<endif>
+}>
+>>
+
+//=========================================================
+declareRequiredRequestResponsesCallbacks(model) ::=<<
+<model.requiredRequestResponses : { svc | <if (svc.isAsynchronous)>
+<documentOpAndParams(svc)>
+<componentCallbackSignature(svc, model)>;
+<if(svc.isTimed)>
+
+<componentCallbackTimeoutSignature(svc, model)>;
+<endif>
+<endif>}>
+>>

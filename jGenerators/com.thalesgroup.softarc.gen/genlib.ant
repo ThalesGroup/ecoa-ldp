@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project name="genlib">
+  <!-- This is a stub -->
+
+  <target name="copy_resources" />
+
+</project>

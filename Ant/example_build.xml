@@ -1,0 +1,10 @@
+<project>
+
+  <property environment="env"/>
+  <property file="local.properties"/> <!-- optional -->
+  <property file="build.properties"/> <!-- optional and managed with git -->
+  <!-- use ant library provided by SOFTARC -->
+  <property name="softarc_home" location="${env.SOFTARC_HOME}"/>
+  <import file="${softarc_home}/Ant/softarc.ant" />
+
+</project>

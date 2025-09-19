@@ -1,0 +1,182 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+// Signatures of functions declared/implemented by the container
+//==================================================================
+
+
+pIn(p) ::=<<
+<if(p.type.isScalar)>
+<p.type.qName> _<p.name>
+<else>
+const <p.type.qName> *<p.name>
+<endif>
+>>
+
+pOut(p) ::=<<
+<p.type.qName> *<p.name>
+>>
+
+parameters(paramsList, addFinalSeparator, isIn) ::=<<
+<first(paramsList) : { param | <parameter(param, isIn)>}><rest(paramsList) : { param |,
+<parameter(param, isIn)>}><if (addFinalSeparator && paramsList)>,<endif>
+>>
+
+parameter(p, isIn) ::=<<
+<if (isIn)><pIn(p)><else><pOut(p)><endif>
+>>
+
+inParameters(paramsList, addFinalSeparator) ::=<<
+<parameters(paramsList, addFinalSeparator, true)>
+>>
+
+parametersByValue(paramsList) ::=<<
+<paramsList : { p |
+<if(p.type.isScalar)>
+<p.type.qName> *<p.name> = &_<p.name>;
+<endif>
+}>
+>>
+
+outParameters(paramsList, addFinalSeparator) ::=<<
+<parameters(paramsList, addFinalSeparator, false)>
+>>
+
+operationCallParameters(operation) ::=<<
+<first([operation.inParameters,operation.outParameters]) : { param | <param.name>}><rest([operation.inParameters,operation.outParameters]) : { param | , <param.name>}>
+>>
+
+operationCallParametersVoid(operation) ::=<<
+<first([operation.inParameters,operation.outParameters]) : { param | (void*)<param.name>}><rest([operation.inParameters,operation.outParameters]) : { param | ,
+  (void*)<param.name>}>
+>>
+
+parametersVoid(paramsList, addFinalSeparator, isIn) ::=<<
+<first(paramsList) : { param | <parameterVoid(param,isIn)>}><rest(paramsList) : { param |,
+  <parameterVoid(param,isIn)>}><if (addFinalSeparator && paramsList)>,<endif>
+>>
+
+parameterVoid(param, isIn) ::=<<
+void * <param.name>
+>>
+
+inParametersVoid(paramsList, addFinalSeparator) ::=<<
+<parametersVoid(paramsList, addFinalSeparator, true)>
+>>
+outParametersVoid(paramsList, addFinalSeparator) ::=<<
+<parametersVoid(paramsList, addFinalSeparator, false)>
+>>
+
+
+//=========================================================
+sentEventSignature(operation, model) ::=<<
+void 
+<model.package>_container__<operation.name>__send (
+  <model.package>__context* context 
+  <operation.inParameters: {p |, <pIn(p)>}>)
+>>
+
+//=========================================================
+//
+requiredRequestResponseCallSignature(operation, model) ::=<<
+ECOA__return_status 
+<model.package>_container__<operation.name>__request_sync (
+  <model.package>__context* context
+  <operation.inParameters: {p |, <pIn(p)>}> 
+  <operation.outParameters: {p |, <pOut(p)>}> )
+>>
+
+//=========================================================
+//
+asyncRequestResponseCallSignature(operation, model) ::=<<
+ECOA__return_status 
+<model.package>_container__<operation.name>__request_async (
+  <model.package>__context* context,
+  ECOA__uint32* ID
+  <operation.inParameters: {p |, <pIn(p)>}>)
+>>
+
+deferredRequestResponseResponseSignature (operation, model) ::=<<
+ECOA__return_status 
+<model.package>_container__<operation.name>__response_send (
+  <model.package>__context* context,
+  const ECOA__uint32 sarc_request_id
+  <operation.outParameters: {p |, <pIn(p)>}>)
+>>
+
+//==================================================
+//@name Data is_initialized signature
+//@param data Operation
+//@param model Component
+dataIsInitializedSignature(data, model) ::=<<
+SARC_boolean8
+<model.package>_<data.name>_DATA_is_initialized
+  (<model.package>_context * const context)>>
+
+//==================================================
+dataReaderSignature(data, model) ::=<<
+ECOA__return_status
+<model.package>_container__<data.name>__get_read_access (
+  <model.package>__context* context,
+  <model.package>_container__<data.name>_handle* handle )>>
+
+//=================================================
+dataReleaseSignature(data, model) ::=<<
+ECOA__return_status 
+<model.package>_container__<data.name>__release_read_access (
+  <model.package>__context* context, 
+  <model.package>_container__<data.name>_handle* handle )>>
+
+//================================================
+dataWriterSignature(data, model) ::=<<
+ECOA__return_status 
+<model.package>_container__<data.name>__get_write_access (
+  <model.package>__context* context, 
+  <model.package>_container__<data.name>_handle* handle )>>
+
+//===============================================
+dataPublishSignature(data, model) ::=<<
+ECOA__return_status 
+<model.package>_container__<data.name>__publish_write_access (
+  <model.package>__context* context, 
+  <model.package>_container__<data.name>_handle* handle )>>
+
+//===============================================
+dataCancelSignature(data, model) ::=<<
+ECOA__return_status 
+<model.package>_container__<data.name>__cancel_write_access (
+  <model.package>__context* context, 
+  <model.package>_container__<data.name>_handle* handle )>>
+  
+//===============================================
+triggerSetSignature(trigger, model) ::=<<
+ECOA__return_status 
+<model.package>_container__<trigger.name>__set (
+  <model.package>__context* context, 
+  ECOA__duration delay )>>
+  
+//===============================================
+triggerCancelSignature(trigger, model) ::=<<
+ECOA__return_status 
+<model.package>_container__<trigger.name>__cancel (
+  <model.package>__context* context)>>
+
+//=========================================================
+//
+//@name stop_external_thread signature
+//@param componentType Component
+externalStopSignature(componentType) ::=<<
+void <componentType.package>_container__stop_external_task (<componentType.package>__context* context)>>
+
+//=============================================
+//@name start_external_thread signature
+//@param componentType Component
+externalStartSignature(componentType) ::=<<
+void <componentType.package>_container__start_external_task  (<componentType.package>__context* context)>>
+
+
+//=============================================
+//@name save_warm_start_context signature
+//@param componentType Component
+startWarmContextSignature(componentType) ::=<<
+void
+<componentType.package>_container__save_warm_start_context (<componentType.package>__context* context)>>

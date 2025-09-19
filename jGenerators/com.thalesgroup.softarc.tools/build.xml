@@ -1,0 +1,5 @@
+<project default="build" name="com.thalesgroup.softarc.tools">
+
+  <import file="../common.ant"/>
+
+</project>

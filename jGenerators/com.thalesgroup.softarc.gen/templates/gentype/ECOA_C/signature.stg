@@ -1,0 +1,34 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+triggerSetSignature(trigger, model) ::=<<
+ECOA__return_status
+<model.package>_container__<trigger.name>__set (
+  <model.package>__context* context,
+  ECOA__duration delay )>>
+
+//===============================================
+triggerCancelSignature(trigger, model) ::=<<
+ECOA__return_status
+<model.package>_container__<trigger.name>__cancel (
+  <model.package>__context* context)>>
+
+//=========================================================
+//
+//@name stop_external_thread signature
+//@param componentType Component
+externalStopSignature(componentType) ::=<<
+void <componentType.package>_container__stop_external_task (<componentType.package>__context* context)>>
+
+//=============================================
+//@name start_external_thread signature
+//@param componentType Component
+externalStartSignature(componentType) ::=<<
+void <componentType.package>_container__start_external_task  (<componentType.package>__context* context)>>
+
+
+//=============================================
+//@name save_warm_start_context signature
+//@param componentType Component
+startWarmContextSignature(componentType) ::=<<
+void
+<componentType.package>_container__save_warm_start_context (<componentType.package>__context* context)>>

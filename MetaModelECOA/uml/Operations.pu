@@ -1,0 +1,58 @@
+@startuml Operations
+
+abstract class Operation {
+	+string name
+	string doc
+}
+
+abstract class Event
+Operation <|-- Event 
+EventSent -up-|> Event
+EventReceived -up-|> Event
+
+Event o-- "*" QualifiedField : parameter
+note bottom: from DataTypes diagram
+
+class EventSent {
+}
+
+EventSent <|-- PeriodicEventSent
+class PeriodicEventSent {
+	+decimal period
+	decimal delay
+}
+note right: for PERIODIC_TRIGGER_MANAGER\ncomponents
+
+Operation <|-- Data
+Data <|-- DataRead
+Data <|-- DataWritten
+
+Data -right-> "1" DataType : type
+note bottom: from DataTypes diagram
+abstract class DataType
+
+abstract class Data {
+	int maxVersions
+	bool notifying
+}
+
+DataWritten : writeOnly
+
+
+abstract class RequestResponse
+Operation <|-- RequestResponse 
+RequestResponse <|-- RequestReceived
+RequestResponse <|-- RequestSent
+
+RequestResponse --> "*" QualifiedField : parameter
+RequestResponse --> "*" QualifiedField : out
+
+class RequestReceived {
+	bool immediate
+	int maxConcurrentRequests
+}
+class RequestSent {
+	bool isSynchronous
+	decimal timeout
+	int maxConcurrentRequests
+}

@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+    <xsd:simpleType name="Name">
+        <xsd:annotation>
+            <xsd:documentation>
+Name that can be used as an identifier in ECOA models
+and in the source code of ECOA components.
+Note: names must not start with an underscore nor a digit
+names must not have two successive underscores
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="[A-Za-z][A-Za-z0-9]*(_[A-Za-z0-9]+)*_?" />
+            <xsd:maxLength value="64"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="TypeName">
+        <xsd:annotation>
+            <xsd:documentation>
+Name of a data type inside a library, without any qualification.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="Name" />
+    </xsd:simpleType>
+    <xsd:simpleType name="PossiblyQualifiedName">
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="[A-Za-z][A-Za-z0-9]*(_[A-Za-z0-9]+)*_?(\.[A-Za-z][A-Za-z0-9]*(_[A-Za-z0-9]+)*_?)?" />
+            <xsd:maxLength value="129"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="TypeQName">
+        <xsd:annotation>
+            <xsd:documentation>
+Name of a data type, possibly prefixed by the name of the library that defines it.
+If the referenced type is a predefined type or defined in the same library,
+it can be referenced by "TYPE_NAME".
+If the referenced type is defined in another library, it must be referenced by 
+"LIBRARY_NAME.TYPE_NAME".
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="PossiblyQualifiedName" />
+    </xsd:simpleType>
+    <xsd:simpleType name="OperationName">
+        <xsd:annotation>
+            <xsd:documentation>
+Name of an operation (data, event or service).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="Name" />
+    </xsd:simpleType>
+    <xsd:element name="doc" type="xsd:string">
+        <xsd:annotation>
+            <xsd:documentation>
+Dedicated element for documentation.
+</xsd:documentation>
+        </xsd:annotation>
+    </xsd:element>
+    <xsd:simpleType name="positive-decimal">
+        <xsd:annotation>
+            <xsd:documentation>
+The positive-decimal type specifies a positive
+decimal value (including 0).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:decimal">
+            <xsd:minInclusive value="0" />
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="strictly-positive-decimal">
+        <xsd:annotation>
+            <xsd:documentation>
+The strictly-positive-decimal type specifies a strictly positive
+decimal value (excluding 0).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:decimal">
+            <xsd:minExclusive value="0" />
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="positiveInt">
+        <xsd:restriction base="xsd:unsignedInt">
+            <xsd:minInclusive value="1" />
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="TriggerName">
+        <xsd:annotation>
+            <xsd:documentation>
+Name of a trigger.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="Name" />
+    </xsd:simpleType>
+    <xsd:complexType name="MetaData">
+        <xsd:annotation>
+            <xsd:documentation>
+Element of metadata, used for tracability to higher-level models.
+Not used by the execution platform.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:attribute name="name" type="xsd:NCName" use="required">
+        </xsd:attribute>
+        <xsd:attribute name="value" type="xsd:string" use="required">
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="QualifiedField">
+        <xsd:annotation>
+            <xsd:documentation>
+Association of an identifier and a typename.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+        </xsd:sequence>
+        <xsd:attribute name="type" type="TypeQName" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+This attribute value references an already defined type name.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="name" type="Name" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Type name.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+</xsd:schema>

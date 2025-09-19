@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<antlib>
+  <taskdef name="GenSoftarc" classname="com.thalesgroup.softarc.ant.GenSoftarcLDP" onerror="report" />
+  <taskdef name="GenTechnicalAssembly" classname="com.thalesgroup.softarc.ant.GenTechnicalAssembly" onerror="report" />
+</antlib>

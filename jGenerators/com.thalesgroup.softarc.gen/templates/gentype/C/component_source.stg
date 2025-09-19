@@ -1,0 +1,99 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "common.stg"
+
+//#############################################################################
+// Creates the <component>.c file
+//#############################################################################
+
+//=========================================================
+component_source(model) ::=<<
+#include "<model.fileprefix>.h"
+
+/* TODO: to be implemented */
+
+
+void <model.package>_initialize(<model.package>_context *ctxt)
+{
+  /* TODO: to be implemented */
+}
+void <model.package>_start(<model.package>_context *ctxt)
+{
+  /* TODO: to be implemented */
+}
+void <model.package>_stop(<model.package>_context *ctxt)
+{
+  /* TODO: to be implemented */
+}
+void <model.package>_shutdown(<model.package>_context *ctxt)
+{
+  /* TODO: to be implemented */
+}
+void <model.package>_reset(<model.package>_context *ctxt)
+{
+  /* TODO: to be implemented */
+}
+
+
+<if (model.isExternal)><implementExternalFunctions(model)><endif>
+<implementReceivedEvents(model)>
+<implementProvidedRequestResponses(model)>
+<implementRequiredRequestResponsesCallbacks(model)>
+
+/* TODO: to be implemented */
+
+>>
+
+//=========================================================
+implementExternalFunctions(model) ::=<<
+<externalInitSignature(model)>
+{
+  /* TODO: to be implemented */
+}
+<externalRoutineSignature(model)>
+{
+  /* TODO: to be implemented */
+}
+>>
+
+//=========================================================
+implementReceivedEvents(model) ::=<<
+<model.receivedEvents : { event | 
+<receivedEventSignature(event, model)>
+{
+  /* TODO: to be implemented */
+<"}">
+}>
+>>
+
+//=========================================================
+implementProvidedRequestResponses(model) ::=<<
+<model.providedRequestResponses : { svc | 
+<if(svc.isDeferred)>
+<deferredRequestResponseSignature(svc, model)>
+<else>
+<providedRequestResponseSignature(svc, model)>
+<endif>
+{
+  /* TODO: to be implemented */
+\}
+}>
+>>
+
+//=========================================================
+implementRequiredRequestResponsesCallbacks(model) ::=<<
+<model.requiredRequestResponses : { svc | <if (svc.isAsynchronous)>
+<componentCallbackSignature(svc, model)>
+{
+  /* TODO: to be implemented */
+<"}">
+
+
+<if(svc.isTimed)>
+<componentCallbackTimeoutSignature(svc, model)>
+{
+  /* TODO: to be implemented */
+<"}">
+<endif>
+<endif>}>
+>>

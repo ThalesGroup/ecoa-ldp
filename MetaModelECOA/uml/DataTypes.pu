@@ -1,0 +1,79 @@
+@startuml DataType
+
+Library o--> "*" DataType
+
+Library o-right-> "*" Constant
+
+class Library {
+	+string name
+}
+
+Constant --> "1" DataType
+
+class Constant {
+	+string name
+	string doc
+	+string value
+}
+
+abstract class DataType {
+	string +name
+	string doc
+}
+
+abstract class DerivedType
+note right: a DataType that\nreferences\nanother DataType
+
+abstract class Predef
+
+DataType <|-- DerivedType
+
+DerivedType --> "1" DataType
+
+DataType <|-- Predef
+note bottom: See dedicated diagram\nfor the list\nof predefined types.
+
+DerivedType <|-- Simple
+class Simple {
+	string minRange
+	string maxRange
+	string unit
+}
+DataType <|-- Record
+DataType <|-- VariantRecord
+DerivedType <|-- Enum
+DerivedType <|-- Array
+DerivedType <|-- FixedArray
+
+Enum o--> "*" EnumValue
+
+class EnumValue {
+	+string name
+	string doc
+	string value
+}
+
+class Array {
+	int maxNumber
+}
+class FixedArray {
+	int maxNumber
+}
+
+QualifiedField --> DataType : type
+
+class QualifiedField {
+	string name
+	string doc
+}
+Record o--> "*" QualifiedField : field
+
+VariantRecord o--> "1" QualifiedField : default
+VariantRecord o--> "*" QualifiedField : field
+VariantRecord o--> "*" UnionField : union
+
+UnionField --|> QualifiedField
+
+class UnionField {
+	when
+}

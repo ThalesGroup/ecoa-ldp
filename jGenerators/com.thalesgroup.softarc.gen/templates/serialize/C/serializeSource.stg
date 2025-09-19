@@ -1,0 +1,104 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "common.stg"
+import "../../shared/function_names.stg"
+import "serializeSourceCommon.stg"
+
+// shared with GenLib
+import "checkSourceCommon.stg"
+
+
+//======================================================
+//@name Serialization source file global structure
+//@param componentType Component
+//@param noByteSwap Boolean
+//@param osProperties NON-CERT
+serializeSource(componentType, noByteSwap, osProperties) ::=<<
+#include "<componentType.fileprefix>_serialize.h"
+#include \<string.h\>
+
+#if defined(__GNUC__) && ! defined(__ICC)
+#pragma GCC diagnostic ignored "-Wtype-limits"
+#endif
+
+<if(noByteSwap)>
+/* OPTIMISED FOR NO BYTE SWAPPING */
+<endif>
+
+<componentType.types : { type | 
+<if (type.isRecord)>
+<serializeRecord(type, noByteSwap)>
+<deserializeRecord(type, noByteSwap)>
+<elseif (type.isVariantRecord)>
+<serializeVariantRecord(type, noByteSwap)>
+<deserializeVariantRecord(type, noByteSwap)>
+<elseif (type.isArray)>
+<serializeArray(type, noByteSwap)>
+<deserializeArray(type, noByteSwap)>
+<elseif (type.isFixedArray)>
+<serializeFixedArray(type, noByteSwap)>
+<deserializeFixedArray(type, noByteSwap)>
+<elseif (type.isSimple)>
+/* no serialisation functions for Simple type <type.name> (using base type) */
+<elseif (type.isEnum)>
+/* no serialisation functions for Enum type <type.name> (using base type) */
+<elseif (type.isList)>
+<declareList(type)>
+<serializeList(type, noByteSwap)>
+<deserializeList(type, noByteSwap)>
+<elseif (type.isMap)>
+<declareMap(type)>
+<serializeMap(type, noByteSwap)>
+<deserializeMap(type, noByteSwap)>
+<elseif (type.isString)>
+<serializeString(type, noByteSwap)>
+<deserializeString(type, noByteSwap)>
+<endif>
+}>
+
+<componentType.types : { type | 
+<if (type.isEnum)>
+<checkEnum(type)>
+<elseif (type.isSimple)>
+<checkSimple(type)>
+<elseif (type.isRecord)>
+<checkRecord(type)>
+<elseif (type.isVariantRecord)>
+<checkVariantRecord(type)>
+<elseif (type.isArray)>
+<checkArray(type)>
+<elseif (type.isFixedArray)>
+<checkFixedArray(type)>
+<elseif (type.isList)>
+<checkList(type)>
+<elseif (type.isMap)>
+<checkMap(type)>
+<elseif (type.isString)>
+<checkString(type)>
+<endif>
+}>
+
+<!
+// Check assertions at compile time.
+//   expr shall be an expression that can be determined at compile time.
+#define STATIC_ASSERT(expr) _STATIC_ASSERT_H1(expr, __LINE__)
+#define _STATIC_ASSERT_H1(expr, n) _STATIC_ASSERT_H2(expr, n)
+#define _STATIC_ASSERT_H2(expr, n) typedef char assert_failed_line_ ## n [(expr) ? 0 : -1]
+
+<componentType.types : { type | 
+STATIC_ASSERT(sizeof(<type.qName>) == <type.sizeof>);
+}>
+!>
+>>
+
+//=============================================================================
+// Check functions
+//=============================================================================
+
+unusedErrorMessage() ::= "(void)errorMessage; /* maybe unused */"
+errorMessageParameter() ::= ", errorMessage"
+
+reportCheckError(message) ::=<<
+strcpy (errorMessage, <message>);
+>>
+

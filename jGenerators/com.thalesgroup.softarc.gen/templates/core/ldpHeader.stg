@@ -1,0 +1,156 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+ldpHeader(system) ::=<<
+
+#ifndef _SARC_LDP_H_
+#define _SARC_LDP_H_
+
+#include \<sarc_ldp_internal.h\>
+
+<applicationSpecificConstants()>
+<globalVariables()>
+<globalVariablesPerTask()>
+<techninalContextPerInstance()>
+
+#endif
+>>
+
+applicationSpecificConstants() ::=<<
+
+/*=============================================================================
+ * Application-specific constants
+ *=============================================================================*/
+
+#define SARC_MAX_NB_TASK (<system.mapping.maxThreadId> + 1)
+
+#define SARC_MAX_NB_COMPONENT  <system.mapping.nbInstances>
+
+<system.assembly.instances :  {instance | 
+#define <instance.id> <instance.idNo>
+}>
+>>
+
+globalVariables() ::=<<
+
+/*=============================================================================
+ * Global variables
+ *=============================================================================*/
+ 
+<system.mapping.platforms : { platform |
+<platform.dataVersions :  { data | 
+<if (data.dataLink)>
+<data.dataLink.threadsLinked : { thread |
+extern SARC_op_data SARC_data_<thread.name>_<data.id>;
+}>
+<endif>
+}>
+}>
+
+extern int SARC_socket_out;
+<system.mapping.globalExecutable.threads :  {thread |
+extern int SARC_socket_<thread.name>;
+<if (thread.hasSyncRequiredRequestResponses)>
+extern int SARC_socket_SYNC_<thread.name>;
+<endif>
+}>
+
+extern const SARC_int32 SARC_table_task_of_instance[SARC_MAX_NB_COMPONENT];
+
+extern const struct sockaddr_un *SARC_table_socket_addr_of_task[SARC_MAX_NB_TASK];
+
+extern const char *SARC_table_name_of_instance[SARC_MAX_NB_COMPONENT];
+extern const char *SARC_table_name_of_task[SARC_MAX_NB_TASK];
+
+extern SARC_Task SARC_task_index[SARC_MAX_NB_TASK];
+
+>>
+
+globalVariablesPerTask() ::=<<
+
+/*=============================================================================
+ * Global variables per task
+ *=============================================================================*/
+ 
+<system.mapping.executables : { exec |
+
+/* Input socket */
+<exec.threads : { thread |
+extern const struct sockaddr_un SARC_socket_addr_<thread.name> ;
+<if (thread.hasSyncRequiredRequestResponses)>
+extern const struct sockaddr_un SARC_socket_addr_SYNC_<thread.name>;
+<endif>
+}>
+
+/* Serialization buffer */
+<exec.threads : { thread |
+extern SARC_char8 SARC_routing_buffer_<thread.name>[];
+}>
+
+/* Task routine */
+<exec.threads : { thread |
+extern void*
+SARC_routine_<thread.name> (void*);
+}>
+}>
+>>
+
+techninalContextPerInstance() ::=<<
+
+/*===================================================================*
+ * Technical contexts (per instance)
+ *===================================================================*/
+
+<system.components : {component |
+<if (!component.isLibrary)>
+struct <component.package>_tech_context
+{
+<component.data : { data |
+  <if (data.isRead)>
+  struct {
+    SARC_int32 remaining;
+  \} r_access_<data.name>;
+  <endif>
+  <if (data.isWritten)>
+  struct {
+    SARC_int32 remaining;
+  \} w_access_<data.name>;
+  <endif>
+  pthread_mutex_t <data.name>_mutex;
+}>
+  SARC_entrypoint_ptr *lifecycle_entrypoints[5]; // init; start; stop; reset; shutdown;
+<if (component.isEcoa)>  
+  SARC_uint32 instanceId;
+<endif> 	
+  SARC_uint32 request_id; // buffer to identify request id for RequestResponse operation
+<if (component.isExternal)>
+  SARC_uint32 external_task_index; //idNo of the external thread use by the instance.
+<endif>
+<if (component.isSupervisor)>
+  SARC_LifeCycleState componentStableState[SARC_MAX_NB_COMPONENT];
+<endif>
+
+<component.Pinfos : { pinfo |
+  SARC_Pinfo pinfo_<pinfo.name>;
+}>
+\};
+<if (component.isEcoa)>typedef struct <component.package>_tech_context <component.package>__platform_hook;<endif>
+<endif>
+}>
+
+<system.assembly.instances : { instance |
+extern struct <instance.type.package>_tech_context <instance.name>_global_tech;
+}>
+
+<system.assembly.instances : {instance |
+<instance.requestResponseEntryPoints : {ep | 
+<if(ep.requestResponse.isDeferred)>
+extern SARC_int64 <instance.name>_<ep.requestResponse.name>_map[1 + (6 + <ep.requestResponse.maxDeferred>) / 2 + <ep.requestResponse.maxDeferred> * (1 + (sizeof (SARC_RequestInfo) + 7) / 8)];<endif>}>}>
+
+
+<system.assembly.instances : {instance | <instance.attributes : {attribute | 
+extern const <attribute.type.cName> K_ATT_<instance.name>_<attribute.name>;}>}>
+
+<system.assembly.instances : {instance | <instance.variables : {variable | 
+extern const SARC_int32 K_VAR_<instance.name>_<variable.name>;}>}>
+
+>>

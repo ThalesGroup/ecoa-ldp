@@ -1,0 +1,31 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "../common.stg"
+
+//=========================================
+//@name Serialize include directives
+//@param componentType Component
+serializeIncludes(componentType) ::=<<
+<componentType.usedLibraries: {library | 
+#include "<library.cComponent.fileprefix>_serialize.h"}>
+>>
+
+//========================================
+//@name Serialize function signature
+//@param type TypeDefinition
+serializeSignature(type) ::=<<
+void <serializeFunctionName(type)> (SARC_SerializationContext *s, const <type.qName> * v)
+>>
+
+//=======================================
+//@name Deserialize function signature
+//@param type TypeDefinition
+deserializeSignature(type) ::=<<
+void <deserializeFunctionName(type)> (SARC_DeserializationContext *s, <type.qName> * v)
+>>
+
+checkSignature(type) ::=<<
+SARC_boolean8 <checkFunctionName(type)> (const <type.qName> *v, char *errorMessage)
+>>
+
+

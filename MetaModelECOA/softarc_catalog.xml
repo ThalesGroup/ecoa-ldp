@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<catalog xmlns="urn:oasis:names:tc:entity:xmlns:xml:catalog">
+
+  <!-- ECOA Core + SOFTARC extensions -->
+  <uri name="http://www.ecoa.technology/DataTypes/3.0" uri="SOFTARC/DataTypes.xsd"/>
+  <uri name="http://www.ecoa.technology/ComponentType/3.0" uri="ComponentType.xsd"/>
+  <uri name="http://www.ecoa.technology/Implementation/3.0" uri="SOFTARC/Implementation.xsd"/>
+  <uri name="http://www.ecoa.technology/Assembly/3.0" uri="SOFTARC/Assembly.xsd"/>
+  <uri name="http://www.ecoa.technology/Deployment/3.0" uri="SOFTARC/Deployment.xsd"/>
+  <uri name="http://www.ecoa.technology/Workspace/3.0" uri="Workspace.xsd"/>
+  
+</catalog>

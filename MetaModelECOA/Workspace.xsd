@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+xmlns="http://www.ecoa.technology/Workspace/3.0"
+targetNamespace="http://www.ecoa.technology/Workspace/3.0"
+elementFormDefault="qualified" >
+
+  <xsd:element name="workspace" type="CT_workspace">
+    <xsd:annotation>
+      <xsd:documentation>
+Customisation of the workspace structure: a mapping from logical names to file/directory locations.
+</xsd:documentation>
+    </xsd:annotation>
+  </xsd:element>
+
+  <xsd:complexType name="CT_workspace">
+    <xsd:sequence>
+      <xsd:element name="library" type="CT_name_to_file" minOccurs="0" maxOccurs="unbounded"/>
+      <xsd:element name="componentType" type="CT_name_to_dir" minOccurs="0" maxOccurs="unbounded"/>
+    </xsd:sequence>
+  </xsd:complexType>
+
+  <xsd:complexType name="CT_name_to_dir">
+    <xsd:attribute name="name" type="xsd:NCName" use="required">
+      <xsd:annotation>
+        <xsd:documentation>
+The logical name of a ECOA entity.
+</xsd:documentation>
+      </xsd:annotation>
+    </xsd:attribute>
+    <xsd:attribute name="dir" type="xsd:string" use="required">
+      <xsd:annotation>
+        <xsd:documentation>
+The directory where the files of the entity are located.
+The path can be absolute or relative (to the ECOA project root).
+The path may contain environment variables, with syntax $(VAR) or ${VAR}.
+</xsd:documentation>
+      </xsd:annotation>
+    </xsd:attribute>
+  </xsd:complexType>
+
+  <xsd:complexType name="CT_name_to_file">
+    <xsd:attribute name="name" type="xsd:NCName" use="required">
+      <xsd:annotation>
+        <xsd:documentation>
+The logical name of a ECOA entity.
+</xsd:documentation>
+      </xsd:annotation>
+    </xsd:attribute>
+    <xsd:attribute name="file" type="xsd:string" use="required">
+      <xsd:annotation>
+        <xsd:documentation>
+The file where the entity is located.
+The path can be absolute or relative (to the ECOA project root).
+The path may contain environment variables, with syntax $(VAR) or ${VAR}.
+</xsd:documentation>
+      </xsd:annotation>
+    </xsd:attribute>
+  </xsd:complexType>
+
+</xsd:schema>

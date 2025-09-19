@@ -1,0 +1,42 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "common.stg"
+import "../../shared/function_names.stg"
+
+//==========================================================
+//@name Serialization header
+//@param componentType Component
+serializeHeader(componentType)::=<<
+#ifndef _<componentType.package>_SERIALIZE_H
+#define _<componentType.package>_SERIALIZE_H
+
+#include "<componentType.fileprefix><if (!componentType.isEcoa)>_types<endif>.h"
+
+<serializeIncludes(componentType)>
+
+#ifdef SARC_IS_LDP
+#include \<sarc_ldp_internal.h\>
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+<componentType.types: { type | 
+<if (type.isSimple || type.isEnum)>
+#define <type.qName>_serialize <type.type.cType.qName>_serialize
+#define <type.qName>_deserialize <type.type.cType.qName>_deserialize
+<checkSignature(type)>;
+<else>
+<serializeSignature(type)>;
+<deserializeSignature(type)>;
+<checkSignature(type)>;
+<endif>
+}>
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+>>

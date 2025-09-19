@@ -1,0 +1,66 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "../../shared/function_names.stg"
+
+//@description Container shared fragments
+
+//---------------------------------------------------------
+//@name Link activation status
+//@param link NON-CERT
+common_isLinkActive(link) ::=<<
+(<if(link.whenkos || link.whenconditions)
+><link.whenkos : { whenko | SARC_status_is_alive (SARC_status_get_instance_status (<whenko.id>)) == SARC_FALSE
+};separator=" &&
+"><if(link.whenkos && link.whenconditions)>&&<endif>
+<link.whenconditions : { c | SARC_registry_get(<c.id>) == <c.value>
+};separator=" &&
+"
+><else>
+SARC_TRUE /* no 'whenko', no 'whencondition' */
+<endif> )
+>>
+
+//---------------------------------------------------------
+//@name Documentation of an operation, formatted as a C comment.
+//@param op OperationData or OperationEvent
+documentOpAndParams(op) ::=<<
+<if (op.isDocumented || op.hasDocumentedParameters)>
+/**
+<if(op.isDocumented)>
+<op.doc:{ docline | 
+ * <docline>
+}><endif>
+<if(op.hasInParameters)><op.inParameters :{ in |
+ * @param <in.name>
+<if(in.isDocumented)>
+<in.doc:{ docline | 
+ * <docline>
+}><endif>}><endif> <if(op.hasOutParameters)><op.outParameters :{ out |
+ * @return <out.name>
+<if(out.isDocumented)>
+<out.doc:{ docline |
+ * <docline>
+}><endif>}><endif>
+ */
+<endif>
+>>
+
+
+
+c_include_protection(macro_protection_name,body) ::=<<
+#if !defined(<macro_protection_name>_H)
+#define <macro_protection_name>_H
+
+#if defined(__cplusplus)
+extern "C" {  
+#endif /* __cplusplus */
+
+<body>
+
+#if defined(__cplusplus)
+} 
+#endif /* __cplusplus */
+
+#endif  /* <macro_protection_name>_H */
+
+>>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<componentType xmlns="http://www.ecoa.technology/ComponentType/3.0">
+  <operations>
+    <requestReceived immediate="false" name="take">
+        <parameter name="which" type="int32"/>
+        <parameter name="who" type="int32"/>
+        <out name="taken" type="boolean8"/>
+    </requestReceived>
+
+    <requestReceived immediate="false" name="surrender">
+      <parameter name="which" type="int32"/>
+      <parameter name="who" type="int32"/>
+    </requestReceived>
+
+   <dataWritten type="boolean8" name="ready"/>
+  </operations>
+</componentType>  

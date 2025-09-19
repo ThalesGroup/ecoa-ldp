@@ -1,0 +1,332 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+component_types_common(model, public_type_prefix) ::=<<
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+<model.constants: { constant | 
+<if(constant.doc)>
+/**
+<constant.doc:{ docline | 
+* <docline>
+}>*/
+<endif>
+#define <constant.qName> (<constant.realValue>)
+
+}>
+
+<model.types: { type | 
+<if(type.isDocumented)>
+/**
+<type.doc:{ docline | 
+* <docline>
+}><if(type.isSimple)><if(type.hasUnit)>* Unit: <type.unit>
+<endif><endif>*/
+<elseif(type.isSimple)><if(type.hasUnit)>
+/**
+* Unit: <type.unit>
+*/
+<endif><endif>
+<if(type.isSimple)>
+<declareSimple(type, public_type_prefix)>
+<elseif(type.isRecord)>
+<declareRecord(type, public_type_prefix)>
+<elseif(type.isVariantRecord)>
+<declareVariantRecord(type, public_type_prefix)>
+<elseif(type.isEnum)>
+<declareEnum(type, public_type_prefix)>
+<elseif(type.isArray)>
+<declareArray(type, public_type_prefix)>
+<elseif(type.isFixedArray)>
+<declareFixedArray(type, public_type_prefix)>
+<elseif(type.isString)>
+<declareString(type, public_type_prefix)>
+<elseif(type.isList)>
+<declareList(type, public_type_prefix)>
+<elseif(type.isMap)>
+<declareMap(type, public_type_prefix)>
+<endif>
+
+}>
+
+#ifdef __cplusplus
+}
+#endif
+>>
+
+//=========================================================
+//@name Declaration of a &quot;simple&quot; type.
+//@param type TypeDefinition
+declareSimple(type, public_type_prefix) ::=<<
+typedef <type.type.cType.qName> <type.qName>;
+>>
+
+//=========================================================
+//@name Declaration of a &quot;record&quot; type.
+//@param type TypeDefinition
+declareRecord(type, public_type_prefix) ::=<<
+typedef struct
+{
+<type.fields: {field | 
+<if(field.isDocumented)>
+  /**
+   <field.doc:{ docline |* <docline>};separator="\n">
+   */
+<endif>
+  <field.type.cType.qName> <field.name>;}>
+} <type.qName>;
+>>
+
+//=========================================================
+//@name Declaration of a &quot;variantrecord&quot; type.
+//@param type TypeDefinition
+declareVariantRecord(type, public_type_prefix) ::=<<
+typedef struct
+{
+  <type.baseType.qName> <type.selectName>;
+<type.fields: {field |
+<if(field.isDocumented)>
+  /**
+   <field.doc:{ docline |* <docline>};separator="\n">
+   */
+<endif>
+  <field.type.cType.qName> <field.name>;};separator="\n">
+  union
+  {
+<type.unionFields: {field |
+<if(field.isDocumented)>
+    /**
+     <field.doc:{ docline |* <docline>};separator="\n">
+     */
+<endif>
+    <field.type.cType.qName> <field.name>;};separator="\n">
+<if(type.defaultUnionField)>
+<if(type.defaultUnionField.isDocumented)>
+    /**
+     <type.defaultUnionField.doc:{ docline |* <docline>};separator="\n">
+     */
+<endif>
+    <type.defaultUnionField.type.cType.qName> <type.defaultUnionField.name>;
+<endif>
+  } u_<type.selectName>;
+} <type.qName>;
+>>
+
+//=========================================================
+//@name Declaration of an &quot;enum&quot; type.
+//@param type TypeDefinition
+declareEnum(type, public_type_prefix) ::=<<
+typedef <type.type.cType.qName> <type.qName>;
+<type.enumValues : { def | 
+<if(def.isDocumented)>
+/**
+<def.doc:{ docline | 
+ * <docline>}>
+ */
+<endif>
+#define <type.qName>_<def.name> <def.valnumLitteral>}>
+>>
+
+//=========================================================
+//@name Declaration of an &quot;array&quot; type.
+//@param type TypeDefinition
+declareArray(type, public_type_prefix) ::=<<
+#define <type.qName>_MAXSIZE <type.arraySize>
+typedef struct
+{
+  <public_type_prefix>_uint32 size;
+  <type.type.cType.qName> values[<type.qName>_MAXSIZE];
+} <type.qName>;
+>>
+
+//=========================================================
+//@name Declaration of a &quot;fixedarray&quot; type.
+//@param type TypeDefinition
+declareFixedArray(type, public_type_prefix) ::=<<
+#define <type.qName>_MAXSIZE <type.arraySize>
+typedef struct
+{
+  <type.type.cType.qName> values[<type.qName>_MAXSIZE];
+} <type.qName>;
+>>
+
+//========================================================
+//@name Declaration of a &quot;string&quot; type.
+//@param type TypeDefinition
+declareString(type, public_type_prefix) ::=<<
+#define <type.qName>_MAXLEN (<type.length>+1)
+typedef struct {
+  <public_type_prefix>_uint32 max_length;
+  <public_type_prefix>_uint32 current_length;
+  <public_type_prefix>_char8 data[<type.qName>_MAXLEN];
+}<type.qName>;
+
+>>
+
+declareList(type, public_type_prefix) ::=<<
+/**
+ * A List data structure, holding at most <type.arraySize> elements of type <type.type.cType.qName>.
+ *
+ * This data structure shall only be used through the following functions.
+ *
+ * Performance: The list maintains an index of elements (array of integers representing the physical
+ * position of each element), so that elements already in the list are not physically copied on
+ * insertion/removal of an element at any position.  So most execution times are linear on number of elements,
+ * but not on element size.
+ */
+
+#define <type.qName>_MAXSIZE <type.arraySize>
+
+typedef struct
+{
+  <public_type_prefix>_int64 content[(6 + <type.qName>_MAXSIZE ) / 2
+                     + (<type.qName>_MAXSIZE * sizeof (<type.type.cType.qName>) + 7) / 8];
+} <type.qName>;
+
+
+/**
+ * Initializes a list data type, setting it to the empty list.
+ */
+void                <type.qName>_clear    (<type.qName>* list);
+
+/**
+ * Returns the number of elements in the list.
+ */
+<public_type_prefix>_uint32         <type.qName>_size     (const <type.qName>* list);
+
+
+/**
+ * Returns a pointer to the element at some position. The element shall not be modified.
+ * @param[in] position  the index of the element, in range [0 .. size-1]
+ */
+const <type.type.cType.qName>* <type.qName>_get      (const <type.qName>* list, <public_type_prefix>_uint32 position);
+
+/**
+ * Returns a pointer to the element at some position. The element is supposed to be modified
+ * in-place inside the list. The list may track modifications for delta serialization.
+ * @param[in] position  the index of the element, in range [0 .. size-1]
+ */
+<type.type.cType.qName>*       <type.qName>_set      (<type.qName>* list, <public_type_prefix>_uint32 position);
+
+/**
+ * Adds a new element to the list, at an arbitrary position. The position of all elements
+ * in range [position .. size-1] becomes [position+1 .. size].
+ * Returns true iff list was not empty.
+ * @param[in] position  the index of the element to be inserted
+ * @param[in] element   a pointer to the element to be inserted
+ */
+<public_type_prefix>_boolean8       <type.qName>_insert   (<type.qName>* list, <public_type_prefix>_uint32 position,
+                                           const <type.type.cType.qName>* element);
+
+/**
+ * Removes an element from the list, at an arbitrary position. The position of all elements
+ * in range [position+1 .. size-1] becomes [position .. size-2].
+ * Returns true iff position is valid.
+ * @param[in] position  the index of the element to be removed
+ */
+<public_type_prefix>_boolean8       <type.qName>_remove   (<type.qName>* list, <public_type_prefix>_uint32 position);
+
+/**
+ * Moves an element of the list, from a position to another.
+ * This is equivalent to remove() followed by insert(), but more efficient
+ * in execution time, and also with regards to delta serialization.
+ * Returns true iff 'from' and 'to' are valid positions.
+ * @param[in] from      the index of the element to be moved
+ * @param[in] to        the new index of this element
+ */
+<public_type_prefix>_boolean8       <type.qName>_move     (<type.qName>* list, <public_type_prefix>_uint32 from, <public_type_prefix>_uint32 to);
+
+/**
+ * Adds a new element to the list, at the end (position = new_size-1).
+ * Returns true iff list was not full.
+ * @param[in] element   a pointer to the element to be inserted
+ */
+<public_type_prefix>_boolean8       <type.qName>_add_last (<type.qName>* list, const <type.type.cType.qName>* element);
+
+/**
+ * Removes the last element of the list (position = size-1).
+ * Returns true iff position is valid (i.e. list not empty).
+ * @param[out] element  if not null, then copy the removed element there
+ */
+<public_type_prefix>_boolean8       <type.qName>_remove_last(<type.qName>* list, <type.type.cType.qName>* element);
+
+/**
+ * Adds a new element to the list, at the beginning of the list (position = 0).
+ * Returns true iff list was not full.
+ * @param[in] element   a pointer to the element to be inserted
+ */
+<public_type_prefix>_boolean8       <type.qName>_add_first (<type.qName>* list, const <type.type.cType.qName>* element);
+
+/**
+ * Removes the first element of the list (position = 0).
+ * Returns true iff position is valid (i.e. list not empty).
+ * @param[out] element  if not null, then copy the removed element there
+ */
+<public_type_prefix>_boolean8       <type.qName>_remove_first (<type.qName>* list, <type.type.cType.qName>* element);
+
+>>
+
+
+declareMap(type, public_type_prefix) ::=<<
+/**
+ * A Map data structure, holding at most <type.arraySize> entries.
+ * Each entry is a pair (key, value), with key of type <type.keyType.qName>, and value of type <type.type.cType.qName>.
+ *
+ * This data structure shall only be used through the following functions.
+ */
+
+#define <type.qName>_MAXSIZE <type.arraySize>
+
+typedef struct
+{
+  <public_type_prefix>_int64 content[1 + (6 + <type.qName>_MAXSIZE ) / 2
+                     + <type.qName>_MAXSIZE * (1 + (sizeof (<type.type.cType.qName>) + 7) / 8)];
+} <type.qName>;
+
+
+/**
+ * Initializes a map data type, setting it to the empty map.
+ * @param[in] map   a pointer to the map to be cleared
+ */
+void                <type.qName>_clear    (<type.qName>* map);
+
+/**
+ * Returns the number of entries in the map.
+ * @param[in] map   a pointer to the map
+ */
+<public_type_prefix>_uint32         <type.qName>_size     (const <type.qName>* map);
+
+
+/**
+ * Finds an entry in the map, for the given key.
+ * Returns the value of the entry, or null iff the map does not contain 'key'.
+ * @param[in] map      a pointer to the map
+ * @param[in] key      the key to be found
+ */
+const <type.type.qName>* <type.qName>_get  (const <type.qName>* map, <type.keyType.qName> key);
+
+/**
+ * Adds a new entry to the map.
+ * Returns true iff map was not full.
+ * @param[in] map      a pointer to the map
+ * @param[in] key      the key to be inserted
+ * @param[in] value    a pointer to the value to be inserted
+ */
+<public_type_prefix>_boolean8       <type.qName>_put   (<type.qName>* map, <type.keyType.qName> key,
+                                        const <type.type.cType.qName>* value);
+
+/**
+ * Removes an entry from the map, at an arbitrary position.
+ * Returns true iff entry was found
+ * @param[in] map      a pointer to the map
+ * @param[in] key      the key of the entry to be removed
+ */
+<public_type_prefix>_boolean8       <type.qName>_remove   (<type.qName>* map, <type.keyType.qName> key);
+
+<type.keyType.qName> <type.qName>_get_key     (const <type.qName>* map, <public_type_prefix>_uint32 position);
+<type.type.qName>*   <type.qName>_get_value    (const <type.qName>* map, <public_type_prefix>_uint32 position);
+
+>>
+

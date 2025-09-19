@@ -1,0 +1,77 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+supervisorConstantsHeader(mapping, componentType) ::=<<
+<supervisorConstantsHeader_C(mapping, componentType)>
+>>
+
+supervisorConstantsHeader_C(mapping, componentType) ::=<<
+
+#ifndef _<componentType.package>_CONSTANTS_H
+#define _<componentType.package>_CONSTANTS_H
+
+<declarePlatforms(mapping)>
+<declareExecutables(mapping)>
+<declareInstances(mapping)>
+<declareVariables(mapping)>
+
+#endif /* _<componentType.package>_CONSTANTS_H */
+
+>>
+
+//#############################################################################
+
+declarePlatforms(mapping) ::=<<
+/*=============================================================================
+ * Platform(s)
+ *=============================================================================*/
+
+#define SARC_MAX_NB_PLATFORM  <mapping.nbPlatforms>
+
+<mapping.platforms: {platform | 
+#define <platform.id> <platform.idNo>}>
+
+>>
+
+//#############################################################################
+
+declareExecutables(mapping) ::=<<
+/*=============================================================================
+ * Executable(s)
+ *=============================================================================*/
+
+#define SARC_MAX_NB_EXECUTABLE <mapping.nbExecutables>
+
+<mapping.executables: {exec | 
+#define <exec.id> <exec.idNo>}>
+
+>>
+
+//#############################################################################
+
+
+declareInstances(mapping) ::=<<
+/*=============================================================================
+ * Instance(s)
+ *=============================================================================*/
+
+#define SARC_MAX_NB_COMPONENT  <mapping.nbInstances>
+
+<mapping.platforms: {site | <site.executables: {exec | <exec.instances: {instance |
+#define <instance.id> <instance.idNo>
+}>}>}>
+
+>>
+
+//#############################################################################
+
+declareVariables(mapping) ::=<<
+<!
+/*=============================================================================
+ * Variable(s)
+ *=============================================================================*/
+
+<mapping.variables : { var | 
+#define VARIABLE_<var.name> <i0>
+}>
+!>
+>>

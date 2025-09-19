@@ -1,0 +1,76 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+timerBody(container) ::=<<
+
+#include "softarc.h"
+#include "<container.component.fileprefix>.h"
+
+<container.component.sentEvents : {event |
+SARC_Ecode <container.component.package>_<event.name>_TRIGGER_set(<container.component.package>_context *ctxt ,SARC_int64 trigger_delay);
+SARC_Ecode <container.component.package>_<event.name>_TRIGGER_cancel(<container.component.package>_context *ctxt);
+
+}>
+
+void
+<container.component.package>_initialize (<container.component.package>_context *ctxt)
+{
+  <container.component.package>_trace(ctxt, SARC_TRACE_INFO, "INIT");
+\}
+
+
+void
+<container.component.package>_start(<container.component.package>_context *ctxt)
+{
+<container.component.sentEvents : { event |
+{
+  SARC_int64 delay = <event.delay> * 1000;
+  <container.component.package>_<event.name>_TRIGGER_set(ctxt, delay);
+\}
+}>
+  
+  <container.component.package>_trace(ctxt, SARC_TRACE_INFO, "START");
+\}
+
+
+void
+<container.component.package>_reset (<container.component.package>_context *ctxt)
+{
+  <container.component.package>_stop (ctxt);
+  <container.component.package>_start (ctxt);
+\}
+
+
+void
+<container.component.package>_stop (<container.component.package>_context *ctxt)
+{
+<container.component.sentEvents : { event |
+  <container.component.package>_<event.name>_TRIGGER_cancel(ctxt);
+}>
+  
+  <container.component.package>_trace(ctxt, SARC_TRACE_INFO, "STOP");
+\}
+
+
+void
+<container.component.package>_shutdown (<container.component.package>_context *ctxt)
+{
+  (void) ctxt;
+  <container.component.package>_trace(ctxt, SARC_TRACE_INFO, "SHUTDOWN");
+\}
+
+<container.component.sentEvents : { event |
+<reloadTrigger(event)>;
+}>
+
+>>
+
+reloadTrigger(event) ::=<<
+void
+<container.component.package>_<event.name>_EVENT_receive(<container.component.package>_context *ctxt)
+{
+  SARC_int64 repeatTime = <event.repeatTime> * 1000;
+  <container.component.package>_<event.name>_TRIGGER_set(ctxt, repeatTime);
+  <container.component.package>_<event.name>_EVENT_send(ctxt);
+\}
+
+>>

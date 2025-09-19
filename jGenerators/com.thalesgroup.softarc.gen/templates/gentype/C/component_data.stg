@@ -1,0 +1,39 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+// Creates the <component>_data.h header file
+//#############################################################################
+
+//=========================================================
+//@name Main body of the component_data.h header file.
+//@param model Component
+component_data(model) ::=<<
+#ifndef _<model.fileprefix>_DATA_H
+#define _<model.fileprefix>_DATA_H
+
+#include "<model.fileprefix>_types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+<model.data: { data | 
+<declareDataAccessType(data)>
+}>
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* _<model.fileprefix>_DATA_H */
+
+>>
+
+//=========================================================
+//@name Data handle declaration.
+//@param data OperationData
+declareDataAccessType(data) ::=<<
+typedef struct
+{
+  <data.type.cType.qName> * ptr;
+  SARC_Counter ref;
+} t_<data.name>_handle;
+>>

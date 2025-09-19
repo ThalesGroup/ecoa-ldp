@@ -1,0 +1,609 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+//=============================================================================
+
+//====================================================
+//@name Type size
+//@param type TypeDefinition
+sizeof(type) ::=<%
+<type.sizeof>
+%>
+
+//====================================================
+//@name Record types serialization
+//@param type TypeDefinition
+//@param noByteSwap Boolean
+serializeRecord(type, noByteSwap) ::=<<
+<serializeSignature(type)>
+{
+<if(type.isCompact && (type.isByteOrderNeutral || (type.maySerializeWithCopy && noByteSwap)))>
+  memcpy(&s->buffer[s->pos], (char*) v, <sizeof(type)>);
+  s->pos += <sizeof(type)>;
+<else>
+<type.fields : { field | 
+  <field.type.cType.qName>_serialize(s, &v-\><field.name>);
+<if(field.type.needsCheck)>
+  if (s->local_error)
+    {
+      SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "field <type.name>.<field.name> is ill-formed");
+      return;
+    \}
+<endif>
+}>
+<endif>
+\}
+
+>>
+
+//====================================================
+//@name Record types deserialization
+//@param type TypeDefinition
+//@param noByteSwap Boolean
+deserializeRecord(type, noByteSwap) ::=<<
+<deserializeSignature(type)>
+{
+<if(type.isCompact && (type.isByteOrderNeutral || (type.maySerializeWithCopy && noByteSwap)))>
+  memcpy((char*) v, &s->buffer[s->pos], <sizeof(type)>);
+  s->pos += <sizeof(type)>;
+<else>
+<type.fields : { field | 
+  <field.type.cType.qName>_deserialize(s, &v-\><field.name>);
+}>
+<endif>
+}
+
+>>
+
+//=============================================================================
+// Variant record types serialization
+//=============================================================================
+
+//====================================================
+//@name Variant record types serialization
+//@param type TypeDefinition
+//@param noByteSwap Boolean
+serializeVariantRecord(type, noByteSwap) ::=<<
+<serializeSignature(type)>
+{
+  <type.baseType.qName>_serialize(s, &v-><type.selectName>);
+  if (s->local_error)
+    {
+      SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "selector of variant <type.name>.<type.selectName> is ill-formed");
+      return;
+    \}
+
+<type.fields : { field | 
+  <field.type.cType.qName>_serialize(s, &v-\><field.name>);
+<if(field.type.needsCheck)>
+  if (s->local_error)
+    {
+      SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "field <type.name>.<field.name> is ill-formed");
+      return;
+    \}
+<endif>
+}>
+  switch (v-><type.selectName>)
+    {
+<type.unionFields : { union | 
+    case <union.qWhen>:
+      <union.type.cType.qName>_serialize (s, &v->u_<type.selectName>.<union.name>);
+      if (s->local_error)
+        {
+          SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "union <type.name>.<union.name> is ill-formed");
+        \}
+      break;}>
+    default:
+<if(type.defaultUnionField)>
+      <type.defaultUnionField.type.cType.qName>_serialize (s, &v->u_<type.selectName>.<type.defaultUnionField.name>);
+      if (s->local_error)
+        {
+          SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "default <type.name>.<type.defaultUnionField.name> is ill-formed");
+        \}
+<else>
+      /* No data is attached to other variant values: nothing to do */
+<endif>
+      break;
+  \}
+\}
+
+>>
+
+//====================================================
+//@name Variant record types deserialization
+//@param type TypeDefinition
+//@param noByteSwap Boolean
+deserializeVariantRecord(type, noByteSwap) ::=<<
+<deserializeSignature(type)>
+{
+  <type.baseType.qName>_deserialize(s, &v-><type.selectName>);
+
+<type.fields : { field | 
+  <field.type.cType.qName>_deserialize(s, &v-><field.name>);
+}>
+
+  switch (v-><type.selectName>)
+    {
+<type.unionFields : { union | 
+    case <union.qWhen>:
+      <union.type.cType.qName>_deserialize(s, &v->u_<type.selectName>.<union.name>);
+      break;}>
+    default:
+<if(type.defaultUnionField)>
+      <type.defaultUnionField.type.cType.qName>_deserialize(s, &v->u_<type.selectName>.<type.defaultUnionField.name>);
+<else>
+      /* No data is attached to other variant values: nothing to do */
+<endif>
+      break;
+    \}
+}
+
+>>
+
+
+//=============================================================================
+// Array types serialization
+//=============================================================================
+
+//====================================================
+//@name Array types serialization
+//@param type TypeDefinition
+//@param noByteSwap Boolean
+serializeArray(type, noByteSwap) ::=<<
+<serializeSignature(type)>
+{
+  if (v->size \> <type.arraySize>)
+    {
+      SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "too many elements in serialization of <type.name> array");
+      s->error = SARC_TRUE;
+      s->local_error = SARC_TRUE;
+      return;
+    \}
+
+  SARC_uint32_serialize(s, &v->size);
+
+<if(type.type.isCompact && (type.type.isByteOrderNeutral || (type.type.maySerializeWithCopy && noByteSwap)))>
+  {
+    SARC_uint32 size_of_elements = v->size * <sizeof(type.type)>;
+
+    memcpy (&s->buffer[s->pos], (char*) &v->values[0], size_of_elements);
+    s->pos += size_of_elements;
+  \}
+<else>
+  {
+    SARC_uint32 index;
+    for (index = 0; index \< v->size; index++)
+      {
+        <type.type.cType.qName>_serialize (s, &v->values[index]);
+<if(type.needsCheck)>
+        if (s->local_error)
+          {
+            SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "element of <type.name> array is ill-formed");
+            s->error = SARC_TRUE;
+            return;
+          \}
+<endif>
+      \}
+  \}
+<endif>
+\}
+
+>>
+
+//====================================================
+//@name Array types deserialization
+//@param type TypeDefinition
+//@param noByteSwap Boolean
+deserializeArray(type, noByteSwap) ::=<<
+<deserializeSignature(type)>
+{
+  SARC_uint32_deserialize(s, &v->size);
+  if (v->size \> <type.arraySize>)
+    {
+      SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "too many elements in deserialization of <type.name> array");
+      s->error = SARC_TRUE;
+      v->size = 0;
+    }
+
+<if(type.type.isCompact && (type.type.isByteOrderNeutral || (type.type.maySerializeWithCopy && noByteSwap)))>
+  {
+    SARC_uint32 size_of_elements = v->size * <sizeof(type.type)>;
+
+    memcpy(&v->values[0], &s->buffer[s->pos], size_of_elements);
+    s->pos += size_of_elements;
+  }
+<else>
+  {
+    SARC_uint32 index;
+    for (index = 0; index \< v->size; index++)
+      {
+        <type.type.cType.qName>_deserialize(s, &v->values[index]);
+      }
+  }
+<endif>
+}
+
+>>
+
+//=============================================================================
+// Fixed array types serialization
+//=============================================================================
+
+//====================================================
+//@name Fixed array types serialization
+//@param type TypeDefinition
+//@param noByteSwap Boolean
+serializeFixedArray(type, noByteSwap) ::=<<
+<serializeSignature(type)>
+{
+<if(type.type.isCompact && (type.type.isByteOrderNeutral || (type.type.maySerializeWithCopy && noByteSwap)))>
+  memcpy(&s->buffer[s->pos], (char*) &v->values[0], <sizeof(type)>);
+  s->pos += <sizeof(type)>;
+<else>
+  SARC_uint32 index;
+  for (index = 0; index \< <type.arraySize>; index++)
+    {
+      <type.type.cType.qName>_serialize (s, &v->values[index]);
+<if(type.needsCheck)>
+      if (s->local_error)
+        {
+          SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "element of <type.name> fixed array is ill-formed");
+          s->error = SARC_TRUE;
+          return;
+        \}
+<endif>
+    \}
+<endif>
+\}
+
+>>
+
+//====================================================
+//@name Fixed array types deserialization
+//@param type TypeDefinition
+//@param noByteSwap Boolean
+deserializeFixedArray(type, noByteSwap) ::=<<
+<deserializeSignature(type)>
+{
+<if(type.type.isCompact && (type.type.isByteOrderNeutral || (type.type.maySerializeWithCopy && noByteSwap)))>
+  memcpy(&v->values[0], &s->buffer[s->pos], <sizeof(type)>);
+  s->pos += <sizeof(type)>;
+<else>
+  SARC_uint32 index;
+  for (index = 0; index \< <type.arraySize>; index++)
+    {
+      <type.type.cType.qName>_deserialize(s, &v->values[index]);
+    }
+<endif>
+}
+
+>>
+
+//=============================================================================
+// String types serialization
+//=============================================================================
+
+//====================================================
+//@name String types serialization
+//@param type TypeDefinition
+//@param noByteSwap Boolean
+serializeString(type, noByteSwap) ::=<<
+<serializeSignature(type)>
+{
+  SARC_uint32 len = strlen(v->data);
+
+  if (len \> <type.qName>_MAXLEN)
+    {
+      SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "too many characters in serialization of <type.name> string");
+      s->error = SARC_TRUE;
+      s->local_error = SARC_TRUE;
+      return;
+    \}
+
+  SARC_uint32_serialize(s, &len);
+  memcpy(&s->buffer[s->pos], (char*) &v->data[0], len);
+  s->pos += len;
+\}
+
+>>
+
+//====================================================
+//@name String types deserialization
+//@param type TypeDefinition
+//@param noByteSwap Boolean
+deserializeString(type, noByteSwap) ::=<<
+<deserializeSignature(type)>
+{
+  v->max_length = <type.qName>_MAXLEN;
+
+  SARC_uint32_deserialize(s, &v->current_length);
+  if (v->current_length \> <type.qName>_MAXLEN)
+  {
+    s->error = SARC_TRUE;
+    SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "too many characters in deserialization of <type.name> string");
+    v->current_length = 0;
+  }
+
+  memcpy(&v->data[0], &s->buffer[s->pos], v->current_length);
+  v->data[v->current_length] = '\0';
+  s->pos += v->current_length;
+}
+
+>>
+
+
+//=============================================================================
+// List types serialization
+//=============================================================================
+
+serializeList(type, noByteSwap) ::=<<
+<serializeSignature(type)>
+{
+  const SARC_MwSize size = SARC_table_count (v);
+  SARC_uint32 index;
+
+  if (size \> <type.arraySize>)
+    {
+      SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "too many elements in serialization of <type.name> list");
+      s->error = SARC_TRUE;
+      s->local_error = SARC_TRUE;
+      return;
+    \}
+
+  SARC_uint32_serialize(s, &size);
+
+  for (index = 0; index \< size; index++)
+    {
+      <type.type.cType.qName>_serialize (s, <type.qName>_get (v, index));
+<if(type.needsCheck)>
+      if (s->local_error)
+        {
+          SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "element of <type.name> list is ill-formed");
+          s->error = SARC_TRUE;
+          return;
+        \}
+<endif>
+    \}
+\}
+
+>>
+
+deserializeList(type, noByteSwap) ::=<<
+<deserializeSignature(type)>
+{
+  SARC_uint32 size;
+  SARC_uint32 index;
+  <type.type.cType.qName> element;
+
+  <type.qName>_clear (v);
+  SARC_uint32_deserialize(s, &size);
+  if (size \> <type.arraySize>)
+    {
+      SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "too many elements in deserialization of <type.name> list");
+      s->error = SARC_TRUE;
+      size = 0;
+    \}
+
+  for (index = 0; index \< size; index++)
+    {
+      <type.type.qName>_deserialize (s, &element);
+      <type.qName>_add_last (v, &element);
+    \}
+}
+
+>>
+
+declareList(type) ::=<<
+static void
+<type.qName>_init (<type.qName>* list)
+{
+  SARC_table_initialize (list, sizeof (<type.qName>),
+                         <type.arraySize>, <sizeof(type.type)>);
+}
+
+
+void
+<type.qName>_clear (<type.qName>* list)
+{
+  <type.qName>_init (list);
+}
+
+
+SARC_uint32
+<type.qName>_size (const <type.qName>* list)
+{
+  return SARC_table_count (list);
+}
+
+
+const <type.type.cType.qName>*
+<type.qName>_get (const <type.qName>* list, SARC_uint32 position)
+{
+  return (const <type.type.cType.qName>*) SARC_table_get (list, position);
+}
+
+
+<type.type.cType.qName>*
+<type.qName>_set (<type.qName>* list, SARC_uint32 position)
+{
+  return (<type.type.cType.qName>*) SARC_table_get (list, position);
+}
+
+
+SARC_boolean8
+<type.qName>_insert (<type.qName>* list, SARC_uint32 position, const <type.type.cType.qName>* element)
+{
+  return SARC_SUCCESS == SARC_table_insert (list, position, element);
+}
+
+
+SARC_boolean8
+<type.qName>_remove (<type.qName>* list, SARC_uint32 position)
+{
+  return SARC_SUCCESS == SARC_table_remove (list, position, NULL);
+}
+
+
+SARC_boolean8
+<type.qName>_move (<type.qName>* list, SARC_uint32 from, SARC_uint32 to)
+{
+  return SARC_SUCCESS == SARC_table_move (list, from, to);
+}
+
+
+SARC_boolean8
+<type.qName>_add_last (<type.qName>* list, const <type.type.cType.qName>* element)
+{
+  return SARC_SUCCESS == SARC_table_push (list, element);
+}
+
+
+SARC_boolean8
+<type.qName>_remove_last (<type.qName>* list, <type.type.cType.qName>* element)
+{
+  return SARC_SUCCESS == SARC_table_pop (list, element);
+}
+
+
+SARC_boolean8
+<type.qName>_add_first (<type.qName>* list, const <type.type.cType.qName>* element)
+{
+  return SARC_SUCCESS == SARC_table_insert (list, 0, element);
+}
+
+
+SARC_boolean8
+<type.qName>_remove_first (<type.qName>* list, <type.type.cType.qName>* element)
+{
+  return SARC_SUCCESS == SARC_table_remove (list, 0, element);
+}
+>>
+
+//=============================================================================
+// Map types serialization
+//=============================================================================
+
+serializeMap(type, noByteSwap) ::=<<
+<serializeSignature(type)>
+{
+  SARC_uint32 _index = 0;
+  SARC_MwSize _v_size = SARC_map_count (v);
+  <type.keyType.qName> _key = 0;
+  SARC_int64 _key_as_int64 = 0;
+
+  if (_v_size \> <type.arraySize>)
+    {
+      SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "too many elements in serialization of <type.name> map");
+      s->error = SARC_TRUE;
+      s->local_error = SARC_TRUE;
+      return;
+    \}
+
+  SARC_uint32_serialize(s, &_v_size);
+  while (_index \< _v_size)
+    {
+      SARC_map_get_key (v, _index, &_key_as_int64);
+      _key = (<type.keyType.qName>) _key_as_int64;
+      <type.keyType.qName>_serialize (s, &_key);
+      <type.type.qName>_serialize (s, (const <type.type.cType.qName>*)SARC_map_get_value (v, _index));
+<if(type.needsCheck)>
+      if (s->local_error)
+        {
+          SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "element of <type.name> map is ill-formed");
+          s->error = SARC_TRUE;
+          return;
+        \}
+<endif>
+      _index += 1;
+    \}
+\}
+>>
+
+deserializeMap(type, noByteSwap) ::=<<
+<deserializeSignature(type)>
+{
+  SARC_MwSize _size = 0;
+  SARC_MwSize _index = 0;
+  <type.keyType.qName> _key = 0;
+  <type.type.cType.qName>* _value = NULL;
+
+  <type.qName>_clear (v);
+
+  SARC_uint32_deserialize(s, &_size);
+  if (_size \> <type.arraySize>)
+    {
+      SARC_error_raise (SARC_ERROR_SERIAL_OVERFLOW, 0, 0, "too many elements in deserialization of <type.name> map");
+      s->error = SARC_TRUE;
+    \}
+
+  while (_index \< _size)
+    {
+      <type.keyType.qName>_deserialize (s, &_key);
+      _value = (<type.type.cType.qName>*) SARC_map_set (v, (SARC_int64) _key);
+      <type.type.qName>_deserialize (s, _value);
+      _index += 1;
+    \}
+\}
+>>
+
+declareMap(type) ::=<<
+void
+<type.qName>_clear (<type.qName>* map)
+{
+  SARC_map_initialize (map, <sizeof(type)>, <type.arraySize>, <sizeof(type.type)>);
+}
+
+
+SARC_uint32
+<type.qName>_size (const <type.qName>* map)
+{
+  return SARC_map_count (map);
+}
+
+
+const <type.type.cType.qName>*
+<type.qName>_get (const <type.qName>* map, <type.keyType.qName> key)
+{
+  return (const <type.type.cType.qName>*) SARC_map_get (map, (SARC_int64) key);
+}
+
+
+SARC_boolean8
+<type.qName>_put (<type.qName>* map, <type.keyType.qName> key,
+                  const <type.type.cType.qName>* value)
+{
+  void *_item = SARC_map_set (map, key);
+  if (_item != NULL)
+    {
+      memcpy (_item, value, sizeof(<type.type.cType.qName>));
+      return SARC_TRUE;
+    \}
+  return SARC_FALSE;
+}
+
+
+SARC_boolean8
+<type.qName>_remove (<type.qName>* map, <type.keyType.qName> key)
+{
+  return SARC_SUCCESS == SARC_map_remove (map, key, NULL);
+}
+
+
+<type.keyType.qName>
+<type.qName>_get_key (const <type.qName>* map, SARC_uint32 position)
+{
+  <type.keyType.qName> _result = 0;
+  SARC_int64 _key_as_int64 = 0;
+
+  SARC_map_get_key (map, position, &_key_as_int64);
+  _result = (<type.keyType.qName>) _key_as_int64;
+
+  return _result;
+}
+
+
+<type.type.qName>*
+<type.qName>_get_value (const <type.qName>* map, SARC_uint32 position)
+{
+  return (<type.type.qName>*) SARC_map_get_value (map, position);
+}
+>>

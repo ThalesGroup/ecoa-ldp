@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project name="common">
+  <description>
+    Generic Ant file for every project in a subdirectory of this one.
+
+    * The project must be in a direct subirectory (.. must refer to where this file is).
+    * The project must have its own build.xml, which includes this imports file.
+    * The project must define is own "classpath", based on "classpath-common".
+  </description>
+
+  <!-- PROPERTIES -->
+  <!-- ========== -->
+
+  <property file="../build.properties" />
+
+  <property name="ANT_JAR" value="${ant.library.dir}/ant.jar" />
+
+  <property name="ANTLR_JAR" value="../lib/antlr3/antlr-3.3-runtime.jar" />
+  <property name="ST_JAR" value="../lib/StringTemplate/stringtemplate-4.0.1.jar" />
+  <property name="JUNIT_JAR" value="../lib/junit-4.9b2.jar" />
+  <property name="JAXB_DIR" value="../lib/jaxb-ri-4.0.1" />
+
+  <property name="debuglevel" value="source,lines,vars" />
+  <property name="ant.build.javac.source" value="11" />
+  <property name="ant.build.javac.target" value="11" />
+  <property name="build.sysclasspath" value="last" />
+  
+  <!-- TASKS -->
+  <!-- ===== -->
+
+	<taskdef name="xjc" classname="com.sun.tools.xjc.XJCTask">
+		<classpath>
+			<fileset dir="${JAXB_DIR}" includes="**/*.jar" />
+		</classpath>
+	</taskdef>
+
+  <!-- CLASSPATHS -->
+  <!-- ========== -->
+
+  <path id="classpath-common">
+		<pathelement location="../bin"/>
+    <pathelement location="${ANT_JAR}" />
+    <pathelement location="${ANTLR_JAR}" />
+    <pathelement location="${ST_JAR}" />
+		<fileset dir="${JAXB_DIR}" includes="*.jar" />
+  </path>
+
+  <!-- default definitions, to be redefined if necessary in real projects -->
+  <path id="classpath">
+    <path refid="classpath-common"/>
+  </path>
+  <path id="classpath-test">
+	  <pathelement location="../bin-test"/>
+		<pathelement location="../com.thalesgroup.softarc.tools/bin-test"/>
+    <path refid="classpath"/>
+    <pathelement location="${JUNIT_JAR}" />
+  </path>
+
+  <target name="clean">
+	  <delete dir="../bin" />
+    <delete dir="bin-test" />
+  </target>
+
+  <target name="build" depends="xjc,compile,compile_test,copy_resources,copy_templates" />
+
+  <target name="qgen" depends="compile,copy_resources,copy_templates" />
+
+  <path id="src.path">
+    <dirset dir=".">
+      <include name="src*" />
+    </dirset>
+  </path>
+
+  <target name="compile">
+    <!-- projet à proprement parler -->
+    <echo message="${ant.project.name}: ${ant.file}" />
+    <mkdir dir="../bin"/>
+
+    <javac debug="true" debuglevel="${debuglevel}" destdir="../bin" includeantruntime="false" encoding="UTF-8">
+      <src refid="src.path"/>
+      <classpath refid="classpath" />
+    </javac>
+  </target>
+
+  <target name="compile_test">
+	  <mkdir dir="bin-test" />
+    <mkdir dir="test" />
+    <javac debug="true" debuglevel="${debuglevel}" destdir="bin-test" includeantruntime="false" encoding="UTF-8">
+      <src path="test" />
+      <classpath refid="classpath-test" />
+    </javac>
+  </target>
+
+  <target name="copy_resources">
+    <!-- copy all non-java files found in source dirs so that they are accessible as resources -->
+	  <copy todir="../bin">
+      <fileset dir="src" excludes="**/*.java" />
+    </copy>
+    <copy todir="bin-test">
+      <fileset dir="test" excludes="**/*.java" />
+    </copy>
+  </target>
+
+  <target name="copy_templates">
+	  <copy todir="../bin">
+      <fileset dir="." includes="templates/**" />
+    </copy>
+  </target>
+
+  <target name="xjc">
+    <!-- to be overriden if needed -->
+  </target>
+  
+</project>

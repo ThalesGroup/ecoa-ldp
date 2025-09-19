@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="build" name="com.thalesgroup.softarc.ant">
+
+  <import file="../common.ant" />
+
+</project>

@@ -1,0 +1,230 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+//=============================================================================
+
+//=============================================================================
+// Check utilities
+//=============================================================================
+
+returnCheckOK() ::= "return SARC_TRUE;"
+
+returnCheckKO() ::= "return SARC_FALSE;"
+
+unusedData() ::= "(void)v; /* unused */"
+
+check(t,value,name) ::=<<
+<if(t.needsCheck)>if (<t.qName>_check(<value><errorMessageParameter()>) == SARC_FALSE)
+  {
+    <returnCheckKO()>
+  }
+<else>
+/* (<value>:<t.qName>: always valid) */
+<endif>
+>>
+
+checkAndPrint(t,value,name) ::=<<
+<if(t.needsCheck)>if (<t.qName>_check(<value><errorMessageParameter()>) == SARC_FALSE)
+  {
+    <reportCheckError({"  in <name>"})>
+    <returnCheckKO()>
+  }
+<else>
+/* (<value>:<t.qName>: always valid) */
+<endif>
+>>
+
+//=============================================================================
+// Check functions
+//=============================================================================
+
+checkSimple(type) ::=<<
+<checkSignature(type)>
+{
+<if (type.needsMaxCheck)>
+  if (*v \> <type.maxRangeValue>)
+    {
+      <reportCheckError({"Instance of type <type.qName> does not respect max range (<type.maxRange>)"})>
+      <returnCheckKO()>
+    \}
+<endif>
+<if (type.needsMinCheck)>
+  if (*v \< <type.minRangeValue>)
+    {
+      <reportCheckError({"Instance of type <type.qName> does not respect min range (<type.minRange>)"})>
+      <returnCheckKO()>
+    \}
+<endif>
+  <unusedData()>
+  <unusedErrorMessage()>
+  <returnCheckOK()>
+}
+
+>>
+
+checkEnum(type) ::=<<
+<checkSignature(type)>
+{
+  if (
+<type.sortedEnumValues : { value | 
+*v == <value.valnumLitteral>
+}; separator=" || "> ) <returnCheckOK()> else {
+  <reportCheckError({"value not allowed in enum type <type.qName>"})>
+  <returnCheckKO()>
+\}
+}
+
+>>
+
+checkRecord(type) ::=<<
+<checkSignature(type)>
+{
+<if(type.needsCheck)>
+  <type.fields : { field | 
+  <check(field.type,{&v-><field.name>}, field.name)> }>
+<else>
+  <unusedData()>
+<endif>
+  <unusedErrorMessage()>
+  <returnCheckOK()>
+}
+
+>>
+
+checkVariantRecord(type) ::=<<
+<checkSignature(type)>
+{
+<if(type.needsCheck)>
+  <check( t=type.baseType, value={&v-><type.selectName>}, name=type.selectName, ... )>
+
+  <type.fields : { field | 
+  <check( t=field.type, value={&v-><field.name>}, name=field.name, ... )>}>
+  switch (v-><type.selectName>)
+    {
+<type.unionFields : { union | 
+    case <union.qWhen>:
+      <check( t=union.type, value={&v->u_<type.selectName>.<union.name>}, name=union.name, ... )>
+      break;}>
+    default:
+<if(type.defaultUnionField)>
+      <check( t=type.defaultUnionField.type, value={&v->u_<type.selectName>.<type.defaultUnionField.name>}, name=type.defaultUnionField.name, ... )>
+<endif>
+      break;
+    \}
+<else>
+  <unusedData()>
+<endif>
+  <unusedErrorMessage()>
+  <returnCheckOK()>
+}
+
+
+>>
+
+checkArray(type) ::=<<
+<checkSignature(type)>
+{
+  if (v->size \> <type.qName>_MAXSIZE)
+    {
+      <reportCheckError({"size is too large in array of type <type.qName>"})>
+      <returnCheckKO()>
+    \}
+<if(type.type.needsCheck)>
+  {
+    SARC_uint32 index = 0;
+
+    for (index = 0; index \< v->size; index++)
+    {
+      <checkArrayItem( type.type, {&v->values[index]} )>
+    }
+  }
+<endif>
+  <returnCheckOK()>
+}
+
+>>
+
+checkFixedArray(type) ::=<<
+<checkSignature(type)>
+{
+<if(type.needsCheck)>
+  SARC_uint32 index = 0;
+  for (index = 0; index \< <type.qName>_MAXSIZE; index++)
+  {
+    <checkArrayItem( type.type, {&v->values[index]} )>
+  }
+<else>
+  <unusedData()>
+<endif>
+  <unusedErrorMessage()>
+  <returnCheckOK()>
+}
+
+>>
+
+checkList(type) ::=<<
+<checkSignature(type)>
+{
+  const SARC_MwSize size = <type.qName>_size (v);
+  if (size \> <type.qName>_MAXSIZE)
+    {
+      <reportCheckError({"size is too large in list of type <type.qName>"})>
+      <returnCheckKO()>
+    \}
+<if(type.type.needsCheck)>
+  {
+    SARC_uint32 index = 0;
+    for (index = 0; index \< size; ++index)
+      {
+        <checkArrayItem( type.type, {<type.qName>_get(v, index)} )>
+      \}
+  \}
+<else>
+  <unusedData()>
+<endif>
+  <unusedErrorMessage()>
+  <returnCheckOK()>
+}
+
+>>
+
+checkMap(type) ::=<<
+<checkSignature(type)>
+{
+<if(type.type.needsCheck)>
+  const SARC_MwSize _v_size = <type.qName>_size (v);
+
+  SARC_uint32 index = 0;
+  while (index \< _v_size)
+    {
+      <checkArrayItem( type.type, {<type.qName>_get_value(v, index)} )>
+      index += 1;
+    \}
+<else>
+  <unusedData()>
+<endif>
+  <unusedErrorMessage()>
+  <returnCheckOK()>
+}
+
+>>
+
+checkString(type) ::=<<
+<checkSignature(type)>
+{
+  <unusedData()>
+  <unusedErrorMessage()>
+  <returnCheckOK()>
+}
+
+>>
+
+checkArrayItem(t,value) ::=<<
+<if(t.needsCheck)>if (<t.qName>_check(<value><errorMessageParameter()>) == SARC_FALSE)
+  {
+    <returnCheckKO()>
+  }
+<else>
+/* (<value>:<t.qName>: always valid) */
+<endif>
+>>
+

@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assembly xmlns="http://www.ecoa.technology/Assembly/3.0">
+
+  <instance name="Philosopher1" componentType="Philosopher" implementation="C">
+    <propertyValue name="Id" value="1"/>
+  </instance>
+  <instance name="Philosopher2" componentType="Philosopher" implementation="C">
+    <propertyValue name="Id" value="2"/>
+  </instance>
+  <instance name="Philosopher3" componentType="Philosopher" implementation="C">
+    <propertyValue name="Id" value="3"/>
+  </instance>
+  <instance name="Philosopher4" componentType="Philosopher" implementation="C">
+    <propertyValue name="Id" value="4"/>
+  </instance>
+  <instance name="Philosopher5" componentType="Philosopher" implementation="C">
+    <propertyValue name="Id" value="5"/>
+  </instance>
+
+  <instance name="Table" componentType="Table" implementation="C">
+  </instance>
+
+  
+  <links>
+    <dataLink>
+      <writer instance="Table" operation="ready"></writer>
+      <reader instance="Philosopher1" operation="ready"></reader>
+    </dataLink>
+
+    <dataLink>
+      <writer instance="Table" operation="ready"></writer>
+      <reader instance="Philosopher2" operation="ready"></reader>
+    </dataLink>
+
+    <dataLink>
+      <writer instance="Table" operation="ready"></writer>
+      <reader instance="Philosopher3" operation="ready"></reader>
+    </dataLink>
+
+    <dataLink>
+      <writer instance="Table" operation="ready"></writer>
+      <reader instance="Philosopher4" operation="ready"></reader>
+    </dataLink>
+
+    <dataLink>
+      <writer instance="Table" operation="ready"></writer>
+      <reader instance="Philosopher5" operation="ready"></reader>
+    </dataLink>
+
+    <requestLink>
+      <client instance="Philosopher1" operation="take"/>
+      <server instance="Table" operation="take"/>
+    </requestLink>
+
+    <requestLink>
+      <client instance="Philosopher2" operation="take"/>
+      <server instance="Table" operation="take"/>
+    </requestLink>
+    
+    <requestLink>
+      <client instance="Philosopher3" operation="take"/>
+      <server instance="Table" operation="take"/>
+    </requestLink>
+
+    <requestLink>
+      <client instance="Philosopher4" operation="take"/>
+      <server instance="Table" operation="take"/>
+    </requestLink>
+
+    <requestLink>
+      <client instance="Philosopher5" operation="take"/>
+      <server instance="Table" operation="take"/>
+    </requestLink>
+
+    <requestLink>
+      <client instance="Philosopher1" operation="surrender"/>
+      <server instance="Table" operation="surrender"/>
+    </requestLink>
+
+    <requestLink>
+      <client instance="Philosopher2" operation="surrender"/>
+      <server instance="Table" operation="surrender"/>
+    </requestLink>
+    
+    <requestLink>
+      <client instance="Philosopher3" operation="surrender"/>
+      <server instance="Table" operation="surrender"/>
+    </requestLink>
+
+    <requestLink>
+      <client instance="Philosopher4" operation="surrender"/>
+      <server instance="Table" operation="surrender"/>
+    </requestLink>
+
+    <requestLink>
+      <client instance="Philosopher5" operation="surrender"/>
+      <server instance="Table" operation="surrender"/>
+    </requestLink>
+  </links>
+</assembly>

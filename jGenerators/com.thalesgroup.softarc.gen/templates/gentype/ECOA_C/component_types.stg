@@ -1,0 +1,169 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "common.stg"
+
+component_types(model) ::=<<
+/*
+ * @file <model.fileprefix>.h
+ * Module Interface header for Module <model.package>
+ * Generated automatically from specification; do not modify here
+ */
+
+<c_include_protection({<model.fileprefix>_TYPES}, body_of_the_file())>
+>>
+
+body_of_the_file() ::=<<
+/* Standard ECOA Types not generated from any model */
+#define ECOA_64BIT_SUPPORT
+#include \<SOFTARC_ECOA.h\>
+
+#ifdef SARC_IS_LDP
+#include "ecoa.h"
+#endif
+
+<model.usedLibraries: {library |
+#include "<library.fileprefix><if (!library.isEcoa)>_types<endif>.h"
+}>
+
+
+<model.constants: { constant | 
+<if(constant.doc)>
+/**
+<constant.doc:{ docline | 
+* <docline>
+}>*/
+<endif>
+#define <constant.qName> (<constant.realValue>)
+
+}>
+
+<model.types: { type | 
+<if(type.isDocumented)>
+/**
+<type.doc:{ docline | 
+* <docline>
+}><if(type.isSimple)><if(type.hasUnit)>* Unit: <type.unit>
+<endif><endif>*/
+<elseif(type.isSimple)><if(type.hasUnit)>
+/**
+* Unit: <type.unit>
+*/
+<endif><endif>
+<if(type.isSimple)>
+<declareSimple(type)>
+<elseif(type.isRecord)>
+<declareRecord(type)>
+<elseif(type.isVariantRecord)>
+<declareVariantRecord(type)>
+<elseif(type.isEnum)>
+<declareEnum(type)>
+<elseif(type.isArray)>
+<declareArray(type)>
+<elseif(type.isFixedArray)>
+<declareFixedArray(type)>
+<elseif(type.isString)>
+<declareString(type)>
+<endif>
+
+}>
+>>
+
+declareSimple(type) ::=<<
+typedef <type.qType> <type.qName>;
+<if(type.minRangeValue)>
+#define <type.qName>_minRange (<type.minRangeValue>)
+<endif>
+<if(type.maxRangeValue)>
+#define <type.qName>_maxRange (<type.maxRangeValue>)
+<endif>
+>>
+
+declareRecord(type) ::=<<
+typedef struct
+{
+  <type.fields: {field | 
+<if(field.isDocumented)>
+  /**
+<field.doc:{ docline | 
+   *  <docline>}>
+   */
+<endif>
+  <field.qType> <field.name>;}>
+} <type.qName>;
+>>
+
+declareVariantRecord(type) ::=<<
+typedef struct
+{
+  <type.baseType.qName> <type.selectName>;
+  
+  <type.fields: {field | 
+<if(field.isDocumented)>
+/**
+<field.doc:{ docline | 
+ * <docline>}>
+ */
+<endif>
+  <field.qType> <field.name>;}>
+
+  union  {
+<type.unionFields: {field |
+<if(field.isDocumented)>
+    /**
+<field.doc:{ docline | 
+     * <docline>}>
+     */
+<endif>
+    <field.qType> <field.name>;}>
+<if(type.defaultUnionField)>
+<if(type.defaultUnionField.isDocumented)>
+    /**
+<type.defaultUnionField.doc:{ docline | 
+     * <docline>}>
+     */
+<endif>
+    <type.defaultUnionField.qType> <type.defaultUnionField.name>;
+<endif>
+  } u_<type.selectName>;
+} <type.qName>;
+>>
+
+declareEnum(type) ::=<<
+typedef <type.qType> <type.qName>;
+<type.enumValues : { def | 
+<if(def.isDocumented)>
+/**
+<def.doc:{ docline | 
+ * <docline>}>
+ */
+<endif>
+#define <type.qName>_<def.name> (<def.valnumLitteral>)}>
+>>
+
+declareArray(type) ::=<<
+#define <type.qName>_MAXSIZE <type.arraySize>
+typedef struct
+{
+  ECOA__uint32 current_size;
+  <type.qType> data[<type.qName>_MAXSIZE];
+} <type.qName>;
+>>
+
+declareFixedArray(type) ::=<<
+#define <type.qName>_MAXSIZE <type.arraySize>
+typedef struct
+{
+  <type.qType> data[<type.qName>_MAXSIZE];
+} <type.qName>;
+>>
+
+declareString(type) ::=<<
+
+#define <type.qName>_MAXLEN (<type.length>+1)
+typedef struct {
+  ECOA__uint32 max_length;
+  ECOA__uint32 current_length;
+  ECOA__char8 data[<type.qName>_MAXLEN];
+}<type.qName>;
+
+>>

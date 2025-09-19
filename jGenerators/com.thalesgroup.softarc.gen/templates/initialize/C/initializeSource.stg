@@ -1,0 +1,347 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "../../shared/function_names.stg"
+
+//===================================================
+//@name Initialize source global structure
+//@param model Im_Gentype.Component
+initializeSource(model) ::=<<
+#include "<model.fileprefix>_initialize.h"
+#include \<string.h\>
+
+
+<model.types : { type | 
+<if (type.isEnum)>
+<initializeEnum(type)>
+<elseif (type.isSimple)>
+<initializeSimple(type)>
+<elseif (type.isRecord)>
+<initializeRecord(type)>
+<equalsRecord(type)>
+<elseif (type.isVariantRecord)>
+<initializeVariantRecord(type)>
+<equalsVariantRecord(type)>
+<elseif (type.isArray)>
+<initializeArray(type)>
+<equalsArray(type)>
+<elseif (type.isFixedArray)>
+<initializeFixedArray(type)>
+<equalsFixedArray(type)>
+<elseif (type.isList)>
+<initializeList(type)>
+<equalsList(type)>
+<elseif (type.isMap)>
+<initializeMap(type)>
+<equalsMap(type)>
+<elseif (type.isString)>
+<initializeString(type)>
+<equalsString(type)>
+<endif>
+}>
+
+>>
+
+initializeSignature(type) ::=<<
+void <initializeFunctionName(type)> (<type.qName> *v)
+>>
+
+equalsSignature(type) ::=<<
+SARC_boolean8 <equalsFunctionName(type)> (const <type.qName> *v1, const <type.qName> *v2)
+>>
+//-------------------------------
+//@name Equals method call
+//@param t Im_Gentype.TypeDefinition
+//@param suffix String
+equals(t,v1,v2) ::=<<
+<if(t.isScalar)><v1> == <v2><else><equalsFunctionName(t)>(&<v1>,&<v2>)<endif>
+>>
+
+//-------------------------------
+//@name Equals method call
+//@param t Im_Gentype.TypeDefinition
+//@param suffix String
+returnFalseIfNotEqual(t,suffix) ::=<<
+if (!(<equals(t,{v1-\><suffix>},{v2-\><suffix>})>)) return SARC_FALSE
+>>
+
+//=============================================================================
+// Simple types initialization
+//=============================================================================
+
+//=============================================
+//@name Simple types initialization
+//@param simple Im_Gentype.TypeDefinition
+initializeSimple(simple) ::=<<
+<initializeSignature(simple)>
+{
+  <initializeFunctionName(simple.type)>(v);
+}
+>>
+
+//=============================================================================
+// Record types initialization
+//=============================================================================
+
+//=============================================
+//@name Record types initialization
+//@param type Im_Gentype.TypeDefinition
+initializeRecord(type) ::=<<
+<initializeSignature(type)>
+{
+  <type.fields : { field | 
+  <field.type.cType.qName>_initialize(&v-><field.name>);
+  }>
+\}
+
+>>
+
+//=============================================================================
+// Variant record types initialization
+//=============================================================================
+
+//=============================================
+//@name Variant record types initialization
+//@param type Im_Gentype.TypeDefinition
+initializeVariantRecord(type) ::=<<
+<initializeSignature(type)>
+{
+  v-><type.selectName> = <type.qWhen1>;
+
+  <type.fields : { field | 
+  <field.type.cType.qName>_initialize (&v-><field.name>);
+  }>
+
+  <first(type.unionFields).type.cType.qName>_initialize (&v->u_<type.selectName>.<first(type.unionFields).name>);
+\}
+
+>>
+
+//=============================================================================
+// Array types initialization
+//=============================================================================
+
+//=============================================
+//@name Array types initialization
+//@param type Im_Gentype.TypeDefinition
+initializeArray(type) ::=<<
+<initializeSignature(type)>
+{
+  v->size = 0;
+\}
+
+>>
+
+//=============================================================================
+// Fixed array types initialization
+//=============================================================================
+
+//=============================================
+//@name Fixed array types initialization
+//@param type Im_Gentype.TypeDefinition
+initializeFixedArray(type) ::=<<
+<initializeSignature(type)>
+{
+  SARC_uint32 index = 0;
+
+  while (index \< <type.qName>_MAXSIZE)
+    {
+      <type.type.cType.qName>_initialize (&v->values[index]);
+      ++index;
+    \}
+\}
+
+>>
+
+//=============================================================================
+// List and Map types initialization
+//=============================================================================
+
+//=============================================
+//@name List types initialization
+//@param type Im_Gentype.TypeDefinition
+initializeList(type) ::=<<
+<initializeSignature(type)>
+{
+  <type.qName>_clear (v);
+\}
+
+>>
+
+//=============================================
+//@name Map types initialization
+//@param type Im_Gentype.TypeDefinition
+initializeMap(type) ::=<<
+<initializeSignature(type)>
+{
+  <type.qName>_clear (v);
+\}
+
+>>
+
+//=============================================================================
+// Enum types initialization
+//=============================================================================
+
+//=============================================
+//@name Enum types initialization
+//@param type Im_Gentype.TypeDefinition
+initializeEnum(type) ::=<<
+<initializeSignature(type)>
+{
+    *v = <first(type.sortedEnumValues).valnumLitteral>;
+\}
+
+>>
+
+//=============================================================================
+// String types initialization
+//=============================================================================
+
+//=============================================
+//@name String types initialization
+//@param type Im_Gentype.TypeDefinition
+initializeString(type) ::=<<
+<initializeSignature(type)>
+{
+  v->max_length = <type.qName>_MAXLEN;
+  v->current_length = 0;
+  v->data[0] = '\0';
+\}
+
+>>
+
+
+//=============================================================================
+// Comparison functions
+//=============================================================================
+
+//=============================================
+//@name Record types comparison
+//@param type Im_Gentype.TypeDefinition
+equalsRecord(type) ::=<<
+<equalsSignature(type)>
+{
+<type.fields : { field |
+  <returnFalseIfNotEqual(field.type,field.name)>;
+}>
+  return SARC_TRUE;
+}
+
+>>
+
+//=============================================
+//@name Variant Record types comparison
+//@param type Im_Gentype.TypeDefinition
+equalsVariantRecord(type) ::=<<
+<equalsSignature(type)>
+{
+<type.fields : { field |
+  <returnFalseIfNotEqual(field.type,field.name)>;
+}>
+  <returnFalseIfNotEqual(type.type,type.selectName)>;
+  switch (v1-\><type.selectName>)
+    {
+<type.unionFields : { union | 
+    case <union.qWhen>:
+      <returnFalseIfNotEqual(union.type,{u_<type.selectName>.<union.name>})>;
+      break;
+}>
+    default:
+<if(type.defaultUnionField)>
+      <returnFalseIfNotEqual(type.defaultUnionField.type,{u_<type.selectName>.<type.defaultUnionField.name>})>;
+<endif>
+      break;
+    \}
+  return SARC_TRUE;
+}
+
+
+>>
+
+//=============================================
+//@name Array types comparison
+//@param type Im_Gentype.TypeDefinition
+equalsArray(type) ::=<<
+<equalsSignature(type)>
+{
+  SARC_uint32 index = 0;
+
+  if (v1-\>size != v2-\>size) return SARC_FALSE;
+  for (index = 0; index \< v1-\>size; index++)
+    {
+      <returnFalseIfNotEqual(type.type,{values[index]})>;
+    \}
+  return SARC_TRUE;
+}
+
+>>
+
+//=============================================
+//@name Fixed Array types comparison
+//@param type Im_Gentype.TypeDefinition
+equalsFixedArray(type) ::=<<
+<equalsSignature(type)>
+{
+  SARC_uint32 index = 0;
+  for (index = 0; index \< <type.qName>_MAXSIZE; index++)
+  {
+      <returnFalseIfNotEqual(type.type,{values[index]})>;
+  \}
+  return SARC_TRUE;
+\}
+
+>>
+
+//=============================================
+//@name List types comparison
+//@param type Im_Gentype.TypeDefinition
+equalsList(type) ::=<<
+<equalsSignature(type)>
+{
+  SARC_uint32 index = 0;
+  SARC_uint32 size1 = <type.qName>_size(v1);
+  SARC_uint32 size2 = <type.qName>_size(v2);
+  if (size1 != size2) return SARC_FALSE;
+  for (index = 0; index \< size1; index++)
+  {
+    if (!(<equals(type.type,{*<type.qName>_get(v1, index)},{*<type.qName>_get(v2, index)})>)) return SARC_FALSE;
+  \}
+  return SARC_TRUE;
+\}
+
+>>
+
+//=============================================
+//@name Map types comparison
+//@param type Im_Gentype.TypeDefinition
+equalsMap(type) ::=<<
+<equalsSignature(type)>
+{
+  SARC_uint32 index = 0;
+  SARC_uint32 size1 = <type.qName>_size(v1);
+  SARC_uint32 size2 = <type.qName>_size(v2);
+
+  if (size1 != size2) return SARC_FALSE;
+
+  for (index = 0; index \< size1; index++)
+    {
+      if (<type.qName>_get_key(v1,index) != <type.qName>_get_key(v2,index)) return SARC_FALSE;
+
+      if (!(<equals(type.type,{*<type.qName>_get_value(v1, index)},{*<type.qName>_get_value(v2, index)})>)) return SARC_FALSE;
+  \}
+  return SARC_TRUE;
+\}
+
+>>
+
+//=============================================
+//@name String types comparison
+//@param type Im_Gentype.TypeDefinition
+equalsString(type) ::=<<
+<equalsSignature(type)>
+{
+  if (strcmp(v1-\>data, v2-\>data) != 0) return SARC_FALSE;
+  return SARC_TRUE;
+\}
+
+>>

@@ -1,0 +1,191 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "operations.stg"
+import "signature.stg"
+import "common.stg"
+
+component_container(model) ::=<<
+/* @file <model.fileprefix>_container.h
+ * Container Interface header for Module <model.package>
+ * Generated automatically from specification; do not modify here
+ */
+#ifdef SARC_IS_LDP
+#include "ecoa.h"
+#endif
+<c_include_protection({<model.fileprefix>_CONTAINER}, body_of_the_file())>
+>>
+
+body_of_the_file() ::=<<
+<model.usedLibraries: {library |
+#include "<library.fileprefix><if (!library.isEcoa)>_types<endif>.h"
+}>
+
+/* Container Types */
+#include "<model.fileprefix>_container_types.h"
+/* Optional User Context: the "<model.fileprefix>_user_context.h" header 
+ * inclusion is optional (depends if user and/or warm start context 
+ * are being used 
+*/
+#include "<model.fileprefix>_user_context.h"
+
+/* Incomplete definition of the technical (platform-dependent) part of the context
+ * (it will be defined privately by the container)
+ */
+#ifdef SARC_IS_LDP
+struct <model.package>_tech_context;
+#else
+struct <model.package>__platform_hook;
+#endif
+/* Module Context structure declaration */
+typedef struct
+{
+  /*
+   * Other container technical data will accessible through the pointer defined here
+   */
+#ifdef SARC_IS_LDP
+  struct <model.package>_tech_context *platform_hook;
+#else
+  struct <model.package>__platform_hook *platform_hook;
+#endif
+   /* When the optional user context is used, the type 
+    * <model.package>_user_context shall be defined by the user
+    * in the <model.fileprefix>_user_context.h file to carry the module
+    * implementation private data
+    */
+   <model.package>_user_context user;
+
+<if (model.hasWarmStartContext)>
+   /* When the optional warm start context is used, the type 
+    * <model.package>_warm_start_context shall be defined by the user
+    * in the <model.fileprefix>_user_context.h file to carry the module
+    * implementation private data
+    */
+   <model.package>_warm_start_context warm_start;
+<endif>
+
+} <model.package>__context;
+
+typedef <model.package>__context <model.package>_context;
+
+
+void <model.package>_container__log_trace(
+  <model.package>__context* context, const ECOA__log);
+void <model.package>_container__log_debug(
+  <model.package>__context* context, const ECOA__log);
+void <model.package>_container__log_info(
+  <model.package>__context* context, const ECOA__log);
+void <model.package>_container__log_warning(
+  <model.package>__context* context, const ECOA__log);
+void <model.package>_container__raise_error(
+  <model.package>__context* context, const ECOA__log);
+void <model.package>_container__raise_fatal_error(
+  <model.package>__context* context, const ECOA__log);
+
+  
+void <model.package>_container__get_relative_local_time(
+  <model.package>__context* context, ECOA__hr_time *time);
+  
+ECOA__return_status <model.package>_container__get_UTC_time(
+  <model.package>__context* context, ECOA__global_time *time);
+  
+ECOA__return_status <model.package>_container__get_absolute_system_time(
+  <model.package>__context* context, ECOA__global_time *time);
+  
+void <model.package>_container__get_relative_local_time_resolution (
+  <model.package>__context* context, ECOA__duration *resolution);
+void <model.package>_container__get_UTC_time_resolution(
+  <model.package>__context* context, ECOA__duration *resolution);
+void <model.package>_container__get_absolute_system_time_resolution(
+  <model.package>__context* context, ECOA__duration *resolution);
+
+/* Event operation call specifications */
+<model.sentEvents : { operation | 
+<documentOpAndParams(operation)>
+<event_sent_api(operation, model)>;
+}>
+
+/* Request-response call specifications */
+<model.providedRequestResponses : {svc | 
+<if (svc.isDeferred)>
+<documentOpAndParams(svc)>
+<deferred_requestresponse_reply(svc, model)>;
+<endif>
+}>
+
+
+<model.requiredRequestResponses : { svc | 
+<documentOpAndParams(svc)>
+<if (!svc.isAsynchronous)>
+<sync_call_api(svc, model)> ;
+<else>
+<async_call_api(svc, model)> ;
+<endif>
+}>
+
+/* Versioned data call specifications */
+<model.readData : { operation | 
+<documentOpAndParams(operation)>
+<data_read_api(operation, model)>
+}>
+
+<model.writtenData : { operation | 
+<documentOpAndParams(operation)>
+<data_written_api(operation, model)>
+}>
+
+
+/* Functional parameters call specifications */
+<model.attributes : {p |
+void
+<model.package>_container__get_<p.name>_value(<model.package>__context* context,
+  <p.qType>* value);
+}>
+
+<if (model.pinfos)>
+/* Persistent Information management operations */
+<model.pinfos: { pinfo | 
+
+ECOA__return_status <model.package>_container__read_<pinfo.name> (
+  <model.package>__context* context,
+  ECOA__byte *memory_address, ECOA__uint32 in_size, ECOA__uint32* out_size);
+
+ECOA__return_status <model.package>_container__seek_<pinfo.name> (
+  <model.package>__context* context,
+  ECOA__uint32 offset, ECOA__seek_whence_type whence, ECOA__uint32* new_position);
+}>
+
+<endif>
+
+/* Trigger operation call specifications */
+<model.triggers : { trigger |
+<triggerSetSignature(trigger, model)>;
+
+<triggerCancelSignature(trigger, model)>;
+}>
+
+<if(model.isExternal)>
+/* External Task operation call specifications */
+
+/*! Starts the instance external task
+ *! \param[in] context Instance context
+ */
+<externalStartSignature(model)>;
+/*! Stops the instance external task
+ *! \param[in] context Instance context
+ */
+<externalStopSignature(model)>;
+<endif>
+
+<if (model.data)>
+void <model.package>_release_all_data_handles (<model.package>__context* context);
+<endif>
+
+#ifdef SARC_IS_LDP
+<if (model.hasWarmStartContext)>
+<startWarmContextSignature(model)>;
+<endif>
+#endif
+
+>>
+
+

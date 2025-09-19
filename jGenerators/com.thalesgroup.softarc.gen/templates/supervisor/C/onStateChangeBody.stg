@@ -1,0 +1,34 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+onStateChangeBody(exec, componentType) ::=<<
+#include "softarc.h"
+#include "<componentType.fileprefix>_constants.h"
+#include "<componentType.fileprefix>_container.h"
+#include "<componentType.fileprefix>.h"
+
+void
+<componentType.package >_onStateChange (<componentType.package >_context * ctxt,
+                                        SARC_int32 componentId,
+                                        SARC_int32 state,
+                                        SARC_int32 oldState)
+{
+  <componentType.package >_trace
+     (ctxt, SARC_TRACE_INFO, "Received #%d: 0x%.2x -> 0x%.2x",
+      componentId, oldState, state);
+
+  switch (state)
+    {
+    case SARC_LIFE_CYCLE_STATE_IDLE:
+      <componentType.package >_component_state_command (ctxt, componentId, SARC_LIFE_CYCLE_SHIFT_INITIALIZE);
+      break;
+
+    case SARC_LIFE_CYCLE_STATE_READY:
+      <componentType.package >_component_state_command (ctxt, componentId, SARC_LIFE_CYCLE_SHIFT_START);
+      break;
+
+    default:
+      break;
+    \}
+\}
+
+>>

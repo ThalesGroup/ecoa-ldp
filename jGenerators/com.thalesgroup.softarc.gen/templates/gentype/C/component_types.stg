@@ -1,0 +1,24 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "common.stg"
+import "component_types_common.stg"
+
+//#############################################################################
+// Creates the types definition file for a component
+//#############################################################################
+
+//=========================================================
+//@name Main body of the component type header file.
+//@param model Component
+component_types(model) ::=<<
+#ifndef _<model.fileprefix>_TYPES_H_
+#define _<model.fileprefix>_TYPES_H_
+
+#include "softarc.h"
+
+<includes(model)>
+
+<component_types_common(model, "SARC")>
+
+#endif
+>>

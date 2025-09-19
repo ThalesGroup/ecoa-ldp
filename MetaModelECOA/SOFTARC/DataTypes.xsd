@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+xmlns="http://www.ecoa.technology/DataTypes/3.0"
+targetNamespace="http://www.ecoa.technology/DataTypes/3.0"
+elementFormDefault="qualified" >
+
+    <xsd:redefine schemaLocation="../DataTypes.xsd">
+
+    <xsd:group name="library_types">
+      <xsd:choice>
+        <xsd:group ref="library_types"/>
+        <xsd:element name="string" type="CT_string"/>
+        <xsd:element name="list" type="CT_list"/>
+        <xsd:element name="map" type="CT_map"/>
+      </xsd:choice>
+    </xsd:group>
+
+</xsd:redefine>
+
+<xsd:complexType name="CT_string">
+    <xsd:annotation>
+      <xsd:documentation>
+    A sequence of characters.
+   </xsd:documentation>
+    </xsd:annotation>
+    <xsd:complexContent>
+      <xsd:extension base="CT_type">
+        <xsd:attribute name="length" type="positiveInt" use="required">
+          <xsd:annotation>
+            <xsd:documentation>
+       Length of the string.
+      </xsd:documentation>
+          </xsd:annotation>
+        </xsd:attribute>
+      </xsd:extension>
+    </xsd:complexContent>
+  </xsd:complexType>
+
+<xsd:complexType name="CT_list">
+        <xsd:annotation>
+          <xsd:documentation>
+          </xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+          <xsd:extension base="CT_derived_type">
+            <xsd:attribute name="maxnumber" type="ConstantReferenceOrPositiveIntegerValue"
+                           use="required">
+          <xsd:annotation>
+            <xsd:documentation>
+              Maximum number of elements in the list.
+            </xsd:documentation>
+          </xsd:annotation>
+        </xsd:attribute>
+          </xsd:extension>
+        </xsd:complexContent>
+      </xsd:complexType>
+    
+      <xsd:complexType name="CT_map">
+        <xsd:annotation>
+          <xsd:documentation>
+          </xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+          <xsd:extension base="CT_derived_type">
+            <xsd:attribute name="keytype" type="TypeQName" use="required">
+          <xsd:annotation>
+            <xsd:documentation>
+              Keys may be of any predefined integer type.
+            </xsd:documentation>
+          </xsd:annotation>
+        </xsd:attribute>
+            <xsd:attribute name="maxnumber" type="ConstantReferenceOrPositiveIntegerValue"
+                           use="required">
+          <xsd:annotation>
+            <xsd:documentation>
+              Maximum number of elements in the map.
+            </xsd:documentation>
+          </xsd:annotation>
+        </xsd:attribute>
+          </xsd:extension>
+        </xsd:complexContent>
+      </xsd:complexType>
+
+</xsd:schema>

@@ -1,0 +1,18 @@
+@startuml PredefDataTypes
+
+abstract class Predef
+
+Predef <|-- boolean8
+Predef <|-- int8
+Predef <|-- int16
+Predef <|-- int32
+Predef <|-- int64
+note bottom: may not be supported on\nall platforms/languages\n[OPTION INT64]
+Predef <|-- uint8
+Predef <|-- uint16
+Predef <|-- uint32
+Predef <|-- uint64
+note bottom: may not be supported on\nall platforms/languages\n[OPTION UINT64]
+Predef <|-- char8
+Predef <|-- float32
+Predef <|-- double64

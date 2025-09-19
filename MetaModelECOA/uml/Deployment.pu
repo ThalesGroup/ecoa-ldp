@@ -1,0 +1,71 @@
+@startuml Deployment
+
+note as title_note
+  The deployment model defines an Application as a software deliverable,
+  that can be connected to other Applications through port configuration.
+  An Application is an Executable, and can also contain other Executables.
+  Executables contain prioritized Tasks.
+  Component Instances are deployed on Tasks.
+end note
+
+enum Endianness {
+	BIG
+	LITTLE
+}
+
+class Task {
+	+string name
+	string doc
+	+int priority
+}
+
+Task o-- "*" DeployedInstance : deployedInstance
+
+class DeployedInstance {
+	string doc
+	+string ref
+}
+note bottom: Reference to a concrete component instance,\npossibly included in composite instances.
+
+class Executable {
+	+string name
+	string doc
+}
+Executable o-- "*" Task : task
+
+class Application {
+	string production
+}
+Application --|> Executable
+Application o-- "*" Executable
+Application o-- "0..1" IOSection
+Application -left-> Assembly
+note bottom: from Assembly model
+
+Application o-right- Endianness : endianness
+
+
+
+
+class Port {
+	+string name
+	string doc
+}
+
+Port o-- "*" OperationInPort : operation
+
+
+class OperationInPort {
+	+string name
+	string id
+}
+note bottom: Reference to an external operation of the assembly of the application.
+
+IOSection o-- "*" Port : inPort
+note on link: Input only logical port\n(eventReceived, dataRead).\nN-P cardinality.
+
+IOSection o-- "*" Port : outPort
+note on link: Output only logical port\n(eventSent, dataWritten).\nN-P cardinality.
+
+IOSection o-- "*" Port : inOutPort
+note on link: Input/Output logical port\n(requestResponse, event, data).\n1-1 cardinality.

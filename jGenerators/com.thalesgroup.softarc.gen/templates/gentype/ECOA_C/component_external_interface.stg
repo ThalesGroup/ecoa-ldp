@@ -1,0 +1,28 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "operations.stg"
+import "common.stg"
+
+component_external_interface(model) ::=<<
+/* @file "<model.fileprefix>_External_Interface.h"
+ * External Interface header for Component Implementation
+ * <model.fileprefix>
+ * Generated automatically from specification; do not modify here
+ */
+
+<c_include_protection({<model.fileprefix>_EXTERNAL_INTERFACE}, body_of_the_file())>
+>>
+
+body_of_the_file() ::=<<
+<model.usedLibraries: {library | 
+#include "<library.package>.h"}>
+
+
+<model.externalOperations : { operation | 
+<documentOpAndParams(operation)>
+<external_operation_api(operation, model)>;
+
+}>
+>>
+
+

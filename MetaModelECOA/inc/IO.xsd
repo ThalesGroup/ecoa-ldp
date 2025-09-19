@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<xsd:schema xmlns:io="http://ecoa/io" xmlns:xsd="http://www.w3.org/2001/XMLSchema" targetNamespace="http://ecoa/io">
+	<!--  xsd:include schemaLocation="common.xsd" /-->
+	<xsd:complexType name="IO_interface">
+		<xsd:annotation>
+			<xsd:documentation>
+    Interface used to communicate with external systems.
+   </xsd:documentation>
+		</xsd:annotation>
+		<xsd:sequence>
+			<xsd:element name="doc" type="xsd:string" minOccurs="0" />
+			<xsd:element maxOccurs="unbounded" minOccurs="0" name="operation" type="io:IO_operation">
+				<xsd:annotation>
+					<xsd:documentation>
+      Defines the technical details of an operation that is at the boundary of the system.
+     </xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+		</xsd:sequence>
+		<xsd:attribute name="name" use="required">
+			<xsd:annotation>
+				<xsd:documentation>
+     Name of the logical port for network communication.
+    </xsd:documentation>
+			</xsd:annotation>
+			<xsd:simpleType>
+				<xsd:restriction base="xsd:NCName">
+					<xsd:maxLength value="27" />
+				</xsd:restriction>
+			</xsd:simpleType>
+		</xsd:attribute>
+	</xsd:complexType>
+	
+	<xsd:complexType name="IO_interface_in">
+		<xsd:complexContent>
+			<xsd:extension base="io:IO_interface">
+				<xsd:annotation>
+					<xsd:documentation>
+    Interface used to communicate with external systems with a thread listening for inputs.
+   					</xsd:documentation>
+				</xsd:annotation>
+				<xsd:sequence></xsd:sequence>
+				<xsd:attribute name="relative_priority" type="io:positiveInt" use="optional">
+					<xsd:annotation>
+						<xsd:documentation>
+          Relative (in the application) priority associated to the thread managing port listening.
+          By default, priority is the highest one.
+        				</xsd:documentation>
+					</xsd:annotation>
+				</xsd:attribute>
+			</xsd:extension>
+		</xsd:complexContent>
+	</xsd:complexType>
+	<xsd:complexType name="IO_operation">
+		<xsd:attribute name="name" type="xsd:NCName" use="required">
+			<xsd:annotation>
+				<xsd:documentation>
+     Name of the operation. This attribute value must reference an operation defined in the assembly.
+    </xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+		<xsd:attribute name="id" type="xsd:unsignedInt" use="required">
+			<xsd:annotation>
+				<xsd:documentation>
+     Identifier of the operation (unique in the global system), this ID (ELI ID) is known by all the connected systems.
+    </xsd:documentation>
+			</xsd:annotation>
+		</xsd:attribute>
+	</xsd:complexType>
+	<xsd:complexType name="IO_section">
+		<xsd:annotation>
+			<xsd:documentation>
+    Informations about network interfaces to provide or to communicate with.
+   </xsd:documentation>
+		</xsd:annotation>
+		<xsd:sequence>
+			<xsd:element maxOccurs="unbounded" minOccurs="0" name="in_port" type="io:IO_interface_in">
+				<xsd:annotation>
+					<xsd:documentation>
+      Input (event_received, data_read) only logical port. N-P cardinality.
+     </xsd:documentation>
+				</xsd:annotation>
+				<xsd:key name="op_id_in_port">
+					<xsd:selector xpath="operation" />
+					<xsd:field xpath="@id" />
+				</xsd:key>
+			</xsd:element>
+			<xsd:element maxOccurs="unbounded" minOccurs="0" name="out_port" type="io:IO_interface">
+				<xsd:annotation>
+					<xsd:documentation>
+      Output (event_sent, data_written) only logical port. N-P cardinality.
+     </xsd:documentation>
+				</xsd:annotation>
+			</xsd:element>
+			<xsd:element maxOccurs="unbounded" minOccurs="0" name="in_out_port" type="io:IO_interface_in">
+				<xsd:annotation>
+					<xsd:documentation>
+      Input/Output (request_response, event, data) logical port. 1-1 cardinality.
+     </xsd:documentation>
+				</xsd:annotation>
+				<xsd:key name="op_id_in_out_port">
+					<xsd:selector xpath="operation" />
+					<xsd:field xpath="@id" />
+				</xsd:key>
+			</xsd:element>
+		</xsd:sequence>
+		<!-- Unicity of names cannot be checked at this level. It must be managed by each 'IO_section' user -->
+	</xsd:complexType>
+	
+	  <xsd:simpleType name="positiveInt">
+    <xsd:restriction base="xsd:unsignedInt">
+      <xsd:minInclusive value="1" />
+    </xsd:restriction>
+  </xsd:simpleType>
+</xsd:schema>

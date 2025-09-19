@@ -1,0 +1,93 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "SOFTARC_C/signatures.stg"
+
+//#######################################################
+//@name Facade header 
+//@param container Container
+//@options NON-CERT
+facade(container, options) ::=<<
+
+#ifndef _<container.component.typeName>_<container.component.implName>_FACADE_H
+#define _<container.component.typeName>_<container.component.implName>_FACADE_H
+
+<! Ne pas inclure les types du composant !>
+
+<! Warning: This file may be included by a C++ container (for direct service calls) !>
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/*===================================================================*/
+/* Top level initialize function                                     */
+/*===================================================================*/
+
+void <container.component.typeName>_<container.component.implName>_instance_initialize ();
+
+/*===================================================================*/
+/* Component instances access functions                              */
+/*===================================================================*/
+
+<container.instances : {instance | 
+/*============= Component instance : <instance.name>*/
+
+void instance_<instance.name>_Initialize_EVENT_receive();
+void instance_<instance.name>_Start_EVENT_receive();
+void instance_<instance.name>_Stop_EVENT_receive();
+void instance_<instance.name>_Shutdown_EVENT_receive();
+void instance_<instance.name>_Reset_EVENT_receive();
+<if(container.component.isExternal)>
+
+/*------ External-component routine call */
+void <instance.name>_EXTERNAL_routine();
+<endif>
+<if(container.component.isSupervisor)>
+
+/*------ Supervisor-component routine call */
+void <instance.name>_SUPERVISOR_routine(SARC_int32 p_component_id, SARC_LifeCycleState p_current, SARC_LifeCycleState p_previous);
+<endif>
+/*------ Received events */
+<if(container.component.isTimer)>
+<container.component.sentEvents : {event |
+void instance_<instance.name>_<event.name>_EVENT_receive(const SARC_char8 * bufin, SARC_uint32 size);
+}>
+<endif>
+
+<instance.eventEntryPoints : {ep | 
+void instance_<instance.name>_<ep.event.name>_EVENT_receive(const SARC_char8 * bufin, SARC_uint32 size);}>
+/*------ Provided services */
+<instance.requestResponseEntryPoints : {ep | 
+<if (ep.requestResponse.isDeferred)>
+void instance_<instance.name>_<ep.requestResponse.name>_SERVICE_call
+  (const SARC_char8 * sarc_bufin, SARC_uint32 size);
+<else>
+SARC_uint32 instance_<instance.name>_<ep.requestResponse.name>_SERVICE_provide
+  (const SARC_char8 * sarc_bufin,
+   SARC_uint32 sizein,
+   SARC_char8 * sarc_bufout);
+<endif>}>
+/*------ Required async services callbacks */
+<instance.callbackEntryPoints : {ep | 
+void instance_<instance.name>_<ep.requestResponse.name>_OUT_EVENT_receive(const SARC_char8 * bufin, SARC_uint32 size);
+<if(ep.requestResponse.isTimed)>
+void instance_<instance.name>_<ep.requestResponse.name>_OUT_EVENT_timeout(SARC_uint32 sarc_requestId);
+<endif>
+}>
+/*------ Provided "direct" services */
+<instance.directRequestResponseEntryPoints : {ep | 
+SARC_Ecode instance_direct_<instance.name>_<ep.requestResponse.name>_SERVICE_provide(
+  <if (options.simulation)>SARC_int32 caller_instance_id, SARC_int32 caller_activation_id, SARC_int32 * server_instance_id, SARC_int32 * server_activation_id<if (ep.requestResponse.hasInParameters || ep.requestResponse.hasOutParameters)>,
+  <endif><endif><inParametersVoid(ep.requestResponse.inParameters, ep.requestResponse.hasOutParameters)><outParametersVoid(ep.requestResponse.outParameters, false)>);
+}>
+<if(instance.writtenDataLinks)>
+/*------ Written data */
+void instance_<instance.name>_DATA_republish(void);
+<endif>
+}>
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
+>>

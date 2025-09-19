@@ -1,0 +1,10 @@
+# waiting for 20s ...
+wait 20000
+
+# stop all components
+stop *
+
+# shutdown all components
+shutdown *
+
+quit

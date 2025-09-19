@@ -1,0 +1,567 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "common.stg"
+
+//=========================================================
+//@name Main body of the component_container.h file.
+//@param model Component
+component_container(model) ::=<<
+#ifndef _<model.fileprefix>_CONTAINER_H
+#define _<model.fileprefix>_CONTAINER_H
+
+#include "<model.fileprefix>_user_context.h"
+#include "<model.fileprefix>_types.h"
+#include "<model.fileprefix>_data.h"
+<if(model.isSupervisor && model.isCComponent)>
+#include "<model.fileprefix>_constants.h"
+<endif>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct <model.package>_tech_context;
+
+typedef struct
+{
+  SARC_int32 instanceId;
+  /* User context */
+  <model.package>_user_context user;
+  /* Pointer to technical context */
+  struct <model.package>_tech_context *tech;
+} <model.package>_context;
+
+SARC_int64 <model.package>_get_local_time(); /* Access to Local Platform Time (in nanoseconds) */
+SARC_int64 <model.package>_get_time(<model.package>_context *ctxt); /* Access to Synchronized Time (in nanoseconds) */
+<! The display method is stubbed SOFTARC-CERT for SOFTARC product-line compatibility purpose !>
+void <model.package>_display(<model.package>_context *ctxt, const char *format, ...); /* Print information on the 'DISPLAY' channel */
+<! The trace method is stubbed SOFTARC-CERT for SOFTARC product-line compatibility purpose !>
+void <model.package>_trace(<model.package>_context *ctxt, SARC_TraceLevel level, const char *format, ...); /* Print information on the 'TRACE' channel */
+SARC_boolean8 <model.package>_trace_is_active(<model.package>_context *ctxt, SARC_TraceLevel level);
+<declareUserTracePoints(model)>
+void <model.package>_raise_fatal_error(<model.package>_context *ctxt, const char *format, ...); /* Component auto-shutdown and error message log */
+void <model.package>_sleep(SARC_uint32 useconds); /* Component time delay (in microseconds) */
+
+<declareSentEvents(model)>
+<declareRequiredRequestResponsesCalls(model)>
+<declareRequiredRequestResponsesCallbacks(model)>
+<declareProvidedRequestResponsesResponses(model)>
+<declareReadData(model)>
+<declareWrittenData(model)>
+<declareAttributes(model)>
+<declarePInfos(model)>
+<declareTriggers(model)>
+<if(model.isSupervisor)>
+<lifeCycleCommandSignature(model)>
+<componentStateRequestSignature(model)>
+<componentByIdSignature(model)>
+<componentByNameSignature(model)>
+<componentExecSignature(model)>
+<executableStateSignature(model)>
+<executableStateCommandSignature(model)>
+<execByIdSignature(model)>
+<execPlatformSignature(model)>
+<platformByIdSignature(model)>
+<declareVariables(model)>
+<endif>
+<if(model.isExternal)>
+<externalStartSignature(model)>
+<externalStopSignature(model)>
+<endif>
+
+<if(model.data)>
+extern void <model.package>_release_all_data_handles (<model.package>_context *sarc_ctxt);
+<endif>
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* _<model.fileprefix>_CONTAINER_H */
+
+>>
+
+//=========================================================
+//@name Container functions for all sent events.
+//@param model Component
+declareSentEvents(model) ::=<<
+<model.sentEvents : { event | 
+<documentOpAndParams(event)>
+<sentEventSignature(event, model)>;
+}>
+>>
+
+//=========================================================
+declareRequiredRequestResponsesCalls(model) ::=<<
+<model.requiredRequestResponses : { svc | <if (!svc.isAsynchronous)>
+<documentOpAndParams(svc)>
+<requiredRequestResponseCallSignature(svc, model)>;
+<endif>}>
+>>
+
+//=========================================================
+declareRequiredRequestResponsesCallbacks(model) ::=<<
+<model.requiredRequestResponses : { svc | <if (svc.isAsynchronous)>
+<documentOpAndParams(svc)>
+<asyncRequestResponseCallSignature(svc, model)>;
+<endif>}>
+>>
+
+
+declareProvidedRequestResponsesResponses (model) ::=<<
+<model.providedRequestResponses : {svc | 
+<if (svc.isDeferred)>
+<documentOpAndParams(svc)>
+<deferredRequestResponseResponseSignature (svc, model)>;
+<deferredRequestResponseCancelSignature (svc, model)>;
+#define <model.package>_<svc.name>_SERVICE_MAXDEFERRED <svc.maxDeferred>
+<endif>
+}>
+>>
+
+//=========================================================
+//@name Container functions for all read data operations.
+//@param model Component
+declareReadData(models) ::=<<
+<model.readData : { data | 
+
+<documentOpAndParams(data)>
+
+/*
+ * Typical use-case:
+ *
+ *   SARC_Ecode status = SARC_SUCCESS;
+ *   t_<data.name>_handle handler = {\};
+ *
+ *   status = <model.package>_<data.name>_DATA_get_reader (ctxt, &handler);
+ *   if (status == SARC_SUCCESS)
+ *     {
+ *       ... handler.ref     gives version key
+ *       ... *handler.ptr    is the value of the latest version
+ *
+ *       <model.package>_<data.name>_DATA_release (ctxt, &handler);
+ *     \}
+ */
+
+<dataReaderSignature(data, model)>;
+
+
+<dataReleaseSignature(data, model)>;
+
+
+<dataIsInitializedSignature(data, model)>;
+}>
+
+>>
+
+//=========================================================
+//@name Container functions for all written data operations.
+//@param model Component
+declareWrittenData(model) ::=<<
+<model.writtenData : { data | 
+
+<documentOpAndParams(data)>
+
+/*
+ * Typical use-case:
+ *
+ *   SARC_Ecode status = SARC_SUCCESS;
+ *   t_<data.name>_handle handler = {\};
+ *
+ *   status = <model.package>_<data.name>_DATA_get_writer
+ *     (ctxt, &handler, SARC_DATA_NO_VALUE);
+ *   if (status == SARC_SUCCESS)
+ *     {
+ *       ... handler.ref     gives version key
+ *       ... *handler.ptr    is the value of the next version to work on
+ *
+ *       <model.package>_<data.name>_DATA_publish (ctxt, &handler);
+ *     \}
+ */
+
+
+<dataWriterSignature(data, model)>;
+
+
+<dataPublishSignature(data, model)>;
+
+
+<dataCancelSignature(data, model)>;
+}>
+
+>>
+
+//=========================================================
+//@name Container functions for access to component attributes.
+//@param model Component
+declareAttributes(model) ::=<<
+<model.attributes : { attr | 
+<if(attr.isDocumented)>
+/**
+<attr.doc:{ docline | 
+* <docline>
+}>*/
+<endif>
+<getAttributeSignature(attr, model)>;
+}>
+>>
+
+//=========================================================
+//@name Container functions for access to component pinfo.
+//@param model Component
+declarePInfos (model) ::=<<
+<model.pinfos : { pinfo | 
+<if (pinfo.isDocumented)>
+/**
+<pinfo.doc: { docline | 
+* <docline>
+}>*/
+<endif>
+<pinfoReadSignature (pinfo, model)>;
+<if (pinfo.isWritable)>
+<pinfoWriteSignature (pinfo, model)>;
+<endif>
+<pinfoSeekSignature (pinfo, model)>;
+}>
+>>
+
+//=========================================================
+declareTriggers(model) ::=<<
+<model.triggers : { trigger | 
+<triggerSetSignature(trigger, model)>;
+
+<triggerCancelSignature(trigger, model)>;
+}>
+>>
+
+//==================================================================
+// Signatures of functions declared/implemented by the container
+//==================================================================
+
+//=========================================================
+//@name Signature of the container function for an event sent by the component.
+//@param event OperationEvent
+//@param model Component
+sentEventSignature(event, model) ::=<<
+/*! Send the '<event.name>' event
+ *! \param[in] sarc_ctxt Instance context <event.inParameters : { param | 
+ *! \param[in] <param.name> A pointer to the '<param.name>' parameter}>
+ *! \return Status of the operation. Either OK, or KO iff the event has not been sent
+ */
+SARC_Ecode <model.package>_<event.name>_EVENT_send(<model.package>_context *ctxt<if (event.hasInParameters)>,<endif>
+  <inParameters(event.inParameters, false)>
+)>>
+
+//=========================================================
+//
+requiredRequestResponseCallSignature(svc, model) ::=<<
+SARC_Ecode <model.package>_<svc.name>_SERVICE_call(<model.package>_context *ctxt<if (svc.hasParameters)>,<endif>
+  <inParameters(svc.inParameters, svc.hasOutParameters)>
+  <outParameters(svc.outParameters, false)>
+)>>
+
+//=========================================================
+//
+asyncRequestResponseCallSignature(svc, model) ::=<<
+SARC_Ecode <model.package>_<svc.name>_ASYNC_SERVICE_call(<model.package>_context *ctxt,
+  SARC_uint32 *request_id<if (svc.hasInParameters)>,<endif>
+  <inParameters(svc.inParameters, false)>
+  )
+>>
+
+
+deferredRequestResponseResponseSignature (svc, model) ::=<<
+SARC_Ecode <model.package>_<svc.name>_SERVICE_reply (<model.package>_context *ctxt,
+   SARC_uint32 sarc_request_id<if(svc.outParameters)>,<endif>
+   <outParameters(svc.outParameters, false)>
+   )
+>>
+
+deferredRequestResponseCancelSignature (svc, model) ::=<<
+void <model.package>_<svc.name>_SERVICE_cancel (<model.package>_context *ctxt,
+   SARC_uint32 sarc_request_id)
+>>
+
+triggerSetSignature (trigger, model) ::=<<
+SARC_Ecode <model.package>_<trigger.name>_TRIGGER_set (<model.package>_context *ctxt,
+   SARC_int64 trigger_delay)
+>>
+
+triggerCancelSignature (trigger, model) ::=<<
+SARC_Ecode <model.package>_<trigger.name>_TRIGGER_cancel (<model.package>_context *ctxt)
+>>
+
+//======================================================================================
+//@name Signature of the container function for getting read access on a data operation.
+//@param data OperationData
+//@param model Component
+dataReaderSignature(data, model) ::=<<
+/*! Get read-only access to the current '<data.name>' value
+ *! \param[in] sarc_ctxt Instance context
+ *! \param[in,out] <data.name> accessor to '<data.name>' DataVR
+ *! \return Status of the operation. Either OK, or KO iff no value have yet
+ *! been published
+ */
+SARC_Ecode <model.package>_<data.name>_DATA_get_reader
+  (<model.package>_context * ctxt,
+   t_<data.name>_handle * sarc_handle)>>
+
+
+//========================================================================================
+//@name Signature of the container function for releasing read access on a data operation.
+//@param data OperationData
+//@param model Component
+dataReleaseSignature(data, model) ::=<<
+/*! Free previously reserved read-only access to any '<data.name>' value
+ *! \param[in] sarc_ctxt Instance context
+ *! \param[in,out] <data.name> accessor to '<data.name>' DataVR
+ *! \return Status of the operation. Either OK, or KO if accessor is
+ *! corrupted
+ */
+
+SARC_Ecode <model.package>_<data.name>_DATA_release
+  (<model.package>_context * ctxt,
+   t_<data.name>_handle * sarc_handle)>>
+
+//======================================================================================
+//@name Signature of the container function telling if a data has a value.
+//@param data OperationData
+//@param model Component
+dataIsInitializedSignature(data, model) ::=<<
+/*! Tell if '<data.name>' has a value
+ *! \param[in] sarc_ctxt Instance context
+ *! \return true if the data has ever been initialized or published
+ */
+SARC_boolean8 <model.package>_<data.name>_DATA_is_initialized
+  (<model.package>_context * ctxt)>>
+
+//=======================================================================================
+//@name Signature of the container function for getting write access on a data operation.
+//@param data OperationData
+//@param model Component
+dataWriterSignature(data, model) ::=<<
+/*! Get write access to what could become next '<data.name>' value
+ *! \param[in] sarc_ctxt Instance context
+ *! \param[in,out] <data.name> accessor to '<data.name>' DataVR
+ *! \param[in] init flag used to request initialization with current value
+ *! \return Status of the operation. Either OK, or KO iff:
+ *!   -    all DataVR slots are already in use
+ *!   - or no value have yet been published and initialization is requested
+ */
+
+SARC_Ecode <model.package>_<data.name>_DATA_get_writer
+  (<model.package>_context * ctxt,
+   t_<data.name>_handle * sarc_handle,
+   SARC_DataValue init)>>
+
+
+//==============================================================================
+//@name Signature of the container function for publishing on a data operation.
+//@param data OperationData
+//@param model Component
+dataPublishSignature(data, model) ::=<<
+/*! Validate previously reserved write access to '<data.name>' DataVR
+ *! \param[in] sarc_ctxt Instance context
+ *! \param[in,out] <data.name> accessor to '<data.name>' DataVR
+ *! \return Status of the operation. Either OK, or KO if accessor is
+ *! corrupted
+ */
+
+SARC_Ecode <model.package>_<data.name>_DATA_publish
+  (<model.package>_context * ctxt,
+  t_<data.name>_handle * sarc_handle)>>
+
+
+//=========================================================================================
+//@name Signature of the container function for cancelling write access on a data operation.
+//@param data OperationData
+//@param model Component
+dataCancelSignature(data, model) ::=<<
+/*! Invalidate previously reserved write access to '<data.name>' DataVR
+ *! \param[in] sarc_ctxt Instance context
+ *! \param[in,out] <data.name> accessor to '<data.name>' DataVR
+ *! \return Status of the operation. Either OK, or KO if accessor is
+ *! corrupted
+ */
+
+SARC_Ecode <model.package>_<data.name>_DATA_cancel
+  (<model.package>_context * ctxt,
+  t_<data.name>_handle * sarc_handle)>>
+
+//======================================================================================
+//@name Signature of the container function for access to an attribute of the component.
+//@param attr Parameter
+//@param model Component
+getAttributeSignature(attr, model) ::=<<
+/*! Read the value of the component attribute <attr.name>
+ *! \param[in] ctxt Instance context
+ *! \param[out] <attr.name> accessor to the '<attr.name>' attribute
+ *! \return Status of the operation. Either OK, or KO if ctxt is corrupted
+ */
+SARC_Ecode <model.package>_get_attribute_<attr.name> (
+  <model.package>_context *ctxt,
+  <parameter(attr, false)>)>>
+
+
+//======================================================================================
+//@name Signature of the container function for reading a persistent information of the component.
+//@param pinfo Parameter
+//@param model Component
+pinfoReadSignature(pinfo, model) ::=<<
+/*! Read the content of the component PINFO '<pinfo.name>'
+ *! \param[in] ctxt Instance context
+ *! \param[in] data storage buffer
+ *! \param[in] capacity size, in bytes, of the storage buffer
+ *! \param[out] size number of bytes read
+ *! \return Status of the operation.
+ */
+SARC_Ecode <model.package>_<pinfo.name>_PINFO_read (
+  <model.package>_context *ctxt,
+  void *data, SARC_MwSize capacity, SARC_MwSize * size)>>
+
+
+//======================================================================================
+//@name Signature of the container function for writing into a persistent information of the component.
+//@param pinfo Parameter
+//@param model Component
+pinfoWriteSignature(pinfo, model) ::=<<
+/*! Write content into the component PINFO '<pinfo.name>'
+ *! \param[in] ctxt Instance context
+ *! \param[in] data content buffer
+ *! \param[in] count size, in bytes, of the written content
+ *! \param[out] size number of bytes written
+ *! \return Status of the operation.
+ */
+SARC_Ecode <model.package>_<pinfo.name>_PINFO_write (
+  <model.package>_context *ctxt,
+  void *data, SARC_MwSize count, SARC_MwSize * size)>>
+
+
+//======================================================================================
+//@name Signature of the container function for moving the reading head to the persistent information of the component.
+//@param attr Parameter
+//@param model Component
+pinfoSeekSignature(pinfo, model) ::=<<
+/*! Change the position of the reading heading of the component PINFO '<pinfo.name>'
+ *! \param[in] ctxt Instance context
+ *! \param[in] offset number of bytes to move from origin
+ *! \param[in] origin reference position of the reading heading head before the move
+ *! \param[out] position new position of the reading head (offset from the start of the PINFO)
+ *! \return Status of the operation.
+ */
+SARC_Ecode <model.package>_<pinfo.name>_PINFO_seek (
+  <model.package>_context *ctxt,
+  SARC_int32 offset, SARC_PInfoOrigin origin, SARC_MwSize * position)>>
+
+
+//====================================================================================================
+//@name Signature of the container function for stopping the external thread of an EXTERNAL component.
+//@param model Component
+externalStopSignature(model) ::=<<
+/*! Stops the instance external task
+ *! \param[in] ctxt Instance context
+ *! \return Status of the operation. Either OK, or KO if the task cannot be stopped
+ */
+SARC_Ecode <model.package>_stop_external_thread (<model.package>_context *ctxt);>>
+
+//====================================================================================================
+//@name Signature of the container function for starting the external thread of an EXTERNAL component.
+//@param model Component
+externalStartSignature(model) ::=<<
+/*! Starts the instance external task
+ *! \param[in] ctxt Instance context
+ *! \return Status of the operation. Either OK, or KO if the task cannot be started
+ */
+SARC_Ecode <model.package>_start_external_thread (<model.package>_context *ctxt);>>
+
+//=========================================================
+//
+
+lifeCycleCommandSignature(model) ::=<<
+void <model.package>_component_state_command (<model.package>_context * ctxt, SARC_int32 instance, SARC_LifeCycleShift shift);
+>>
+
+
+componentStateRequestSignature(model) ::=<<
+SARC_LifeCycleState <model.package>_component_status (<model.package>_context * ctxt, SARC_int32 p_instance);
+>>
+
+
+componentByIdSignature(model) ::=<<
+const SARC_char8* <model.package>_component_name (<model.package>_context * ctxt, SARC_int32 p_instance);
+>>
+
+
+componentByNameSignature(model) ::=<<
+SARC_int32 <model.package>_component_id (<model.package>_context * ctxt, const SARC_char8 * p_instance_name);
+>>
+
+
+componentExecSignature(model) ::=<<
+SARC_int32 <model.package>_component_executable_id (<model.package>_context * ctxt, SARC_int32 p_instance);
+>>
+
+
+executableStateSignature(model) ::=<<
+SARC_ExecutableStates <model.package>_executable_status (<model.package>_context * ctxt, SARC_int32 p_binary);
+>>
+
+
+executableStateCommandSignature(model) ::=<<
+void <model.package>_executable_command (<model.package>_context * ctxt, SARC_int32 p_binary, SARC_ExecutablesCommands p_command);
+>>
+
+
+execByIdSignature(model) ::=<<
+const SARC_char8* <model.package>_executable_name (<model.package>_context * ctxt, SARC_int32 p_binary);
+>>
+
+
+execPlatformSignature(model) ::=<<
+SARC_int32 <model.package>_executable_platform_id (<model.package>_context * ctxt, SARC_int32 p_binary);
+>>
+
+
+platformByIdSignature(model) ::=<<
+const SARC_char8* <model.package>_platform_name (<model.package>_context * ctxt, SARC_int32 p_site);
+>>
+
+//=========================================================
+
+
+declareVariables(model) ::=<<
+<model.variables : { var | 
+
+
+
+<getVariableSignature(var, model)>;
+
+
+<setVariableSignature(var, model)>;
+
+}>
+>>
+
+
+getVariableSignature(var, model) ::=<<
+SARC_Ecode <model.package>_get_variable_<var.name>
+  (<model.package>_context *sarc_ctxt,
+   <parameter(var, false)>)>>
+
+
+setVariableSignature(var, model) ::=<<
+SARC_Ecode <model.package>_set_variable_<var.name>
+  (<model.package>_context *sarc_ctxt,
+   <parameter(var, true)>)>>
+
+
+//=========================================================
+
+declareUserTracePoints(model) ::=<<
+<if(model.topics)>
+<model.topics : { tp | 
+#define TRACE_TOPIC_<tp.name> <i>
+}>
+void <model.package>_trace_topic(<model.package>_context *ctxt, SARC_uint32 id, SARC_TraceLevel level, const char *format, ...);
+SARC_boolean8 <model.package>_trace_topic_is_active(<model.package>_context *ctxt, SARC_uint32 id, SARC_TraceLevel level);
+<endif>
+>>

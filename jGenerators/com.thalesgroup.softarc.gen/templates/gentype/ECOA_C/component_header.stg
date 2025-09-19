@@ -1,0 +1,70 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "operations.stg"
+import "common.stg"
+
+component_header(model) ::=<<
+/*
+ * @file <model.fileprefix>.h
+ * Module Interface header for Module <model.package>
+ * Generated automatically from specification; do not modify here
+ */
+
+<c_include_protection(model.fileprefix, body_of_the_file())>
+>>
+
+body_of_the_file() ::=<<
+<model.usedLibraries: {library | 
+#include "<library.fileprefix><if (!library.isEcoa)>_types<endif>.h"}>
+/* Include container header */
+#include "<model.fileprefix>_container.h"
+/* Include container types */
+#include "<model.fileprefix>_container_types.h"
+/* Include user context */
+#include "<model.fileprefix>_user_context.h"
+
+void <model.package>__INITIALIZE__received(<model.package>__context* context);
+void <model.package>__START__received(<model.package>__context* context);
+void <model.package>__STOP__received(<model.package>__context* context);
+void <model.package>__SHUTDOWN__received(<model.package>__context* context);
+<if (model.hasReset)>void <model.package>__RESET__received(<model.package>__context* context);<endif>
+<if (model.isExternal)>void <model.package>__external_routine(<model.package>__context* context);<endif>
+
+/* Event operation handlers specifications */
+<model.receivedEvents : { event |
+<documentOpAndParams(event)>
+<if(event.dataNotification)>
+<data_notification_entrypoint(event.dataNotification, model)>;
+<else>
+<event_received_entrypoint(event, model)>;
+<endif>
+
+}
+>
+
+/* Request-Response operation handlers specifications */
+<model.providedRequestResponses : { svc | 
+<documentOpAndParams(svc)>
+<if(svc.isDeferred)>
+<deferred_requestresponse_entrypoint(svc, model)>;
+<else>
+<nondeferred_requestresponse_entrypoint(svc, model)>;
+<endif>
+
+}>
+<model.requiredRequestResponses : { svc | <if (svc.isAsynchronous)>
+<documentOpAndParams(svc)>
+<async_callback_entrypoint(svc, model)>;
+
+<endif>
+}>
+
+/* Versioned Data Notifying operation handlers specifications */
+<model.receivedEvents : { event |
+<if(event.dataNotification)>
+<documentOpAndParams(event)>
+<data_notification_entrypoint(event.dataNotification, model)>;
+
+<endif>
+}>
+>>

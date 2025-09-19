@@ -1,0 +1,530 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+xmlns="http://www.ecoa.technology/ComponentType/3.0"
+targetNamespace="http://www.ecoa.technology/ComponentType/3.0"
+elementFormDefault="qualified" >
+    <xsd:include schemaLocation="inc/common.xsd" />
+    <xsd:simpleType name="E_component_kind">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="STANDARD">
+                <xsd:annotation>
+                    <xsd:documentation>
+Defines a standard component, single threaded, without special capabilities.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="PERIODIC_TRIGGER_MANAGER">
+                <xsd:annotation>
+                    <xsd:documentation>
+Defines a PERIODIC_TRIGGER_MANAGER component, fully generated component that allows to send periodic events.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="DYNAMIC_TRIGGER_MANAGER">
+                <xsd:annotation>
+                    <xsd:documentation>
+Defines a DYNAMIC_TRIGGER_MANAGER component, fully generated component that allows to send events with a delay.
+This may not be supported on all platforms [OPTION DYNAMIC TRIGGER].
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="EXTERNAL">
+                <xsd:annotation>
+                    <xsd:documentation>
+Defines an EXTERNAL component, used to manage I/O.
+External components are deployed on two separate threads.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="SUPERVISOR">
+                <xsd:annotation>
+                    <xsd:documentation>
+Defines a SUPERVISOR component dedicated to the supervision of the whole application.
+This may not be supported on all platforms [OPTION SUPERVISION].
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="CT_operation" abstract="true">
+        <xsd:annotation>
+            <xsd:documentation>
+An operation is the greatest common denominator between events, request_responses and data.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+        </xsd:sequence>
+        <xsd:attribute name="name" type="OperationName" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Name of the operation.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="CT_event" abstract="true">
+        <xsd:annotation>
+            <xsd:documentation>
+Specificities of an EVENT operation.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_operation">
+                <xsd:sequence>
+                    <xsd:element name="parameter" type="QualifiedField" minOccurs="0" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:documentation>
+Parameter of the operation.
+</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_sent_event">
+        <xsd:annotation>
+            <xsd:documentation>
+Definition of a SENT event.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_event">
+                <xsd:attribute name="period" type="strictly-positive-decimal" use="optional">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Period of the event (in milliseconds).
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="delay" type="positive-decimal" default="0.0">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Initial delay (in milliseconds). must be lower than or equal to the period, no matter how the period
+is specified.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_received_event">
+        <xsd:annotation>
+            <xsd:documentation>
+Definition of a RECEIVED event.
+NOTA: there is no additional information, considering a CT_event.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_event" />
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_data" abstract="true">
+        <xsd:annotation>
+            <xsd:documentation>
+Definition of a DATA operation.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_operation">
+                <xsd:attribute name="type" type="TypeQName" use="required">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Type memorized in the data.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="maxVersions" type="positiveInt" default="1">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Maximum number of simultaneously accessed data versions.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="notifying" type="xsd:boolean" default="false">
+                    <xsd:annotation>
+                        <xsd:documentation>
+True if the component wants to be notified through a dedicated event every time the corresponding data is
+modified.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_written_data">
+        <xsd:annotation>
+            <xsd:documentation>
+Specificities of WRITTEN data.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_data">
+                <xsd:attribute name="writeOnly" type="xsd:boolean" default="false">
+                    <xsd:annotation>
+                        <xsd:documentation>
+True iff data has to be accessed with write access only (thus, no read one).
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_read_data">
+        <xsd:annotation>
+            <xsd:documentation>
+Specificities of READ data.
+NOTA: there is no additional information, considering a CT_data.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_data" />
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_properties">
+        <xsd:annotation>
+            <xsd:documentation>
+Definition of the properties of a component type.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="property" type="QualifiedField" minOccurs="0" maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Definition of an property of the component type.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="CT_pinfo">
+        <xsd:annotation>
+            <xsd:documentation>
+Definition of a string identifier
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+        </xsd:sequence>
+        <xsd:attribute name="name" type="Name">
+            <xsd:annotation>
+                <xsd:documentation>
+Value of the string identifier
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="writable" type="xsd:boolean" default="false">
+            <xsd:annotation>
+                <xsd:documentation>
+If the true, the contents of the pinfo can be modified by the component with an API.
+By default, a pinfo is read only.
+This may not be supported on all platforms [OPTION PINFO WRITE].
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="CT_pinfos">
+        <xsd:annotation>
+            <xsd:documentation>
+Definition of the post-production properties of a component type.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="pinfo" type="CT_pinfo" minOccurs="0" maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Definition of a post-production property of the component type.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:group name="component_type_declarations">
+        <xsd:sequence>
+            <xsd:element name="properties" type="CT_properties" minOccurs="0" maxOccurs="1">
+                <xsd:annotation>
+                    <xsd:documentation>
+component parameterization with properties whose values are fixed at the instantiation.
+</xsd:documentation>
+                </xsd:annotation>
+                <xsd:unique name="propertyname">
+                    <xsd:selector xpath="property" />
+                    <xsd:field xpath="@name" />
+                </xsd:unique>
+            </xsd:element>
+            <xsd:element name="pinfos" type="CT_pinfos" minOccurs="0" maxOccurs="1">
+                <xsd:annotation>
+                    <xsd:documentation>
+component post-production parameterization with properties whose values are fixed at the instantiation.
+</xsd:documentation>
+                </xsd:annotation>
+                <xsd:unique name="pinfo_name">
+                    <xsd:selector xpath="pinfo" />
+                    <xsd:field xpath="@name" />
+                </xsd:unique>
+            </xsd:element>
+            <xsd:element name="variables" type="CT_variables" minOccurs="0" maxOccurs="1">
+                <xsd:annotation>
+                    <xsd:documentation>
+Definition of supervision variables and their value domain.
+</xsd:documentation>
+                </xsd:annotation>
+                <xsd:unique name="variablename">
+                    <xsd:selector xpath="variable" />
+                    <xsd:field xpath="@name" />
+                </xsd:unique>
+            </xsd:element>
+        </xsd:sequence>
+    </xsd:group>
+    <xsd:complexType name="CT_component_type">
+        <xsd:annotation>
+            <xsd:documentation>Definition of a component type.</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+            <xsd:group ref="component_type_declarations" />
+            <xsd:element name="operations" type="CT_operations" minOccurs="1" maxOccurs="1">
+                <xsd:annotation>
+                    <xsd:documentation>Operations that characterize the component contract.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="triggers" type="CT_triggers" minOccurs="0" maxOccurs="1">
+                <xsd:annotation>
+                    <xsd:documentation>Dedicated section for triggers declaration.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+        <xsd:attribute name="kind" type="E_component_kind" default="STANDARD">
+            <xsd:annotation>
+                <xsd:documentation>By default a ECOA component is a STANDARD one.</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:element name="componentType" type="CT_component_type">
+        <xsd:annotation>
+            <xsd:documentation>
+Definition of a ECOA component type.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:key name="operationkey">
+            <xsd:selector xpath="operations/*" />
+            <xsd:field xpath="@name" />
+        </xsd:key>
+    </xsd:element>
+    <xsd:group name="all_operations">
+        <xsd:choice>
+            <xsd:element name="dataRead" type="CT_read_data" minOccurs="0">
+                <xsd:annotation>
+                    <xsd:documentation>
+Read access to a DATA.
+     				</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="dataWritten" type="CT_written_data" minOccurs="0">
+                <xsd:annotation>
+                    <xsd:documentation>
+Write (+read) access to a DATA.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="eventReceived" type="CT_received_event" minOccurs="0">
+                <xsd:annotation>
+                    <xsd:documentation>
+Arrival of an event.
+</xsd:documentation>
+                </xsd:annotation>
+                <xsd:unique name="param_event_received">
+                    <xsd:selector xpath="parameter" />
+                    <xsd:field xpath="@name" />
+                </xsd:unique>
+            </xsd:element>
+            <xsd:element name="eventSent" type="CT_sent_event" minOccurs="0">
+                <xsd:annotation>
+                    <xsd:documentation>
+Emission (production) of an EVENT.
+</xsd:documentation>
+                </xsd:annotation>
+                <xsd:unique name="param_event_sent">
+                    <xsd:selector xpath="parameter" />
+                    <xsd:field xpath="@name" />
+                </xsd:unique>
+            </xsd:element>
+            <xsd:element name="requestSent" type="CT_request_sent" minOccurs="0">
+                <xsd:annotation>
+                    <xsd:documentation>
+Call of a request_response.
+</xsd:documentation>
+                </xsd:annotation>
+                <xsd:unique name="param_request_sent">
+                    <xsd:selector xpath="parameter|out" />
+                    <xsd:field xpath="@name" />
+                </xsd:unique>
+            </xsd:element>
+            <xsd:element name="requestReceived" type="CT_request_received" minOccurs="0">
+                <xsd:annotation>
+                    <xsd:documentation>
+Supplying of a request_response.
+</xsd:documentation>
+                </xsd:annotation>
+                <xsd:unique name="param_request_received">
+                    <xsd:selector xpath="parameter|out" />
+                    <xsd:field xpath="@name" />
+                </xsd:unique>
+            </xsd:element>
+        </xsd:choice>
+    </xsd:group>
+    <xsd:complexType name="CT_operations">
+        <xsd:group ref="all_operations" maxOccurs="unbounded" />
+    </xsd:complexType>
+    <xsd:complexType name="CT_trigger">
+        <xsd:annotation>
+            <xsd:documentation>
+A trigger is an artefact that can be declared by a component, with
+an associated event for trigger back.
+Such a declaration enables generation of methods to set and cancel
+alarms, i.e., give a triggerDelay and the associated declared event will
+be sent upon delay expiration.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+        </xsd:sequence>
+        <xsd:attribute name="name" type="TriggerName" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Name of the trigger.
+	</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="event" type="OperationName" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Name of the event that will be received upon trigger expiration.
+Such an event shall exist, shall be declared as received
+and shall have no parameter.
+	</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="CT_triggers">
+        <xsd:annotation>
+            <xsd:documentation>
+Definition of triggers.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="trigger" type="CT_trigger" minOccurs="0" maxOccurs="unbounded" />
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="CT_request_response" abstract="true">
+        <xsd:annotation>
+            <xsd:documentation>
+Specificities of a request_response operation.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_operation">
+                <xsd:sequence>
+                    <xsd:element name="parameter" type="QualifiedField" minOccurs="0" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:documentation>
+request_response input parameter.
+</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="out" type="QualifiedField" minOccurs="0" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:documentation>
+request_response output parameter.
+	</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_request_received">
+        <xsd:annotation>
+            <xsd:documentation>
+Specificities of a PROVIDED request_response.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_request_response">
+                <xsd:attribute name="immediate" type="xsd:boolean" default="false">
+                    <xsd:annotation>
+                        <xsd:documentation>
+If true, the response is immediate, i.e. sent when the execution of the entry point of the receiver component ends.
+If false, the response can be postponed; the component may send it at any time, from any entry point.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="maxConcurrentRequests" type="xsd:unsignedInt" default="8">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Maximum number of requests that the server can handle at any time. Meaningful only when immediate=false.
+If immediate=true, only one request can be handled at the time.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_request_sent">
+        <xsd:annotation>
+            <xsd:documentation>
+Specificities of a REQUIRED request_response.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_request_response">
+                <xsd:attribute name="isSynchronous" type="xsd:boolean" default="false">
+                    <xsd:annotation>
+                        <xsd:documentation>
+A request is synchronous or asynchronous from the viewpoint of the
+component that calls it (i.e., the client).
+	</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="timeout" type="xsd:decimal" default="0">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Maximum authorized time (in milliseconds) for the call of a synchronous
+or asynchronous request_response. Zero or a negative value means infinite timeout.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="maxConcurrentRequests" type="positiveInt" default="8">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Maximum number of requests that can be pending (i.e. waiting for response or timeout) at any given moment.
+Meaningful only for asynchronous requests.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_variables">
+        <xsd:annotation>
+            <xsd:documentation>
+Definition of SYSTEM variables associated to a component of
+SUPERVISOR type.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="variable" type="QualifiedField" minOccurs="0" maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Definition of supervision variable.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+    </xsd:complexType>
+</xsd:schema>

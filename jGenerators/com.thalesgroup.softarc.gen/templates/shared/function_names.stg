@@ -1,0 +1,46 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+
+//=============================================================================
+// Public functions
+//=============================================================================
+
+//================================================
+//@name Generic initialize function name
+//@param type Type
+initializeFunctionName(type) ::=<<
+<if(type.parent.isCComponent)><if(type.parent.isEcoa)><type.qName>__initialize<else><type.qName>_initialize<endif><
+elseif(type.parent.isCppComponent)><type.parent.package>::initialize<
+elseif(type.parent.isJavaComponent)><type.parent.package>.initialize.initialize<
+elseif(type.parent.isAdaComponent)><type.parent.package>_<type.name>_initialize<
+elseif(type.parent.isPythonComponent)><type.parent.package>.<type.name><endif>
+>>
+
+equalsFunctionName(type) ::=<<
+<if(type.isScalar)>does_not_exist<
+elseif(type.parent.isCComponent)><if(type.parent.isEcoa)><type.qName>__equals<else><type.qName>_equals<endif><
+elseif(type.parent.isCppComponent)><type.parent.package>::equals<
+elseif(type.parent.isJavaComponent)>does_not_exist<
+elseif(type.parent.isAdaComponent)><type.parent.package>_<type.name>_Equals<
+elseif(type.parent.isPythonComponent)>does_not_exist<endif>
+>>
+
+//=============================================================================
+// Private functions
+//=============================================================================
+
+//================================================
+//@name Generic validate function name
+//@param type Type
+validateFunctionName(type) ::=<<
+<if(type.parent.isCComponent)><type.qName>_validate<
+elseif(type.parent.isAdaComponent)><type.parent.package>_<type.name>_validate<
+else>does_not_exist<endif>
+>>
+
+checkFunctionName(type) ::=<<
+<if(type.parent.isCComponent)><type.qName>_check<
+elseif(type.parent.isCppComponent)>does_not_exist<
+elseif(type.parent.isJavaComponent)><if(!type.isPredef)><type.parent.package>.<if(useInterfaces)>impl.<endif>Serialize.<endif><type.name>_check<
+elseif(type.parent.isAdaComponent)><type.parent.package>_<type.name>_Check<endif>
+>>

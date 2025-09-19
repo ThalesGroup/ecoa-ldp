@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<application xmlns="http://www.ecoa.technology/Deployment/3.0" assembly="D1" production="Restaurant" name="D1" start_mode="FAST">
+  <task name="TaskPhilospher1" relativePriority="1">
+    <deployedInstance ref="Philosopher1"/>
+  </task>
+  <task name="TaskPhilospher2" relativePriority="1">
+    <deployedInstance ref="Philosopher2"/>
+  </task>
+  <task name="TaskPhilospher3" relativePriority="1">
+    <deployedInstance ref="Philosopher3"/>
+  </task>
+  <task name="TaskPhilospher4" relativePriority="1">
+    <deployedInstance ref="Philosopher4"/>
+  </task>
+  <task name="TaskPhilospher5" relativePriority="1">
+    <deployedInstance ref="Philosopher5"/>
+  </task>
+  <task name="TaskTable" relativePriority="2">
+    <deployedInstance ref="Table"/>
+  </task>
+</application>

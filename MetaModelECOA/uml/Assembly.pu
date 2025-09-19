@@ -1,0 +1,114 @@
+@startuml Assembly
+
+note as title_note
+  The assembly model defines the logical structure of a Composite or a complete Application.
+  From the outside, an Assembly is seen as a Component (unless it is a stand-alone application).
+  In the inside, it is made of component Instances, and Links that connect their operations.
+end note
+
+class Assembly {
+	+string name
+	string doc
+}
+
+Assembly --> "0..1" Component : componentType
+note left: from Component diagram
+
+Assembly o-- "*" Instance : instance
+Assembly o-- "*" Link : link
+Assembly o-- "*" ImplicitLinks
+Instance o-- "*" MemberValue : propertyValue
+Instance o-- "*" MemberValue : pinfoValue
+Instance o-- "*" MemberValue : variableInit
+Instance o-- "*" VariableAlias : variableAlias
+
+class MemberValue {
+	+string name
+	+string value
+}
+
+class VariableAlias {
+	+string name
+	+string alias
+}
+
+class Instance {
+	+string name
+}
+Implementation -up-> Component
+Instance -up-> Implementation
+note left: from Implementation diagram
+
+abstract class Link {
+	string doc
+	int id
+}
+
+class WhenCondition {
+	+string variable
+	+string value
+}
+note right: Condition variables are used to dynamically enable/disable some connections.
+
+WhenCondition -left-> Instance : instance
+OpRef o-- "*" WhenCondition : conditions
+
+abstract class OpRef {
+	+string operation
+	+string instance
+}
+note right
+instance is either an Instance of this Assembly,
+or "extern", to refer to the boundary of this Assembly.
+end note
+
+Link <|-- EventLink
+Link <|-- DataLink
+Link <|-- RequestLink
+
+OpRef <|-up- Sender
+OpRef <|-up- Receiver
+Reader <|-up- Reader
+OpRef <|-up- Writer
+OpRef <|-up- Client
+OpRef <|-up- Server
+
+EventLink o-- "*" Sender
+EventLink o-- "*" Receiver
+
+Receiver : bool activating
+Receiver : int fifoSize
+
+DataLink o-- "*" Reader
+DataLink o-- "*" Writer
+DataLink o-- DefaultDataValue
+
+DefaultDataValue --> DataType
+abstract class DataType
+note bottom: from DataTypes diagram
+
+DefaultDataValue : +string value
+
+DataLink : bool uncontrolledAccess
+
+Reader : bool activating
+Reader : int fifoSize
+Writer : bool reference
+
+RequestLink o-- "1" Client
+RequestLink o-- "*" Server
+
+Client : bool callbackActivating
+Client : int fifoSize
+Server : bool activating
+Server : int fifoSize
+
+ImplicitLinks o-- "*" OperationsSet
+
+ImplicitLinks : bool activating
+
+class OperationsSet {
+	+string instance
+	string prefix
+}
+

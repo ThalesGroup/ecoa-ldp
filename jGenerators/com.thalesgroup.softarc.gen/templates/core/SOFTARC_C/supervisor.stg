@@ -1,0 +1,207 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "../../serialize/C/common.stg"
+import "signatures.stg"
+
+//==================================================================
+// Implements supervision additional functions
+//==================================================================
+
+implementLifeCycleCommand(exec, componentType) ::=<<
+void
+<componentType.package>_component_state_command (<componentType.package>_context * ctxt, SARC_int32 instance, SARC_LifeCycleShift shift)
+{
+  SARC_gen_send_lifecycle_command (instance,shift);
+\}
+>>
+
+
+implementComponentStateRequest(componentType)::=<<
+SARC_LifeCycleState
+<componentType.package>_component_status (<componentType.package>_context * ctxt, SARC_int32 p_instance)
+{
+  SARC_LifeCycleState result = SARC_LIFE_CYCLE_STATE_UNAVAILABLE;
+
+  if (p_instance \< SARC_MAX_NB_COMPONENT)
+    {
+      result = ctxt->tech->componentStableState[p_instance];
+    \}
+
+  return result;
+\}
+>>
+
+
+implementComponentByIdRequest(componentType, mapping)::=<<
+const SARC_char8*
+<componentType.package>_component_name (<componentType.package>_context * ctxt, SARC_int32 p_instance)
+{
+  const SARC_char8 *_result = "INVALID_COMPONENT_ID";
+
+  (void) ctxt;
+
+  if (p_instance \< SARC_MAX_NB_COMPONENT)
+    {
+      _result = SARC_table_name_of_instance[p_instance];
+    \}
+
+  return _result;
+\}
+>>
+
+
+implementComponentByNameRequest(componentType, mapping)::=<<
+SARC_int32
+<componentType.package>_component_id (<componentType.package>_context * ctxt, const SARC_char8 * p_instance_name)
+{
+  SARC_int32 _result = SARC_NONE;
+  SARC_int32 i = 0;
+
+  (void) ctxt;
+
+  for (i = 0; i \< SARC_MAX_NB_COMPONENT; i++)
+    {
+      if (strcmp (p_instance_name, SARC_table_name_of_instance[i]) == 0)
+        {
+          _result = i;
+          break;
+        \}
+    \}
+
+  return _result;
+}
+>>
+
+
+implementComponentExecRequest(componentType, mapping) ::=<<
+SARC_int32
+<componentType.package>_component_executable_id (<componentType.package>_context * ctxt, SARC_int32 p_instance)
+{
+  SARC_int32 _result = SARC_NONE;
+
+  //TODO Not implemented
+
+  return _result;
+\}
+
+>>
+
+
+implementExecutableState(componentType) ::=<<
+SARC_ExecutableStates
+<componentType.package>_executable_status (<componentType.package>_context * ctxt, SARC_int32 p_binary)
+{
+  SARC_ExecutableStates result = SARC_STATUS_EXECUTABLE_NULL;
+  //TODO Not Implemented
+
+  (void) ctxt;
+
+  return result;
+\}
+>>
+
+
+implementExecByIdRequest(componentType, mapping)::=<<
+const SARC_char8*
+<componentType.package>_executable_name (<componentType.package>_context * ctxt, SARC_int32 p_binary)
+{
+  const SARC_char8 *_result = "INVALID_EXEC_ID";
+
+  (void) ctxt;
+
+  //TODO Not implemented
+  
+  return _result;
+\}
+
+>>
+
+
+implementExecutableCommand(exec, componentType) ::=<<
+void
+<componentType.package>_executable_command (<componentType.package>_context * ctxt, SARC_int32 p_binary, SARC_ExecutablesCommands p_command)
+{
+  (void) ctxt;
+
+  //TODO Not implemented
+}
+>>
+
+
+implementExecPlatformRequest(componentType, mapping) ::=<<
+SARC_int32
+<componentType.package>_executable_platform_id (<componentType.package>_context * ctxt, SARC_int32 p_binary)
+{
+  SARC_int32 _result = 0;
+
+  (void) ctxt;
+
+   //TODO Not implemented
+
+  return _result;
+\}
+
+>>
+
+
+implementPlatformByIdRequest(componentType, mapping)::=<<
+const SARC_char8*
+<componentType.package>_platform_name (<componentType.package>_context * ctxt, SARC_int32 p_site)
+{
+  const SARC_char8 *_result = "INVALID_PLATFORM_ID";
+
+  (void) ctxt;
+
+   //TODO Not implemented
+
+  return _result;
+\}
+
+>>
+
+
+implementVariables(componentType, instances) ::=<<
+<componentType.variables : { variable | 
+
+
+SARC_Ecode
+<componentType.package>_get_variable_<variable.name>
+ (<componentType.package>_context *sarc_ctxt,
+  <parameter(variable, false)>)
+{
+  SARC_Ecode result = SARC_SUCCESS;
+  SARC_int32 raw_value = 0;
+
+  switch (sarc_ctxt->instanceId) {<instances : { compoInst | 
+    case <compoInst.id> :
+      raw_value = SARC_registry_get (K_VAR_<compoInst.name>_<variable.name>);
+      *<variable.name> = (<variable.qType>) raw_value;
+      break;}>
+    default:
+      result = SARC_FAILURE;
+  \}
+
+  return result;
+\}
+
+
+SARC_Ecode
+<componentType.package>_set_variable_<variable.name>
+ (<componentType.package>_context *sarc_ctxt,
+  <parameter(variable, true)>)
+{
+  SARC_Ecode result = SARC_SUCCESS;
+  SARC_int32 raw_value = 0;
+
+  switch (sarc_ctxt->instanceId) {<instances : { compoInst | 
+    case <compoInst.id> :
+      raw_value = (SARC_int32) *<variable.name>;
+      SARC_registry_set (K_VAR_<compoInst.name>_<variable.name>, raw_value);
+      break;}>
+    default:
+      result = SARC_FAILURE;
+  \}
+
+  return result;
+\}}>
+>>

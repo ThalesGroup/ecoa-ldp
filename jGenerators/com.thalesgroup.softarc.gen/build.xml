@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="build" name="com.thalesgroup.softarc.gen">
+
+    <import file="../common.ant" />
+    <import file="genlib.ant" />
+    <import file="checkTemplates.ant" />
+
+    <path id="classpath">
+      <pathelement location="../com.thalesgroup.softarc.tools/bin"/>
+      <pathelement location="../com.thalesgroup.ecoa.model/bin"/>
+      <pathelement location="../com.thalesgroup.softarc.model/bin"/>
+      <path refid="classpath-common"/>
+    </path>
+
+    <target name="xjc" depends="generateFormalism" />
+
+	  <target name="copy_resources" depends="genlib.copy_resources, common.copy_resources"/>
+
+  <target name="generateFormalism" description="(Re-)Generate Java code for Formalism in src-gen from Formalism definition">
+    <mkdir dir="formalism/bin" />
+    <javac debug="true" debuglevel="${debuglevel}" destdir="formalism/bin" encoding="UTF-8">
+        <src path="formalism/src" />
+        <classpath refid="classpath" />
+    </javac>
+    <java classname="Generate" output="generateFormalism.log" logError="true">
+      <classpath>
+        <pathelement path="formalism/bin" />
+        <pathelement path="formalism" /> <!-- for templates -->
+      	<path refid="classpath" />
+      </classpath>
+      <sysproperty key="user.dir" file="${basedir}"/>
+    </java>
+  </target>
+
+</project>

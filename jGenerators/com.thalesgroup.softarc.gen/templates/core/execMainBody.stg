@@ -1,0 +1,332 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+execMainBody(system) ::=<<
+/* Generated - do not edit! */
+
+/* Application main program
+
+   Additional executables, if any, are forked as sub processes of this process.
+ */
+
+#include "sarc_ldp.h"
+<system.components : {componentType |
+<if(!componentType.isLibrary)>
+#include "<componentType.typeName>_<componentType.implName>_facade.h"
+<endif>
+}>
+#include \<sys/wait.h>
+#include \<sys/prctl.h>
+#include \<fcntl.h>
+
+/*=============================================================================
+ * Global constants or pseudo-constants
+ *=============================================================================*/
+
+int SARC_socket_out = 0;
+
+<system.mapping.globalExecutable.threads : { thread |
+int SARC_socket_<thread.name> = 0;
+<if (thread.hasSyncRequiredRequestResponses)>
+int SARC_socket_SYNC_<thread.name> = 0;
+<endif>
+const struct sockaddr_un SARC_socket_addr_<thread.name> =
+  { AF_UNIX, "<thread.name>.socket" \};
+const struct sockaddr_un SARC_socket_addr_SYNC_<thread.name> =
+  { AF_UNIX, "SYNC_<thread.name>.socket" \};  
+
+}>
+const SARC_int32 SARC_table_task_of_instance[SARC_MAX_NB_COMPONENT] =
+  { 
+<system.mapping.globalExecutable.threads : { thread |
+<thread.instances : { instance |
+  [<instance.idNo>] = <thread.idNo>,
+}>}>
+  \};
+
+const struct sockaddr_un *SARC_table_socket_addr_of_task[SARC_MAX_NB_TASK] =
+  {
+<system.mapping.globalExecutable.threads : { thread |
+  [<thread.idNo>] = &SARC_socket_addr_<thread.name>,
+}>
+  \};
+  
+SARC_Task SARC_task_index[SARC_MAX_NB_TASK] =
+  {
+<system.mapping.globalExecutable.threads : { thread |
+  [<thread.idNo>] = { SARC_FALSE, SARC_NO_TASK \},
+}>
+  \};
+
+const char *SARC_table_name_of_instance[SARC_MAX_NB_COMPONENT] =
+  {
+<system.mapping.globalExecutable.threads : { thread |
+<thread.instances : { instance |
+  [<instance.idNo>] = "<instance.name>",
+}>}>
+  \};
+  
+const char *SARC_table_name_of_task[SARC_MAX_NB_TASK] =
+  { 
+<system.mapping.globalExecutable.threads : { thread |
+  [<thread.idNo>] = "<thread.name>",
+}>
+  \};
+
+<system.mapping.globalExecutable.threads : { thread |
+pthread_mutex_t SARC_mutex_<thread.name> = PTHREAD_MUTEX_INITIALIZER;
+}>
+
+
+
+/*=============================================================================
+ * Threads global variables declaration
+ *=============================================================================*/
+
+<system.mapping.globalExecutable.threads : { thread |
+SARC_char8 SARC_routing_buffer_<thread.name>[16 + SARC_LDP_MAX_OPERATION_SIZE];
+}>
+static int after_routing_buffers __attribute__ ((unused)) = 0xABCDEF;
+
+<system.mapping.platforms : { platform |
+<platform.dataVersions :  { data | 
+<if (data.dataLink)>
+<data.dataLink.threadsLinked : { thread |
+SARC_op_data SARC_data_<thread.name>_<data.id> = { NULL, 0 \};
+}>
+<endif>
+}>
+}>
+
+/*=============================================================================
+ * Helper functions
+ *=============================================================================*/
+
+void
+SARC_gen_handle_lifecycle_command (int instanceId, SARC_LifeCycleState *state, SARC_LifeCycleShift command,
+                                   SARC_entrypoint_ptr *lifecycle_entrypoints[5])
+{
+  SARC_LifeCycleStateStatus next_state = SARC_life_cycle_next_state (*state, command);
+  if (!next_state.is_state_changed)
+    {
+      SARC_log_warning ("transition %s not allowed for component %s(%d) from state %s", SARC_table_name_of_life_cycle_shift[command],
+              SARC_table_name_of_instance[instanceId], instanceId, SARC_table_name_of_life_cycle_state[*state]);
+    \}
+  else
+    {
+      if (command >= SARC_LIFE_CYCLE_SHIFT_INITIALIZE && command \<= SARC_LIFE_CYCLE_SHIFT_SHUTDOWN)
+        {
+          lifecycle_entrypoints[command - SARC_LIFE_CYCLE_SHIFT_INITIALIZE] ();
+        \}
+      if (next_state.is_state_changed)
+        {
+	      *state = next_state.state;
+          // broadcast state change:
+	      SARC_log_info ("new state for component %s(%d): %s", SARC_table_name_of_instance[instanceId], instanceId, SARC_table_name_of_life_cycle_state[next_state.state]);
+          SARC_int32 sarc_buffer[3] =
+            { SARC_OP_LIFECYCLE_INFO, instanceId, next_state.state \};
+          // send to all other tasks
+          for (int i = 0; i \< SARC_MAX_NB_TASK; i++)
+            {
+              if (SARC_table_socket_addr_of_task[i] != NULL && i != SARC_table_task_of_instance[i])
+                {
+                  int err = sendto (SARC_socket_out, sarc_buffer, 3 * 4, 0,
+                                    (const struct sockaddr*) SARC_table_socket_addr_of_task[i],
+                                    sizeof(struct sockaddr_un));
+                  if (err \< 0)
+                    {
+                      if (errno == EAGAIN ) {
+                        perror("SARC_gen_handle_lifecycle_command:sendto, SARC_socket_out full");
+                        abort();
+                      \}
+
+                      perror ("SARC_gen_handle_lifecycle_command:sendto");
+                      abort();
+                    \}
+                \}
+            \}
+            usleep(50000); //50 ms, let other task to be updated.
+        \}
+    \}
+\}
+
+void
+SARC_gen_send_lifecycle_command (SARC_int32 instance, SARC_LifeCycleShift command)
+{
+  SARC_int32 sarc_buffer[3] =
+    { SARC_OP_LIFECYCLE_COMMAND, instance, command \};
+
+  int err = sendto (SARC_socket_out, sarc_buffer, 3 * 4, 0,
+                    (const struct sockaddr*) SARC_table_socket_addr_of_task[SARC_table_task_of_instance[instance]],
+                    sizeof(struct sockaddr_un));
+  if (err \< 0) {
+    perror ("SARC_gen_send_lifecycle_command:sendto");
+    abort();
+  \}
+\}
+
+static void
+cleanup ()
+{
+<system.mapping.globalExecutable.threads : { thread |
+  remove (SARC_socket_addr_<thread.name>.sun_path);
+<if (thread.hasSyncRequiredRequestResponses)>
+  remove (SARC_socket_addr_SYNC_<thread.name>.sun_path);
+<endif>
+}>
+\}
+
+<system.mapping.executables : { exec |
+static void
+SARC_gen_startup_exec_<exec.name>()
+{
+<if(exec.isDispatcher)>
+  /* main process */
+<else>
+  /* create child process */
+  if (fork () == 0)
+    {
+      prctl(PR_SET_PDEATHSIG, SIGHUP);
+<endif>
+
+  /*===========================================================================
+   * Initialize components instances
+   *===========================================================================*/
+
+<exec.componentTypes : {componentType |
+  <componentType.typeName>_<componentType.implName>_instance_initialize ();
+}>
+  /*===========================================================================
+   * Start threads
+   *===========================================================================*/
+<exec.threads :  {thread |
+  SARC_task_start (<thread.idNo>, &SARC_routine_<thread.name>);
+}>
+
+<exec.instances : { instance |
+<if (instance.type.isExternal)>
+<if (instance.externalThread.isPrompt)>
+  /* External Thread autostart for instance <instance.name> */
+  SARC_task_start (<instance.externalThread.idNo>, &<instance.name>_EXTERNAL_routine);
+<endif>
+<endif>
+}>
+
+  if (errno)
+    {
+      perror ("pthread_create");
+      abort();
+    \}
+
+<if(exec.isDispatcher)>
+<else>
+  /* main thread of child process does nothing else but wait */
+  for(;;) wait(NULL);
+  \}
+  else {
+    if (errno)
+    {
+      SARC_log_error ("fork: %s", strerror (errno));
+    \}
+  \}
+<endif>
+\}
+}>
+
+/*=============================================================================
+ * Main function
+ *=============================================================================*/
+
+int
+main (int argc __attribute__ ((unused)), const char *argv[] __attribute__ ((unused)))
+{
+  SARC_socket_out = socket (AF_UNIX, SOCK_DGRAM, 0);
+  SARC_uint32 recbuf_size_sarc_out = <system.mapping.globalExecutable.maxBufferOut>;
+  socklen_t optlen = sizeof(SARC_uint32);
+  if (setsockopt(SARC_socket_out, SOL_SOCKET, SO_SNDBUF, &recbuf_size_sarc_out, optlen) == -1)
+  {
+    perror("setsockopt SO_SNDBUF on SARC_socket_out");
+    close(SARC_socket_out);
+    abort();
+  \}
+  
+  if (getsockopt(SARC_socket_out, SOL_SOCKET, SO_SNDBUF,&recbuf_size_sarc_out, &optlen) == -1)
+  {
+    perror("getsockopt SO_SNDBUF on SARC_socket_out");
+    close(SARC_socket_out);
+    abort();
+  \}
+
+  if( recbuf_size_sarc_out \< <system.mapping.globalExecutable.maxBufferOut>)
+  {
+    SARC_log_warning("SARC_socket_out size could not be increased by the program because the limit on the system is not high enough. Size requested: <system.mapping.globalExecutable.maxBufferOut>, size obtained: %d", recbuf_size_sarc_out);
+  \}
+  
+  // Socket_out is non-blocking
+  int flags = fcntl(SARC_socket_out, F_GETFL, 0);
+  fcntl(SARC_socket_out, F_SETFL, flags | O_NONBLOCK);
+  
+  // Init 
+  SARC_init_task_index();
+
+  cleanup();
+  atexit (cleanup);
+  errno = 0;
+
+  /*===========================================================================
+   * Create sockets for threads
+   *===========================================================================*/
+   SARC_uint32 rcvbuf_size = 0;
+<system.mapping.globalExecutable.threads :  {thread |
+  SARC_socket_<thread.name> = socket (AF_UNIX, SOCK_DGRAM, 0);
+  if (SARC_socket_<thread.name> \< 0)
+    perror ("socket");
+  {
+    int rb = bind (SARC_socket_<thread.name>, (struct sockaddr*) (&SARC_socket_addr_<thread.name>), sizeof(struct sockaddr_un));
+    if (rb \< 0)
+    {
+      perror ("bind(\"./<thread.name>.socket\")");
+      abort();
+    \}
+  \}
+  
+  rcvbuf_size = <thread.bufferInSize>;
+  if (setsockopt(SARC_socket_<thread.name>, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size)) == -1)
+  {
+    perror("setsockopt SO_RCVBUF on SARC_socket_<thread.name>");
+    close(SARC_socket_<thread.name>);
+    abort();
+  \}
+  
+<if (thread.hasSyncRequiredRequestResponses)>
+  SARC_socket_SYNC_<thread.name> = socket(AF_UNIX, SOCK_DGRAM, 0);
+  if (SARC_socket_SYNC_<thread.name> \< 0)
+    perror ("socket");
+  {
+    int rb = bind (SARC_socket_SYNC_<thread.name>, (struct sockaddr*) (&SARC_socket_addr_SYNC_<thread.name>), sizeof(struct sockaddr_un));
+    if (rb \< 0)
+    {
+      perror ("bind(./\"SYNC_<thread.name>.socket\")");
+      abort();
+    \}
+  \}
+<endif>  
+
+}>
+  /*===========================================================================
+   * Start executables
+   *===========================================================================*/
+
+<system.mapping.executables : { exec |
+  SARC_gen_startup_exec_<exec.name>();
+  usleep (1000000);
+}>
+
+  usleep (1000000);
+
+  SARC_launcher ();
+
+  return 0;
+\}
+
+>>
+  

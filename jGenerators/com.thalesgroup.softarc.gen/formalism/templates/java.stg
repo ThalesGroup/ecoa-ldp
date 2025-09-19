@@ -1,0 +1,82 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+getter(f)::=<<get<f.name; format="firstToUpperCase">
+>>
+
+setter(f)::=<<set<f.name; format="firstToUpperCase">
+>>
+
+JavaInterface(c)::=<<
+
+// @formatter:off
+// Ce fichier est généré automatiquement à partir de
+//  ${SOFTARC_HOME}/jGenerators/com.thalesgroup.softarc.gen/formalism/src/SoftarcFormalismDefinition.java
+// Ne pas éditer!
+// Voir ${SOFTARC_HOME}/jGenerators/com.thalesgroup.softarc.gen/formalism/README.txt
+
+package com.thalesgroup.softarc.sf;
+
+import java.util.List;
+
+public interface <c.simpleName><if(c.superclass.memberClass)> extends <c.superclass.simpleName><endif> {
+<c.declaredFields : { f |
+<if(!f.synthetic)>
+<if(!f.type.array)>
+    public <f.type.simpleName> <getter(f)> ();
+    public void <setter(f)> (<f.type.simpleName> _v);
+<else>
+    public List\<<f.type.componentType.simpleName>\> <getter(f)> ();
+<endif>
+<endif>
+}>
+\}
+
+>>
+
+
+JavaClass(c)::=<<
+
+// @formatter:off
+// Ce fichier est généré automatiquement à partir de
+//  ${SOFTARC_HOME}/jGenerators/com.thalesgroup.softarc.gen/formalism/src/SoftarcFormalismDefinition.java
+// Ne pas éditer!
+// Voir ${SOFTARC_HOME}/jGenerators/com.thalesgroup.softarc.gen.common/formalism/README.txt.
+
+package com.thalesgroup.softarc.sf.impl;
+
+import java.util.List;
+
+import com.thalesgroup.softarc.sf.*;
+import com.thalesgroup.softarc.sf.System;
+import com.thalesgroup.softarc.sf.Thread;
+
+public class Q<c.simpleName><if(c.superclass.memberClass)> extends Q<c.superclass.simpleName><else> extends AbstractFormalismObject<endif> implements <c.simpleName>{
+
+    // attributes
+<c.declaredFields : { f |
+<if(!f.synthetic)>
+<if(f.contains)>
+@contains
+<endif>
+public <if(!f.type.array)>
+<f.type.simpleName> <f.name>;
+<else>
+List\<<f.type.componentType.simpleName>\> <f.name>;
+<endif>
+<endif>
+}>
+    // getters & setters
+<c.declaredFields : { f |
+<if(!f.synthetic)>
+<if(!f.type.array)>
+    public void <setter(f)> (<f.type.simpleName> _v) { <f.name> = _v; \}
+    public <f.type.simpleName> <getter(f)> () { return <f.name>; \}
+<else>
+    public List\<<f.type.componentType.simpleName>\> <getter(f)> () { return <f.name>; \}
+<endif>
+<endif>
+}>
+
+\}
+
+>>

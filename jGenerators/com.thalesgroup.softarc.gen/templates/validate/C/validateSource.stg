@@ -1,0 +1,164 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "../../shared/function_names.stg"
+
+validateSource(componentType) ::=<<
+#include "<componentType.fileprefix>_validate.h"
+
+<componentType.usedLibraries : { library |
+<if(library.needsValidation)>
+#include "<library.fileprefix>_validate.h"
+<endif>
+}>
+
+#include \<string.h\>
+
+<componentType.types: { type |
+<if (type.isSimple)>
+<elseif (type.isRecord)>
+  <if(type.needsValidation)><validateRecord(type)><endif>
+<elseif (type.isVariantRecord)>
+  <if(type.needsValidation)><validateVariantRecord(type)><endif>
+<elseif (type.isEnum)>
+<elseif (type.isArray)>
+  <if(type.needsValidation)><validateArray(type)><endif>
+<elseif (type.isFixedArray)>
+  <if(type.needsValidation)><validateFixedArray(type)><endif>
+<elseif (type.isList)>
+  <if(type.needsValidation)><validateList(type)><endif>
+<elseif (type.isMap)>
+  <if(type.needsValidation)><validateMap(type)><endif>
+<elseif (type.isString)>
+  <if(type.needsValidation)><validateString(type)><endif>
+<endif>
+}>
+
+>>
+
+validateSignature(type) ::=<<
+void <validateFunctionName(type)>(<type.qName>* v)
+>>
+
+//=============================================================================
+// Validation functions
+//=============================================================================
+
+//-------------------------------
+//@name Validate method call
+//@param type Im_Gentype.TypeDefinition
+//@param value String
+validate(t,value) ::=<<
+<if(t.needsValidation)><validateFunctionName(t)>(<value>)<endif>
+>>
+
+//=============================================
+//@name Record types validation
+//@param type Im_Gentype.TypeDefinition
+validateRecord(type) ::=<<
+<validateSignature(type)>
+{
+  <type.fields : { field | 
+  <validate(field.type,{&v-><field.name>})>; }>
+}
+
+>>
+
+//=============================================
+//@name Variant Record types validation
+//@param type Im_Gentype.TypeDefinition
+validateVariantRecord(type) ::=<<
+<validateSignature(type)>
+{
+  <type.fields : { field | 
+  <validate( t=field.type, value={&v-><field.name>},... )>;}>
+  switch (v-\><type.selectName>)
+    {
+<type.unionFields : { union | 
+    case <union.qWhen>:
+      <validate( t=union.type, value={&v->u_<type.selectName>.<union.name>},... )>;
+      break;}>
+    default:
+<if(type.defaultUnionField)>
+      <validate( t=type.defaultUnionField.type, value={&v->u_<type.selectName>.<type.defaultUnionField.name>},... )>;
+<endif>
+      break;
+    \}
+}
+
+
+>>
+
+//=============================================
+//@name Array types validation
+//@param type Im_Gentype.TypeDefinition
+validateArray(type) ::=<<
+<validateSignature(type)>
+{
+  SARC_uint32 index = 0;
+
+  for (index = 0; index \< v-\>size; index++)
+    {
+      <validate( type.type, {&v-\>values[index]} )>;
+    \}
+}
+
+>>
+
+//=============================================
+//@name Fixed Array types validation
+//@param type Im_Gentype.TypeDefinition
+validateFixedArray(type) ::=<<
+<validateSignature(type)>
+{
+  SARC_uint32 index = 0;
+  for (index = 0; index \< <type.qName>_MAXSIZE; index++)
+  {
+    <validate( type.type, {&v->values[index]} )>;
+  \}
+\}
+
+>>
+
+//=============================================
+//@name List types validation
+//@param type Im_Gentype.TypeDefinition
+validateList(type) ::=<<
+<validateSignature(type)>
+{
+  SARC_uint32 index = 0;
+  SARC_uint32 size = <type.qName>_size(v);
+  for (index = 0; index \< size; index++)
+  {
+    <validate( type.type, {<type.qName>_set(v, index)} )>;
+  \}
+\}
+
+>>
+
+//=============================================
+//@name Map types validation
+//@param type Im_Gentype.TypeDefinition
+validateMap(type) ::=<<
+<validateSignature(type)>
+{
+  SARC_uint32 index = 0;
+  SARC_uint32 size = <type.qName>_size(v);
+  for (index = 0; index \< size; index++)
+  {
+    <validate( type.type, {<type.qName>_get_value(v, index)} )>;
+  \}
+\}
+
+>>
+
+//=============================================
+//@name String types validation
+//@param type Im_Gentype.TypeDefinition
+validateString(type) ::=<<
+<validateSignature(type)>
+{
+  v->max_length = <type.qName>_MAXLEN;
+  v->current_length = strlen(v-\>data);
+\}
+
+>>

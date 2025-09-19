@@ -1,0 +1,653 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "../../serialize/C/common.stg"
+import "signatures.stg"
+
+instanceBody(container, options) ::=<<
+
+<includes(container.component)>
+<declareGlobalVariables(container.component, container.instances)>
+<if(options.hasSafeReaders)>
+<declareSafeReaderVariables(container.component, container.operationMap)>
+<endif>
+
+<implementInstancesInitFunction(container.component, container.instances, options)>
+<container.instances : {instance | 
+/*=============================================================================
+ * <instance.name>
+ *=============================================================================*/
+
+<implementComponentCommandFunctions(container.component, instance)>
+<implementExternalRoutineCall(instance)>
+<implementReceivedEvents(container.component, instance)>
+<implementProvidedRequestResponses(instance)>
+<implementProvidedDirectRequestResponses(instance)>
+<implementRequiredRequestResponsesCallbacks(instance)>
+<implementSupervisorRoutineCall(instance)>
+<implementWrittenData(instance)>
+}>
+>>
+
+//#############################################################################
+//@name Instance body include directives
+//@param componentType Component
+includes(componentType) ::=<<
+#include "sarc_ldp.h"
+<componentType.usedLibraries: {component |
+#include "<component.fileprefix>_serialize.h"
+#include "<component.fileprefix>_initialize.h"
+}>
+#include "<componentType.typeName>_<componentType.implName>_facade.h"
+#include "<componentType.fileprefix>_container.h"
+#include "<componentType.fileprefix>.h"
+>>
+
+//#############################################################################
+//@name Instance body global variables declaration
+//@param componentType Component
+//@param instances Instance[*]
+declareGlobalVariables(componentType, instances) ::=<<
+/*=============================================================================
+ * Global variables
+ *=============================================================================*/
+
+/* Contexts for each instance of <componentType.package> */
+<instances : {instance | 
+<componentType.package>_context <instance.name>_global;
+struct <componentType.package>_tech_context <instance.name>_global_tech;}>
+
+/* Attribute for each instance of <componentType.package> (if any) */
+<instances : {instance | <instance.attributes : {attribute | 
+const <attribute.qType> K_ATT_<instance.name>_<attribute.name> = <attribute.value>;}>}>
+
+<instances : {instance | 
+<declareEntrypointVariables(instance)>}>
+
+/* Variable characteristics for each instance of <componentType.package> (if any) */
+
+/* Deferred service maps (if any) between server and client request identifiers */
+<instances : {instance | 
+<instance.requestResponseEntryPoints : {ep | 
+<if(ep.requestResponse.isDeferred)>
+SARC_int64 <instance.name>_<ep.requestResponse.name>_map[1 + (6 + <ep.requestResponse.maxDeferred>) / 2 + <ep.requestResponse.maxDeferred> * (1 + (sizeof (SARC_RequestInfo) + 7) / 8)];<endif>}>}>
+
+>>
+
+
+
+//#############################################################################
+//@name Instance initialization functions implementation
+//@param componentType Component
+//@param instances Instance[*]
+implementInstancesInitFunction(componentType, instances, options) ::=<<
+/*=============================================================================
+ * Instance(s) init function
+ *=============================================================================*/
+
+void
+<componentType.typeName>_<componentType.implName>_instance_initialize ()
+{
+  struct <componentType.package>_tech_context *tech_ctxt;
+<if(componentType.isSupervisor)>
+  SARC_uint32 i = 0;
+<endif>
+<instances : {instance | 
+  memset (&<instance.name>_global, 0, sizeof (<componentType.package>_context));
+  <instance.name>_global.instanceId = <instance.id>;
+  tech_ctxt = &<instance.name>_global_tech;
+  <instance.name>_global.tech = tech_ctxt;
+  tech_ctxt->lifecycle_entrypoints[0] = instance_<instance.name>_Initialize_EVENT_receive;
+  tech_ctxt->lifecycle_entrypoints[1] = instance_<instance.name>_Start_EVENT_receive;
+  tech_ctxt->lifecycle_entrypoints[2] = instance_<instance.name>_Reset_EVENT_receive;
+  tech_ctxt->lifecycle_entrypoints[3] = instance_<instance.name>_Stop_EVENT_receive;
+  tech_ctxt->lifecycle_entrypoints[4] = instance_<instance.name>_Shutdown_EVENT_receive;
+<if (componentType.isExternal)>
+  tech_ctxt->external_task_index = <instance.externalThread.idNo>;
+<componentType.data : { data |
+  pthread_mutex_init(&tech_ctxt-\><data.name>_mutex, NULL);
+}>
+  <componentType.package>_external_init(&<instance.name>_global);
+<elseif(componentType.isSupervisor)>
+  /* Component states table initialization */
+  for (i = 0; i \< SARC_MAX_NB_COMPONENT; ++i)
+    {
+      tech_ctxt->componentStableState[i] = SARC_LIFE_CYCLE_STATE_UNAVAILABLE;
+    \}
+<endif>
+<componentType.writtenData : { data | 
+  tech_ctxt->w_access_<data.name>.remaining = <data.maxversions>;
+}>
+<componentType.readData : { data | 
+  tech_ctxt->r_access_<data.name>.remaining = <data.maxversions>;
+}>
+<instance.entryPoints : { ep | 
+<if(ep.highestRate)>
+{
+  static const SARC_Time timeframe = <to_sarc_time(ep.highestRate.timeFrame)>;
+  SARC_ratmon_initialize (&<instance.name>_rate_checker_<ep.name>,
+                          <ep.highestRate.numberOfOccurences>,
+                          &timeframe);
+\}
+<endif>}>
+<if (instance.Pinfos)>
+/* PINFO initialisation */
+<instance.Pinfos : { pinfo | 
+  SARC_init_pinfo(&tech_ctxt->pinfo_<pinfo.name>, "<pinfo.path>", "<pinfo.name>");
+}>
+<endif>
+}>\}
+
+>>
+
+
+declareEntrypointVariables(instance) ::=<<
+>>
+
+begin_entrypoint(instance, ep, buffer, size, return_value_on_abort) ::=<<
+>>
+
+to_sarc_time(nanoseconds) ::=<<
+{ <nanoseconds>LL / 1000000000LL, <nanoseconds>LL % 1000000000LL }
+>>
+
+end_entrypoint(instance, ep) ::=<<
+>>
+
+dump_entrypoint_statistics(instance) ::=<<
+>>
+
+
+//#############################################################################
+//@name Component command functions implemention
+//@param componentType Component
+//@param instance Instance
+implementComponentCommandFunctions(componentType, instance) ::=<<
+/*---------------------------------------------------------
+ * <instance.name> command functions
+ *---------------------------------------------------------*/
+
+void instance_<instance.name>_Initialize_EVENT_receive() {
+  <begin_entrypoint(instance, instance.initialize, "NULL", "0", "")>
+  
+<instance.requestResponseEntryPoints : {ep | 
+<if(ep.requestResponse.isDeferred)>
+  SARC_map_initialize (<instance.name>_<ep.requestResponse.name>_map, sizeof (<instance.name>_<ep.requestResponse.name>_map), <ep.requestResponse.maxDeferred>, sizeof (SARC_RequestInfo));<endif>}>
+
+  <instance.type.package>_initialize(&<instance.name>_global);
+  <end_entrypoint(instance, instance.initialize)>
+\}
+
+void instance_<instance.name>_Start_EVENT_receive() {
+  <begin_entrypoint(instance, instance.start, "NULL", "0", "")>
+  <componentType.package>_start(&<instance.name>_global);
+  <end_entrypoint(instance, instance.start)>
+  <if(componentType.isSupervisor)>
+  <componentType.package>_startSequence(&<instance.name>_global);
+  <endif>
+\}
+
+void instance_<instance.name>_Stop_EVENT_receive() {
+  <begin_entrypoint(instance, instance.stop, "NULL", "0", "")>
+  <componentType.package>_stop(&<instance.name>_global);
+  <end_entrypoint(instance, instance.stop)>
+
+  <dump_entrypoint_statistics(instance)>
+
+<instance.entryPoints : { ep | 
+<if(ep.highestRate)>
+  SARC_ratmon_reset (&<instance.name>_rate_checker_<ep.name>);
+<endif>
+}>
+\}
+
+void instance_<instance.name>_Shutdown_EVENT_receive() {
+  <begin_entrypoint(instance, instance.shutdown, "NULL", "0", "")>
+  <componentType.package>_shutdown(&<instance.name>_global);
+<if(componentType.data)>
+  <componentType.package>_release_all_data_handles (&<instance.name>_global);
+<endif>
+<if (instance.Pinfos)>
+/* PINFO release */
+<instance.Pinfos : { pinfo |
+  SARC_close_pinfo(&<instance.name>_global.tech->pinfo_<pinfo.name>);
+}>
+<endif>
+  <end_entrypoint(instance, instance.shutdown)>
+\}
+
+void instance_<instance.name>_Reset_EVENT_receive() {
+  <begin_entrypoint(instance, instance.reset, "NULL", "0", "")>
+  <componentType.package>_reset(&<instance.name>_global);
+  <end_entrypoint(instance, instance.reset)>
+\}
+>>
+
+//#############################################################################
+//@name External routine call implementation
+//@param instance Instance
+implementExternalRoutineCall(instance) ::=<<
+<if (instance.type.isExternal)>
+/*---------------------------------------------------------
+ * EXTERNAL component specific routines
+ *---------------------------------------------------------*/
+
+void <instance.name>_EXTERNAL_routine()
+{
+  <instance.type.package>_external_routine(&<instance.name>_global);
+\}
+
+<endif>
+>>
+
+
+implementSupervisorRoutineCall(instance) ::=<<
+<if (instance.type.isSupervisor)>
+
+/*---------------------------------------------------------
+ * SUPERVISOR component specific routines
+ *---------------------------------------------------------*/
+
+void
+<instance.name>_SUPERVISOR_routine (SARC_int32 p_component_id, SARC_LifeCycleState p_state, SARC_LifeCycleState p_previous)
+{
+  SARC_LifeCycleState previous_stable = (SARC_LifeCycleState) <instance.name>_global_tech.componentStableState[p_component_id];
+
+  (void) p_previous;
+
+    {
+      <instance.name>_global_tech.componentStableState[p_component_id] = p_state;
+      <instance.type.package>_onStateChange (&<instance.name>_global, p_component_id, p_state, previous_stable);
+    \}
+\}
+
+<endif>
+>>
+
+
+//#############################################################################
+//@name Handlers reservation routine
+//@param componentType Component
+//@param instance Instance
+//@param ep EntryPoint
+reserveHandlers (componentType, instance, ep) ::=<<
+<if(ep.port.operation.accesses)>
+
+/* Reserve handlers */
+
+<ep.port.operation.accesses : {access | 
+
+<if(access.isWrite)>
+/* --- WRITE <access.data_action.name> */
+<componentType.package>_<access.data_action.name>_DATA_get_writer (&<instance.name>_global,
+  (t_<access.data_action.name>_handle *) &<instance.name>_global_tech.w_access_<access.data_action.name>.handle, SARC_DATA_<if(access.isWriteFromCurrentVersion)>CURRENT_VERSION<else>NO_VALUE<endif>);
+<instance.name>_global_tech.w_access_<access.data_action.name>.is_auto = SARC_TRUE;
+<instance.name>_global_tech.w_access_<access.data_action.name>.has_changed = SARC_FALSE;
+<else>
+/* --- READ <access.data_action.name> */
+<componentType.package>_<access.data_action.name>_DATA_get_reader (&<instance.name>_global,
+  (t_<access.data_action.name>_handle *) &<instance.name>_global_tech.r_access_<access.data_action.name>.handle);
+<instance.name>_global_tech.r_access_<access.data_action.name>.is_auto = SARC_TRUE;
+<endif>
+}>
+<endif>
+>>
+
+//#####################################################################
+//@name Handler release routine
+//@param componentType Component
+//@param instance Instance
+//@param ep EntryPoint
+freeHandlers (componentType, instance, ep) ::=<<
+<if(ep.port.operation.accesses)>
+
+/* Free handlers */
+
+<ep.port.operation.accesses : {access | 
+
+<if(access.isWrite)>
+/* --- WRITE <access.data_action.name> */
+<instance.name>_global_tech.w_access_<access.data_action.name>.is_auto = SARC_FALSE;
+if (<instance.name>_global_tech.w_access_<access.data_action.name>.has_changed == SARC_TRUE)
+  {
+    <componentType.package>_<access.data_action.name>_DATA_publish (&<instance.name>_global,
+      (t_<access.data_action.name>_handle *) &<instance.name>_global_tech.w_access_<access.data_action.name>.handle);
+  \}
+else
+  {
+    <componentType.package>_<access.data_action.name>_DATA_cancel (&<instance.name>_global,
+      (t_<access.data_action.name>_handle *) &<instance.name>_global_tech.w_access_<access.data_action.name>.handle);
+  \}
+<instance.name>_global_tech.w_access_<access.data_action.name>.has_changed = SARC_FALSE;
+<else>
+/* --- READ <access.data_action.name> */
+<instance.name>_global_tech.r_access_<access.data_action.name>.is_auto = SARC_FALSE;
+<componentType.package>_<access.data_action.name>_DATA_release (&<instance.name>_global,
+  (t_<access.data_action.name>_handle *) &<instance.name>_global_tech.r_access_<access.data_action.name>.handle);
+<endif>
+}>
+<endif>
+>>
+
+//#############################################################################
+//@name Received Events implementation
+//@param componentType Component
+//@param instance Instance
+implementReceivedEvents(componentType, instance) ::=<<
+/*---------------------------------------------------------
+ * Received events
+ *---------------------------------------------------------*/
+<if (componentType.isTimer)>
+<componentType.sentEvents : { event |
+extern void <componentType.package>_<event.name>_EVENT_receive(<componentType.package>_context *context);
+
+void instance_<instance.name>_<event.name>_EVENT_receive(const SARC_char8 * bufin, SARC_uint32 size)
+{
+  <componentType.package>_<event.name>_EVENT_receive(&<instance.name>_global);
+\}
+}>
+<endif>
+
+<instance.eventEntryPoints : {ep | 
+/*----------------------------*/
+/* <instance.name> <ep.event.name> */
+void instance_<instance.name>_<ep.event.name>_EVENT_receive(const SARC_char8 * bufin, SARC_uint32 size)
+{
+<if(ep.event.inParameters)>
+<ep.event.inParameters : {parameter | 
+  <parameter.qType> usrparam_<parameter.name>;}>
+  SARC_DeserializationContext s;
+<endif>
+<if(ep.event.inParameters)>
+  SARC_serial_start_deserialize (&s, bufin, size);
+<ep.event.inParameters : {parameter | 
+  <deserializeFunctionName(parameter.type)>(&s, &usrparam_<parameter.name>);
+}>
+  SARC_serial_check_deserialize (&s, "<instance.name>.<ep.event.name>");
+  if (s.error)
+    {
+      return;
+    \}
+<else>
+  (void) size;
+  (void) bufin;
+<endif>
+  <begin_entrypoint(instance, ep, "bufin", "size", "")>
+  <reserveHandlers (componentType, instance, ep)>
+
+  /* Call manual code */
+  <componentType.package>_<ep.event.name>_EVENT_receive(&<instance.name>_global<ep.event.inParameters : {parameter |,
+    (const <parameter.qType>*) &usrparam_<parameter.name>}>);
+
+  <freeHandlers (componentType, instance, ep)>
+
+  <end_entrypoint(instance, ep)>
+\}
+}>
+>>
+
+
+implementProvidedRequestResponses(instance) ::=<<
+/*---------------------------------------------------------
+ * Provided services
+ *---------------------------------------------------------*/
+
+<instance.requestResponseEntryPoints : {ep | 
+/*--------------------------------------*/
+/* <instance.name> <ep.requestResponse.name> */
+
+<if(ep.requestResponse.isDeferred)>
+<implementDeferredRequestResponse (instance, ep, ep.requestResponse)>
+<else>
+<implementImmediateRequestResponse (instance, ep, ep.requestResponse)>
+<endif>}>
+>>
+
+
+implementDeferredRequestResponse (instance, ep, service) ::=<<
+void
+instance_<instance.name>_<service.name>_SERVICE_call
+  (const SARC_char8 * bufin, SARC_uint32 size)
+{
+  SARC_uint32 oper_id;
+  SARC_uint32 request_id;
+  SARC_RequestInfo sarc_req_info;
+  SARC_Ecode sarc_status = SARC_SUCCESS;
+<if (!service.inParameters)>
+  (void) bufin;
+  (void) size;
+  
+  /* Deserialize input parameters */
+  SARC_DeserializationContext s;
+  SARC_serial_start_deserialize (&s, bufin, size);
+  SARC_uint32_deserialize(&s, &oper_id);
+  SARC_uint32_deserialize(&s, &request_id);
+<else>
+
+
+<service.inParameters : {parameter | 
+  <parameter.qType> usrparam_<parameter.name>;}>
+	
+  /* Deserialize input parameters */
+  SARC_DeserializationContext s;
+  SARC_serial_start_deserialize (&s, bufin, size);
+  SARC_uint32_deserialize(&s, &oper_id);
+  SARC_uint32_deserialize(&s, &request_id);
+<service.inParameters : {parameter | 
+  <deserializeFunctionName(parameter.type)> (&s, &usrparam_<parameter.name>);
+}>
+  SARC_serial_check_deserialize (&s, "<instance.name>.<service.name>");
+  if (s.error)
+    {
+      return;
+    \}
+<endif>
+
+/* Store output parameters for later response */
+  sarc_req_info.client_req_id = request_id;
+  sarc_req_info.thread_id = (request_id \>\> 16) & 0xFFFF;
+  sarc_req_info.callback_id = oper_id + 1;
+  sarc_status = SARC_map_add (<instance.name>_<service.name>_map,
+                              <instance.name>_global.tech->request_id, &sarc_req_info);
+  if (sarc_status == SARC_FAILURE)
+    {
+      /* Map is saturated: maximum number of deferred response is reached */
+      SARC_log_error ("Maxdeferred overflow in <instance.name>_<service.name>_SERVICE_call");
+    \}
+  else
+    {
+      <begin_entrypoint(instance, ep, "bufin", "size", "")>
+
+      <reserveHandlers (instance.type, instance, ep)>
+
+      /* Call the service */
+      <instance.type.package>_<service.name>_SERVICE_call
+          (&<instance.name>_global,
+           <instance.name>_global.tech->request_id<service.inParameters : {parameter |,
+           (const <parameter.qType>*) &usrparam_<parameter.name>}>);
+           
+      <instance.name>_global.tech->request_id++;
+      <freeHandlers (instance.type, instance, ep)>
+
+      <end_entrypoint(instance, ep)>
+    \}
+\}
+>>
+
+
+implementImmediateRequestResponse(instance, ep, service) ::=<<
+SARC_uint32
+instance_<instance.name>_<service.name>_SERVICE_provide
+  (const SARC_char8 * bufin,
+   SARC_uint32 sizein,
+   SARC_char8 * bufout
+  )
+{
+  SARC_SerializationContext ser; 
+<if(service.outParameters)>
+  /* Out parameters */
+<service.outParameters : {parameter | 
+  <parameter.qType> usrparam_<parameter.name>;}>
+<endif>
+  SARC_DeserializationContext deser;
+  SARC_uint32 request_id;
+<if(service.inParameters)>
+  /* In parameters */
+<service.inParameters : {parameter | 
+  <parameter.qType> usrparam_<parameter.name>;}>
+<endif>
+
+  SARC_serial_start_deserialize (&deser, bufin, sizein);
+  SARC_uint32_deserialize(&deser, &request_id);
+<if(service.inParameters)>
+  /* Deserialize input parameters */
+<service.inParameters : {parameter | 
+  <deserializeFunctionName(parameter.type)>(&deser, &usrparam_<parameter.name>);
+}>
+  SARC_serial_check_deserialize (&deser, "<instance.name>.<service.name>");
+  if (deser.error)
+    {
+      return 0;
+    \}
+<else>
+  (void) bufin;
+  (void) sizein;
+<endif>
+
+<if(service.outParameters && options.initializeParameters)>
+  /* Out parameters initialization */
+<endif>
+
+  <begin_entrypoint(instance, ep, "bufin", "sizein", "0")>
+
+  <reserveHandlers (instance.type, instance, ep)>
+
+  /* Call the service */
+  <instance.type.package>_<service.name>_SERVICE_provide(&<instance.name>_global<service.inParameters : {parameter |,
+    (const <parameter.qType>*) &usrparam_<parameter.name>}><service.outParameters : {parameter |,
+    &usrparam_<parameter.name>}>);
+  <freeHandlers (instance.type, instance, ep)>
+
+  <end_entrypoint(instance, ep)>
+
+  SARC_serial_start_serialize (&ser, bufout);
+  SARC_uint32_serialize (&ser, &request_id);
+<if (service.outParameters)>
+  /* Write output parameters to output buffer */
+<service.outParameters : {parameter | 
+  <serializeFunctionName(parameter.type)>(&ser, (const <parameter.qType>*) &usrparam_<parameter.name>);
+  if (ser.error != SARC_FALSE)
+    {
+      <instance.type.package>_trace
+        (&<instance.name>_global, SARC_TRACE_ERROR,
+         "Unable to answer to <instance.name>.<service.name> service");
+    \}
+}>
+<endif>
+  return ser.pos;
+\}
+>>
+
+
+//#############################################################################
+
+implementProvidedDirectRequestResponses(instance) ::=<<
+<if(instance.directRequestResponseEntryPoints)>
+/*---------------------------------------------------------
+ * Provided "direct" services
+ *---------------------------------------------------------*/
+
+<instance.directRequestResponseEntryPoints : {ep | 
+/*----------------------------*/
+/* <instance.name> <ep.requestResponse.name> */
+SARC_Ecode instance_direct_<instance.name>_<ep.requestResponse.name>_SERVICE_provide(<inParametersVoid(ep.requestResponse.inParameters, ep.requestResponse.hasOutParameters)><outParametersVoid(ep.requestResponse.outParameters, false)>)
+{
+  <begin_entrypoint(instance, ep, "NULL", "0", "SARC_FAILURE")>
+
+  <reserveHandlers (instance.type, instance, ep)>
+
+  /* Call the manual code */
+  <instance.type.package>_<ep.requestResponse.name>_SERVICE_provide(&<instance.name>_global<[ep.requestResponse.inParameters,ep.requestResponse.outParameters] : { param | , <param.name>}>);
+  <freeHandlers (instance.type, instance, ep)>
+  <end_entrypoint(instance, ep)>
+  return SARC_SUCCESS;
+\}
+}>
+<endif>
+>>
+
+
+//#############################################################################
+
+implementRequiredRequestResponsesCallbacks(instance) ::=<<
+<if(instance.callbackEntryPoints)>
+/*---------------------------------------------------------
+ * Required async services callback(s)
+ *---------------------------------------------------------*/
+
+<instance.callbackEntryPoints : {ep | 
+/*---------------------------------------------------*/
+/* ASYNC RequestResponse callback <instance.name> <ep.requestResponse.name> */
+void instance_<instance.name>_<ep.requestResponse.name>_OUT_EVENT_receive(const SARC_char8 * bufin, SARC_uint32 size)
+{
+  SARC_DeserializationContext s;
+  SARC_uint32 sarc_request_id = 0;<ep.requestResponse.outParameters : {parameter | 
+  <parameter.qType> usrparam_<parameter.name>;}>
+
+  /* Deserialize request ID */
+  SARC_serial_start_deserialize (&s, bufin, size);
+  SARC_uint32_deserialize(&s, &sarc_request_id);
+  /* Deserialize out parameters */<ep.requestResponse.outParameters : {parameter | 
+  <deserializeFunctionName(parameter.type)>(&s, &usrparam_<parameter.name>);}>
+  SARC_serial_check_deserialize (&s, "<instance.name>.<ep.requestResponse.name>");
+  if (s.error)
+    {
+      return;
+    \}
+    
+  // Get the real request id stock in the last 16 bits.
+  sarc_request_id = sarc_request_id & 0xFFFF;
+
+  <begin_entrypoint(instance, ep, "bufin+4", "size-4", "")>
+  <reserveHandlers (instance.type, instance, ep)>
+
+  /* Call the manual code */
+  <instance.type.package>_<ep.requestResponse.name>_Callback(&<instance.name>_global, sarc_request_id<ep.requestResponse.outParameters : {parameter |,
+    (const <parameter.qType>*) &usrparam_<parameter.name>}>);
+  <freeHandlers (instance.type, instance, ep)>
+  <end_entrypoint(instance, ep)>
+\}
+<if(ep.requestResponse.isTimed)>
+
+void instance_<instance.name>_<ep.requestResponse.name>_OUT_EVENT_timeout(SARC_uint32 sarc_requestId)
+{
+  <begin_entrypoint(instance, ep, "NULL", "0", "")>
+  <reserveHandlers (instance.type, instance, ep)>
+
+  /* Call the manual code */
+  <instance.type.package>_<ep.requestResponse.name>_Timeout (&<instance.name>_global, sarc_requestId);
+  <freeHandlers (instance.type, instance, ep)>
+  <end_entrypoint(instance, ep)>
+\}
+<endif>
+}>
+<endif>
+>>
+
+
+//#############################################################################
+//@name Written data implementation
+implementWrittenData(compoInst) ::=<<
+<if(compoInst.writtenDataLinks)>
+/*=============================================================================
+ * Written data
+ *=============================================================================*/
+
+/*-------------------------------------------------*/
+/* <compoInst.name> */
+void instance_<compoInst.name>_DATA_republish(void)
+{
+\}
+<endif>
+
+>>
+

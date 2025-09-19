@@ -1,0 +1,61 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+//@name Generic serialize function name
+//@param type TypeDescription
+serializeFunctionName(type) ::=<<
+<if(type.parent.isAdaComponent)><adaSerializeFunctionName(type)><elseif(type.parent.isCComponent || type.parent.isCppComponent || type.parent.isRustComponent)>
+<cSerializeFunctionName(type.cType)>
+<elseif(type.parent.isJavaComponent)><javaSerializeFunctionName(type)><else>ERROR_<type.parent.language><endif>
+>>
+
+//======================================
+//@name Generic deserialize function name
+//@param type TypeDescription
+deserializeFunctionName(type) ::=<<
+<if(type.parent.isAdaComponent)><adaDeserializeFunctionName(type)><elseif(type.parent.isCComponent || type.parent.isCppComponent || type.parent.isRustComponent)>
+<cDeserializeFunctionName(type.cType)>
+<elseif(type.parent.isJavaComponent)><javaDeserializeFunctionName(type)><endif>
+>>
+
+//============================================
+//@name Type arbitrary endianness suffix
+//@param isLittleEndian Boolean
+//@param type TypeDescription
+ccppjavaLittleBigDirectType(isLittleEndian, type) ::=<<
+<if(type.isPredef)><if(isLittleEndian)>_little<else>_big<endif><endif>
+>>
+
+//==========================================
+//@name Arbitrary endianness suffix
+//@param isLittleEndian
+ccppjavaLittleBigDirect(isLittleEndian) ::=<<
+<if(isLittleEndian)>_little<else>_big<endif>
+>>
+
+adaSerializeFunctionName(type) ::=<<
+<type.parent.package>_<type.name>_Serialize
+>>
+adaDeserializeFunctionName(type) ::=<<
+<type.parent.package>_<type.name>_Deserialize
+>>
+
+//====================================
+//@name C serialize function name
+//@param type TypeDefinition
+cSerializeFunctionName(type) ::=<<
+<type.cType.qName>_serialize
+>>
+
+//====================================
+//@name C deserialize function name
+//@param type TypeDefinition
+cDeserializeFunctionName(type) ::=<<
+<type.cType.qName>_deserialize
+>>
+
+javaSerializeFunctionName(type) ::=<<
+<type.parent.package>.<if(useInterfaces)>impl.<endif>Serialize.serialize
+>>
+javaDeserializeFunctionName(type) ::=<<
+<type.parent.package>.<if(useInterfaces)>impl.<endif>Serialize.deserialize
+>>

@@ -1,0 +1,18 @@
+@startuml Overview
+
+package DataTypes
+
+package ComponentType
+
+package Implementation
+
+package Assembly
+
+package Deployment
+
+ComponentType ..> DataTypes
+Assembly ..> DataTypes
+Assembly ..> ComponentType
+Assembly ..> Implementation
+Implementation ..> ComponentType
+Deployment ..> Assembly

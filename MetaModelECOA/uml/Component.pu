@@ -1,0 +1,38 @@
+@startuml Component
+
+class Component {
+	+string name
+	string doc
+}
+
+Component o-- ComponentKind : kind
+enum ComponentKind {
+	STANDARD
+	PERIODIC_TRIGGER_MANAGER
+	DYNAMIC_TRIGGER_MANAGER
+	EXTERNAL
+	SUPERVISOR
+}
+Component o-- "*" Operation : operations
+Component o-- "*" QualifiedField : properties
+Component o-- "*" PInfo : pinfos
+Component o-- "*" QualifiedField : variables
+Component o-- "*" Trigger : triggers
+
+class PInfo {
+	+string name
+	boolean writable
+}
+
+abstract class Operation
+note bottom: See Operations diagram for details
+
+class QualifiedField
+note bottom: from DataTypes diagram
+
+class Trigger {
+	+string name
+	string doc
+}
+Trigger --> EventReceived
+note bottom: from Operations diagram

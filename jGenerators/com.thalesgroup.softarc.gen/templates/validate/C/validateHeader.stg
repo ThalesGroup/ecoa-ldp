@@ -1,0 +1,23 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "../../shared/function_names.stg"
+
+validateHeader(componentType)::=<<
+#ifndef _<componentType.package>_VALIDATE_H
+#define _<componentType.package>_VALIDATE_H
+
+#include "<componentType.fileprefix>_types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+<componentType.types: { type |<if(type.needsValidation)>
+void <validateFunctionName(type)>(<type.qName>* v);
+<endif>}>
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* _<componentType.package>_VALIDATE_H */
+>>

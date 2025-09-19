@@ -1,0 +1,73 @@
+<project default="build" name="com.thalesgroup.ecoa.model">
+
+	<import file="../common.ant" />
+
+	<path id="classpath">
+		<pathelement location="../com.thalesgroup.softarc.tools/bin"/>
+		<path refid="classpath-common"/>
+	</path>
+
+	<target name="copy_resources">
+		<copy todir="bin">
+			<fileset dir="src" excludes="**/*.java" />
+			<fileset dir="src-gen-xsd" excludes="**/*.java" />
+		</copy>
+		<copy todir="bin-test">
+			<fileset dir="test" excludes="**/*.java" />
+		</copy>
+	</target>
+
+	<property name="ECOA_METAMODEL" value="../../MetaModelECOA" />
+
+	<target name="xjc">
+		<mkdir dir="src-gen-xsd" />
+		<xjc schema="${ECOA_METAMODEL}/SOFTARC/Deployment.xsd" target="2.3" destdir="src-gen-xsd" package="technology.ecoa.model.deployment" removeOldOutput="yes">
+			<produces dir="src-gen-xsd/technology/ecoa/model/deployment" includes="*" />
+		</xjc>
+		<xjc schema="${ECOA_METAMODEL}/SOFTARC/Assembly.xsd" target="2.3" destdir="src-gen-xsd" package="technology.ecoa.model.assembly" removeOldOutput="yes">
+			<produces dir="src-gen-xsd/technology/ecoa/model/assembly" includes="*" />
+		</xjc>
+		<xjc schema="${ECOA_METAMODEL}/ComponentType.xsd" target="2.3" destdir="src-gen-xsd" package="technology.ecoa.model.componenttype" removeOldOutput="yes">
+			<produces dir="src-gen-xsd/technology/ecoa/model/componenttype" includes="*" />
+		</xjc>
+		<xjc schema="${ECOA_METAMODEL}/SOFTARC/DataTypes.xsd" target="2.3" destdir="src-gen-xsd" package="technology.ecoa.model.datatype" removeOldOutput="yes">
+			<produces dir="src-gen-xsd/technology/ecoa/model/datatype" includes="*" />
+		</xjc>
+		<xjc schema="${ECOA_METAMODEL}/SOFTARC/Implementation.xsd" target="2.3" destdir="src-gen-xsd" package="technology.ecoa.model.implementation" removeOldOutput="yes">
+			<produces dir="src-gen-xsd/technology/ecoa/model/implementation" includes="*" />
+		</xjc>
+		<xjc schema="${ECOA_METAMODEL}/Workspace.xsd" target="2.3" destdir="src-gen-xsd" package="technology.ecoa.model.workspace" removeOldOutput="yes">
+			<produces dir="src-gen-xsd/technology/ecoa/model/workspace" includes="*" />
+		</xjc>
+
+		<copy todir="src-gen-xsd/technology/ecoa/model/xsd">
+			<fileset dir="${ECOA_METAMODEL}" includes="**/*.xsd" />
+		</copy>
+	</target>
+
+
+
+	<target name="clean" depends="common.clean">
+		<delete dir="src-gen-xsd" />
+	</target>
+
+	<target name="softarc-model-javadoc.jar" depends="javadoc" />
+
+	<target name="javadoc" unless="javadoc.notRequired">
+		<javadoc destdir="doc/api">
+			<fileset dir="src"></fileset>
+			<classpath refid="classpath" />
+			<bottom>
+				<![CDATA[<i>Copyright &#169; 2019 - THALES DMS - All Rights Reserved.</i>]]>
+			</bottom>
+		</javadoc>
+		<jar destfile="softarc-model-javadoc.jar">
+			<fileset dir="doc/api" includes="**/*" />
+		</jar>
+	</target>
+
+	<uptodate property="javadoc.notRequired" targetfile="softarc-model-javadoc.jar">
+		<srcfiles dir="src" />
+	</uptodate>
+
+</project>

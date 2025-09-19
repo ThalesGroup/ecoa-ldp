@@ -1,0 +1,23 @@
+/* Copyright (c) 2025 THALES -- All rights reserved */
+
+package com.thalesgroup.softarc.gen.s30.gentype;
+
+public enum KindOfFile {
+
+    COMPONENT_HEADER_FILE, COMPONENT_SOURCE_FILE, COMPONENT_TYPES_HEADER_FILE, COMPONENT_DATA_HEADER_FILE, COMPONENT_USER_CONTEXT_HEADER_FILE, COMPONENT_CONTAINER_HEADER_FILE, COMPONENT_ICONTAINER_FILE, COMPONENT_ICOMPONENT_FILE, COMPONENT_PACKAGE_LIST_FILE,
+
+    COMPONENT_INITIALIZE_HEADER_FILE,
+    
+    COMPONENT_TYPES_CARGO_FILE,
+
+    COMPONENT_TYPES_SOURCE_FILE, // Python type files
+
+    // implementation of standalone _intialize and _equals functions
+    COMPONENT_INITIALIZE_SOURCE_FILE,
+
+    // Supervision
+    COMPONENT_SUPERVISOR_CONSTANTS_HEADER_FILE,
+    
+    // Generated user-context file (e.g. for PeriodTriggerManager)
+    COMPONENT_GENERATED_USER_CONTEXT_HEADER_FILE,
+}

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="build" name="GenTechnicalAssembly">
+  <import file="../common.ant" />
+
+  <path id="classpath">
+    <pathelement location="../com.thalesgroup.softarc.tools/bin"/>
+    <pathelement location="../com.thalesgroup.ecoa.model/bin"/>
+    <pathelement location="../com.thalesgroup.softarc.model/bin"/>
+    <path refid="classpath-common"/>
+  </path>
+
+</project>

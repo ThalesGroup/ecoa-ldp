@@ -1,0 +1,14 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+makefile_dirs(CMP_IMPLEMENTATIONS, LIB_IMPLEMENTATIONS) ::=<<
+# generated -- do not edit.
+
+CMP_IMPLEMENTATIONS = <CMP_IMPLEMENTATIONS;separator=" ">
+LIB_IMPLEMENTATIONS = <LIB_IMPLEMENTATIONS;separator=" ">
+
+SRCDIRS = $(patsubst %,../../01-Components/%/src*/*.c,$(CMP_IMPLEMENTATIONS)) \
+          $(patsubst %,../../00-Types/%/src-gen/*.c,$(LIB_IMPLEMENTATIONS))
+INCDIRS = $(patsubst %,../../01-Components/%/inc*,$(CMP_IMPLEMENTATIONS)) \
+          $(patsubst %,../../00-Types/%/inc*,$(LIB_IMPLEMENTATIONS))
+
+>>

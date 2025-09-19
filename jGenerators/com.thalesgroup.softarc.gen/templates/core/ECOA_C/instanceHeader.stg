@@ -1,0 +1,95 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "signatures.stg"
+
+//#######################################################
+//@name Instance header global structure
+//@param container Container
+//@options NON-CERT
+instanceHeader(container, options) ::=<<
+
+#ifndef _<container.component.typeName>_<container.component.implName>_INSTANCE_H
+#define _<container.component.typeName>_<container.component.implName>_INSTANCE_H
+
+<if(!container.component.isTimer)>
+#include "<container.component.fileprefix>.h"
+<endif>
+
+/*===================================================================*/
+/* Technical context                                                 */
+/*===================================================================*/
+struct <container.component.package>__platform_hook
+{
+  SARC_uint32 instanceId;
+  SARC_Counter request_counter;
+<if(container.component.isExternal)>
+  SARC_MwSize external_task_index;
+<endif>
+<if(container.component.isSupervisor)>
+  SARC_LifeCycleState componentStableState[SARC_MAX_NB_COMPONENT];
+<endif>
+  SARC_Time activation_cpu_time;
+  SARC_uint32 traceId;
+<container.component.writtenData : { data | 
+  struct {
+    SARC_int32 remaining;
+    <data.qType>* pointed_versions[<data.maxversions>];
+<if(container.component.isExternal)>
+    <data.qType>* external_pointed_versions[<data.maxversions>];
+<endif>
+  \} w_access_<data.name>;}>
+<container.component.readData : { data | 
+  struct {
+    SARC_int32 remaining;
+    const <data.qType>* pointed_versions[<data.maxversions>];
+<if(container.component.isExternal)>
+    const <data.qType>* external_pointed_versions[<data.maxversions>];
+<endif>
+  \} r_access_<data.name>;}>
+  char errorMessage[SARC_TRACE_MAX_LENGTH]; /* used to store additional info about the lastest check failure */
+<if (options.simulation)>
+  SARC_Counter simu_activation_counter;
+  SARC_int32 simu_activation_id;
+  SARC_int32 simu_instance_id;
+<[container.component.receivedEvents, container.component.providedRequestResponses] : { op | 
+  SARC_int32 simu_activity_id_<op.name>;}>
+<container.component.requiredRequestResponses : { op | 
+<if(op.isAsynchronous)>
+  SARC_int32 simu_activity_id_<op.name>_Callback;
+<if(op.isTimed)>
+  SARC_int32 simu_activity_id_<op.name>_Timeout;
+<endif><endif>}>
+<endif>
+<if (container.component.Pinfos)>
+  struct {
+<container.component.Pinfos : { pinfo | 
+    SARC_MwSize <pinfo.name>;}>
+  \} PINFO;
+<endif>
+};
+
+/*===================================================================*/
+/* Attribute values                                                  */
+/*===================================================================*/
+
+<container.instances : {instance | <instance.attributes : {attribute | 
+extern const <attribute.qType> K_ATT_<instance.name>_<attribute.name>;}>}>
+
+<container.instances : {instance | <instance.variables : {variable | 
+
+extern const SARC_int32 K_VAR_<instance.name>_<variable.name>;}>}>
+
+<container.instances : {instance | 
+<instance.requestResponseEntryPoints : {ep | 
+<if(ep.requestResponse.isDeferred)>
+extern SARC_int64 <instance.name>_<ep.requestResponse.name>_map[1 + (6 + <ep.requestResponse.maxDeferred>) / 2 + <ep.requestResponse.maxDeferred> * (1 + (sizeof (SARC_RequestInfo) + 7) / 8)];<endif>}>}>
+
+<container.instances : {instance | 
+<instance.callbackEntryPoints : {ep | <if(ep.requestResponse.isTimed)>
+extern SARC_TimeoutInfo <instance.name>_<ep.requestResponse.name>_timeout_info_table[<ep.requestResponse.maxRequests>];
+<endif>}>}>
+
+
+#endif /* _<container.component.typeName>_<container.component.implName>_INSTANCE_H */
+
+>>

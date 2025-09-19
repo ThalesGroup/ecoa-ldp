@@ -1,0 +1,1 @@
+export SOFTARC_HOME=$PWD

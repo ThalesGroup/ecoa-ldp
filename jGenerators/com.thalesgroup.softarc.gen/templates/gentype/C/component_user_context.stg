@@ -1,0 +1,27 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+//#############################################################################
+
+//=========================================================
+component_user_context(model) ::=<<
+#ifndef _<model.fileprefix>_USER_CONTEXT_H
+#define _<model.fileprefix>_USER_CONTEXT_H
+
+#include "<model.fileprefix>_types.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
+typedef struct
+{
+  SARC_int32 dummy; /* this field should be replaced by real component context fields, if needed */
+} <model.package>_user_context;
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* _<model.fileprefix>_USER_CONTEXT_H */
+
+>>

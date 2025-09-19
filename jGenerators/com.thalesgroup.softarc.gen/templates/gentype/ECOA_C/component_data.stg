@@ -1,0 +1,42 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "common.stg"
+
+component_data(model) ::=<<
+/* @file <model.fileprefix>_container_types.h
+ * Container Types header for Module <model.fileprefix>
+ * Generated automatically from specification; do not modify here
+ */
+
+<c_include_protection({<model.fileprefix>_CONTAINER_TYPES}, body_of_the_file())>
+>>
+
+body_of_the_file() ::=<<
+/* The following describes the data types generated with regard to APIs:
+ * For any Versioned Data Read Access: data_handle
+ * For any Versioned Data Write Access: data_handle
+ */
+
+<model.usedLibraries: {library | 
+#include "<library.fileprefix><if (!library.isEcoa)>_types<endif>.h"}>
+
+#define ECOA_VERSIONED_DATA_HANDLE_PRIVATE_SIZE 32
+
+<model.data: { data | 
+/*
+ * The following is the data handle structure associated to the data operation
+ * called <data.name> of data-type <data.type>
+ */
+typedef struct {
+   /* pointer to the local copy of the data */
+   <data.type.qName>* data;
+   /* stamp updated each time the data value is updated locally for that */
+   /* reader */
+   ECOA__uint32 stamp;
+   /* technical info associated with the data (opaque for the user, reserved */
+   /* for the infrastructure) */
+   ECOA__byte platform_hook[ECOA_VERSIONED_DATA_HANDLE_PRIVATE_SIZE];
+\} <model.fileprefix>_container__<data.name>_handle;
+
+}>
+>>

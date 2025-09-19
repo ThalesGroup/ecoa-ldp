@@ -1,0 +1,16 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+//@name Link activation status
+//@param link NON-CERT
+common_isLinkActive(link) ::=<<
+(<if(link.whenkos || link.whenconditions)
+><link.whenkos : { whenko | SARC_status_is_alive (SARC_status_get_instance_status (<whenko.id>)) == SARC_FALSE
+};separator=" &&
+"><if(link.whenkos && link.whenconditions)>&&<endif>
+<link.whenconditions : { c | SARC_registry_get(<c.id>) == <c.value>
+};separator=" &&
+"
+><else>
+SARC_TRUE /* no 'whenko', no 'whencondition' */
+<endif> )
+>>

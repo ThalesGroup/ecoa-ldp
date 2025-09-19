@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+xmlns="http://www.ecoa.technology/Deployment/3.0"
+targetNamespace="http://www.ecoa.technology/Deployment/3.0"
+elementFormDefault="qualified" >
+    <xsd:include schemaLocation="inc/common.xsd" />
+    <xsd:simpleType name="Endianness">
+        <xsd:annotation>
+            <xsd:documentation>
+Ordering of bytes in words (BIG or LITTLE).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="BIG" />
+            <xsd:enumeration value="LITTLE" />
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="E_start_mode">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="NONE">
+                <xsd:annotation>
+                    <xsd:documentation>
+The plaftorm does not initialize nor start components.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="FAST">
+            <xsd:annotation>
+                <xsd:documentation>
+The plaftorm initializes and starts all components without any order constraints.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:enumeration>
+        <xsd:enumeration value="SYNCHRONIZED">
+        <xsd:annotation>
+            <xsd:documentation>
+The platform initializes all components, then starts all components.
+</xsd:documentation>
+        </xsd:annotation>
+    </xsd:enumeration>
+</xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="DE_task">
+        <xsd:annotation>
+            <xsd:documentation>
+Set of instances of components that are not processed in parallel.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element minOccurs="0" ref="doc" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+            <xsd:element maxOccurs="unbounded" minOccurs="1" name="deployedInstance" type="DE_deployed_instance">
+                <xsd:annotation>
+                    <xsd:documentation>
+List of deployed instances in the task.
+The order is significant: when several instances are activated by the same operation,
+they will be activated in the order defined here.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+        <xsd:attribute name="name" type="Name" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Name of the task (unique in the application).
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="relativePriority" type="positiveInt" use="optional">
+            <xsd:annotation>
+                <xsd:documentation>
+Priority associated to the task (in the scope of the application).
+The higher the value, the higher the priority.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="DE_deployed_instance">
+        <xsd:annotation>
+            <xsd:documentation>
+Definition of an instance deployed in an executable.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element minOccurs="0" ref="doc" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+        </xsd:sequence>
+        <xsd:attribute name="ref" type="Name" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Name of the instance, with regards to its
+declaration in the Assembly model.
+The name of an instance inside a composite is "C_I",
+where C is the name of the composite instance,
+and I is the name of the instance in the Assembly model.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="DE_executable">
+        <xsd:annotation>
+            <xsd:documentation>
+Set of instances of components.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element minOccurs="0" ref="doc" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+            <xsd:element maxOccurs="unbounded" minOccurs="0" name="task" type="DE_task">
+                <xsd:annotation>
+                    <xsd:documentation>
+List of tasks (i.e. threads) defined in the executable.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+        <xsd:attribute name="name" type="Name" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Name of the executable (unique in the application).
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="DE_application">
+        <xsd:complexContent>
+            <xsd:extension base="DE_executable">
+                <xsd:annotation>
+                    <xsd:documentation>
+Definition of a deployed application.
+</xsd:documentation>
+                </xsd:annotation>
+                <xsd:sequence>
+                    <xsd:element maxOccurs="unbounded" minOccurs="0" name="executable" type="DE_executable">
+                        <xsd:annotation>
+                            <xsd:documentation>
+List of application executables.
+</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element maxOccurs="1" minOccurs="0" name="external_io" type="IO_section">
+                        <xsd:annotation>
+                            <xsd:documentation>
+'external_io' node is optional.
+Indeed, applications may not have to communicate with external systems.
+</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                </xsd:sequence>
+                <xsd:attribute name="assembly" type="PossiblyQualifiedName" use="required">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Logical name of the Assembly model referenced by this deployed application model.
+If the name is not qualified, the assembly is found in 02-Assemblies.
+If the name is qualified (C.I), the assembly is the internal assembly of implementation 
+I of component C (which must be a composite).
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="production" type="xsd:string" use="optional">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Identification of the target platform for the code of this application shall be compiled 
+(determines compilation chain, options, executable format, endianness, etc.)</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="endianness" type="Endianness" default="BIG">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Endianness used in network messages
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="start_mode" type="E_start_mode" default="NONE">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Mode for automatic startup of components.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:element name="application" type="DE_application">
+        <xsd:annotation>
+            <xsd:documentation>
+Application root node.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:key name="execnamekey">
+            <xsd:selector xpath="application/executable|application" />
+            <xsd:field xpath="@name" />
+        </xsd:key>
+        <xsd:key name="instnamekey">
+            <xsd:selector xpath="application/*/deployedInstance|application/deployedInstance" />
+            <xsd:field xpath="@ref" />
+        </xsd:key>
+    </xsd:element>
+
+    <!-- external_io part -->
+    <xsd:complexType name="IO_interface">
+        <xsd:annotation>
+            <xsd:documentation>
+Interface used to communicate with external systems.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+            <xsd:element maxOccurs="unbounded" minOccurs="0" name="operation" type="IO_operation">
+                <xsd:annotation>
+                    <xsd:documentation>
+Defines the technical details of an operation that is at the boundary of the system.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+        <xsd:attribute name="name" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Name of the logical port for network communication.
+</xsd:documentation>
+            </xsd:annotation>
+            <xsd:simpleType>
+                <xsd:restriction base="xsd:NCName">
+                    <xsd:maxLength value="27" />
+                </xsd:restriction>
+            </xsd:simpleType>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="IO_interface_in">
+        <xsd:complexContent>
+            <xsd:extension base="IO_interface">
+                <xsd:annotation>
+                    <xsd:documentation>
+Interface used to communicate with external systems with a thread listening for inputs.
+</xsd:documentation>
+                </xsd:annotation>
+                <xsd:sequence></xsd:sequence>
+                <xsd:attribute name="relativePriority" type="positiveInt" use="optional">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Relative (in the application) priority associated to the thread managing port listening.
+By default, priority is the highest one.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="IO_operation">
+        <xsd:attribute name="name" type="xsd:NCName" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Name of the operation. This attribute value must reference an operation defined in the assembly.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="id" type="xsd:string" use="optional">
+            <xsd:annotation>
+                <xsd:documentation>
+Identifier of the operation (at least unique in the port).
+Is optional at application level, since it may be defined by application configuration.
+Scope of unicity may depend on the platform and protocol used.
+Type (e.g. integers, free string, constraints) may depend on the platform and protocol used.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="IO_section">
+        <xsd:annotation>
+            <xsd:documentation>
+Informations about network interfaces to provide or to communicate with.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element maxOccurs="unbounded" minOccurs="0" name="inPort" type="IO_interface_in">
+                <xsd:annotation>
+                    <xsd:documentation>
+Input only logical port (eventReceived, dataRead). N-P cardinality.
+</xsd:documentation>
+                </xsd:annotation>
+                <xsd:unique name="op_id_inPort">
+                    <xsd:selector xpath="operation" />
+                    <xsd:field xpath="@id" />
+                </xsd:unique>
+            </xsd:element>
+            <xsd:element maxOccurs="unbounded" minOccurs="0" name="outPort" type="IO_interface">
+                <xsd:annotation>
+                    <xsd:documentation>
+Output only logical port (eventSent, dataWritten). N-P cardinality.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element maxOccurs="unbounded" minOccurs="0" name="inOutPort" type="IO_interface_in">
+                <xsd:annotation>
+                    <xsd:documentation>
+Input/Output logical port (request_response, event, data). 1-1 cardinality.
+</xsd:documentation>
+                </xsd:annotation>
+                <xsd:unique name="op_id_inOutPort">
+                    <xsd:selector xpath="operation" />
+                    <xsd:field xpath="@id" />
+                </xsd:unique>
+            </xsd:element>
+            <xsd:any namespace="##other" processContents="lax" minOccurs="0" maxOccurs="unbounded" />
+        </xsd:sequence>
+    </xsd:complexType>
+</xsd:schema>

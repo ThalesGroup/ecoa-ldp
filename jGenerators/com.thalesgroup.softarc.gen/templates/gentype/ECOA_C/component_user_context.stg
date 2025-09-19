@@ -1,0 +1,34 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "common.stg"
+
+component_user_context(model) ::=<<
+/* @file <model.fileprefix>_user_context.h
+ * This is an example of a user defined User Module context
+ */
+
+ <c_include_protection({<model.fileprefix>_USER_CONTEXT}, body_of_the_file())>
+>>
+
+body_of_the_file() ::=<<
+<model.usedLibraries: {library | 
+#include "<library.fileprefix><if (!library.isEcoa)>_types<endif>.h"}>
+/* Container Types */
+#include "<model.fileprefix>_container_types.h"
+
+/* User Module Context structure example */
+typedef struct
+{
+   /* declare the User Module Context "local" data here */
+
+} <model.package>_user_context;
+
+<if (model.hasWarmStartContext)>
+/* Warm Start Module Context structure example */
+typedef struct
+{
+   /* declare the Warm Start Module Context data here */
+
+} <model.package>_warm_start_context;
+<endif>
+>>

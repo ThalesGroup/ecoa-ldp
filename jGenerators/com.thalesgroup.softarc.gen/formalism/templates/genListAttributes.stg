@@ -1,0 +1,29 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+genListAttributes(SoftarcFormalismDefinition)::=<<
+# Ce fichier donne la liste de tous les attributs/références/valeurs de chaque classe du formalisme,
+# avec pour chacun le type correspondant.
+
+# Ce fichier est généré automatiquement.
+# Ne pas éditer!
+# Voir ${SOFTARC_HOME}/jGenerators/com.thalesgroup.softarc.gen/formalism/README.txt.
+
+<SoftarcFormalismDefinition.declaredClasses : { c |
+# for class <c.simpleName> :
+<printFields(c, c)>
+}>
+
+>>
+
+
+printFields(realClass, baseClass)::=<<
+<if(baseClass.superclass.memberClass)>
+<printFields(realClass, baseClass.superclass)>
+<endif>
+# from <baseClass.simpleName>:
+<baseClass.declaredFields : { f |
+<if(!f.synthetic)>
+<realClass.simpleName>.<f.name> = <f.type.simpleName>
+<endif>
+}>
+>>

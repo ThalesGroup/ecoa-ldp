@@ -1,0 +1,1291 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "../../serialize/C/common.stg"
+import "signatures.stg"
+import "../common.stg"
+
+//###############################################################
+//@name Container main structure
+//@param container Container
+//@param mapping NON-CERT
+container(container, options, triggerPendingRequestIds, mapping)::=<<
+/* WARNING: This code may be compiled in C or in C++ (language of the executable),
+            and the functions defined here shall have C calling conventions.  */
+
+<container_c(container, options, triggerPendingRequestIds, mapping)>
+>>
+
+container_c(container, options, triggerPendingRequestIds, mapping)::=<<
+<includes(container.parent, container.component)>
+
+#ifdef __GNUC__
+#define __POSSIBLY_UNUSED__ __attribute__ ((unused))
+#else
+#define __POSSIBLY_UNUSED__
+#endif
+
+<implementGetTimeFunctions(container.parent, container.component, container.instances)>
+<implementDisplayTraceAndFatalErrorFunctions(container.parent, container.component, container.instances)>
+<implementAttributes(container.component, container.instances)>
+<implementPinfos(container.component, container.instances)>
+<implementSentEvents(container.component, container.parent, container.operationMap)>
+<implementReadData(container.component, container.parent, container.operationMap, options)>
+<implementWrittenData(container.component, container.parent, container.operationMap)>
+<implementReleaseAllDataHandles(container.component, container.operationMap, options.hasSafeReaders)>
+<implementRequiredRequestResponses(container.component, container.parent, container.operationMap, options)>
+<implementProvidedRequestResponses(container.component, container.parent, container.operationMap)>
+<implementTriggers(triggerPendingRequestIds, container.component, container.instances, options)>
+<if (container.component.isExternal)>
+<implementExternalThreadManagement(container.component, container.instances, container.operationMap)>
+<endif>
+<if (container.component.hasWarmStartContext)>
+<implementSaveWarmStartContext(container.component)>
+<endif>
+>>
+
+//#############################################################################
+//@name Container include directives
+//@param exec Executable
+//@param componentType Component
+includes(exec, componentType)::=<<
+#include "sarc_ldp.h"
+
+<componentType.usedLibraries: {component |
+#include "<component.cComponent.fileprefix>_serialize.h"
+#include "<component.cComponent.fileprefix>_initialize.h"
+}>
+
+#include "<componentType.fileprefix>_container.h"
+
+<exec.containers: {container | 
+#include "<container.component.typeName>_<container.component.implName>_facade.h"}>
+
+>>
+
+
+//#############################################################################
+//@name GetTime functions implementation
+//@param exec Executable
+//@param componentType Component
+//@param instances Instance[*]
+implementGetTimeFunctions(exec, componentType, instances) ::=<<
+
+void <componentType.package>_container__get_relative_local_time(
+  <componentType.package>__context* context __POSSIBLY_UNUSED__, ECOA__hr_time *time)
+{
+  struct timespec _time;
+  clock_gettime (CLOCK_MONOTONIC, &_time);
+
+  time->seconds = _time.tv_sec;
+  time->nanoseconds = _time.tv_nsec;
+\}
+
+ECOA__return_status <componentType.package>_container__get_absolute_system_time(
+  <componentType.package>__context* context, ECOA__global_time *time)
+{
+
+  struct timespec _time;
+  clock_gettime (CLOCK_REALTIME, &_time);
+
+  time->seconds = _time.tv_sec;
+  time->nanoseconds = _time.tv_nsec;
+  (void) context;
+  return ECOA__return_status_OK;
+\}
+
+<if (componentType.needsUTCTime)>
+ECOA__return_status <componentType.package>_container__get_UTC_time(
+  <componentType.package>__context* context, ECOA__global_time *time)
+{
+  <componentType.package>_container__get_absolute_system_time (context, time);
+  return ECOA__return_status_OK;
+\}
+<endif>
+
+void <componentType.package>_container__get_relative_local_time_resolution (
+  <componentType.package>__context* context __POSSIBLY_UNUSED__, ECOA__duration *resolution)
+{
+  resolution->seconds = 0;
+  resolution->nanoseconds = 1000;
+\}
+void <componentType.package>_container__get_UTC_time_resolution(
+  <componentType.package>__context* context __POSSIBLY_UNUSED__, ECOA__duration *resolution)
+{
+  resolution->seconds = 0;
+  resolution->nanoseconds = 1000;
+\}
+void <componentType.package>_container__get_absolute_system_time_resolution(
+  <componentType.package>__context* context __POSSIBLY_UNUSED__, ECOA__duration *resolution)
+{
+  resolution->seconds = 0;
+  resolution->nanoseconds = 1000;
+\}
+>>
+
+implementDisplayTraceAndFatalErrorFunctions(exec, componentType, instances) ::=<<
+
+static void
+log_internal (<componentType.package>_context *context,
+  SARC_TraceLevel level, const char * msg)
+{
+  switch(level)
+  {
+    case SARC_TRACE_INFO:
+      SARC_log_info (msg);
+      break;
+    case SARC_TRACE_WARNING:
+      SARC_log_warning (msg);
+      break;
+    case SARC_TRACE_ERROR:
+      SARC_trace_error (level, context->platform_hook->instanceId, msg);
+      break;
+    case SARC_TRACE_DEBUG:
+      /* Not implemented*/
+    case SARC_TRACE_CRITICAL:
+      /* Not implemented*/
+    default:
+      break;
+  }
+\}
+
+void <componentType.package>_container__log_trace (<componentType.package>_context *context, const ECOA__log log)
+{
+  log_internal (context, SARC_TRACE_TRACE, log.data);
+\}
+
+void <componentType.package>_container__log_debug (<componentType.package>_context *context, const ECOA__log log)
+{
+  log_internal (context, SARC_TRACE_DEBUG, log.data);
+\}
+
+void <componentType.package>_container__log_info (<componentType.package>_context *context, const ECOA__log log)
+{
+  log_internal (context, SARC_TRACE_INFO, log.data);
+\}
+
+void <componentType.package>_container__log_warning (<componentType.package>_context *context, const ECOA__log log)
+{
+  log_internal (context, SARC_TRACE_WARNING, log.data);
+\}
+
+void <componentType.package>_container__raise_error (<componentType.package>_context *context, const ECOA__log log)
+{
+  log_internal (context, SARC_TRACE_ERROR, log.data);
+\}
+
+void
+<componentType.package>_trace (<componentType.package>_context *context,
+  SARC_TraceLevel level, const char *sarc_format, ...)
+{
+  va_list sarc_args;
+
+  printf ("#%s: ", SARC_table_name_of_instance[context->platform_hook->instanceId]);
+  va_start(sarc_args, sarc_format);
+  vprintf (sarc_format, sarc_args);
+  va_end(sarc_args);
+  putchar ('\n');
+  fflush(stdout);
+  (void) context;
+  (void) level;
+\}
+
+
+void <componentType.package>_container__raise_fatal_error (<componentType.package>_context *context, const ECOA__log log)
+{
+  printf ("#%s: %s", SARC_table_name_of_instance[context->platform_hook->instanceId], log.data);
+  switch(context->platform_hook->instanceId)
+    {<instances : {instance | 
+      case <instance.id> :
+        SARC_gen_send_lifecycle_command (<instance.id>, SARC_LIFE_CYCLE_SHIFT_SHUTDOWN);
+        break;}>
+      default:
+        break;
+    \}
+  (void) context;
+\}
+>>
+
+//#############################################################################
+//@name Timer functions implementation
+//@param exec Executable
+//@param componentType Component
+//@param instances Instance[*]
+implementTimerFunctions(exec, componentType, instances) ::=<<
+<if(componentType.isTimer)>
+/*=========================================================================*
+ * Timer specific functions implementation                                 *
+ *=========================================================================*/
+
+void
+<componentType.package>_timer_start_and_wait (<componentType.package>_context *context,
+                                              SARC_int64 timeout)
+{
+  /* Not implemented */
+\}
+
+
+void
+<componentType.package>_timer_stop (<componentType.package>_context *context)
+{
+  /* Not implemented */
+\}
+<endif>
+>>
+
+//#############################################################################
+//@name Attributes implementation
+//@param componentType Component
+//@param instances Instance[*]
+implementAttributes(componentType, instances) ::=<<
+<if(componentType.attributes)>
+/*=========================================================================*/
+/* Attributes management                                                   */
+/*=========================================================================*/
+
+<componentType.attributes : {attribute | 
+void
+<componentType.package>_container__get_<attribute.name>_value(<componentType.package>__context* context,
+  <attribute.qType>* value)
+{
+  switch (context->platform_hook->instanceId) {<instances : {instance | 
+    case <instance.id> :
+      memcpy(value, &K_ATT_<instance.name>_<attribute.name>, sizeof(K_ATT_<instance.name>_<attribute.name>));
+      break;
+}>
+    default:
+      <traceUnknownInstanceError()>
+  \}
+\}
+}>
+<endif>
+>>
+
+//#############################################################################
+implementPinfos(componentType, instances) ::=<<
+<if (componentType.Pinfos)>
+/*=========================================================================*/
+/* Persistent Information (Pinfos)                                         */
+/*=========================================================================*/
+
+<componentType.Pinfos : { pinfo | 
+ECOA__return_status
+<componentType.package>_container__read_<pinfo.name> (<componentType.package>__context* context,
+  ECOA__byte *memory_address, ECOA__uint32 in_size, ECOA__uint32* out_size)
+{
+  return SARC_read_pinfo("<componentType.package>_<pinfo.name>", &context->platform_hook->pinfo_<pinfo.name>, memory_address, in_size, out_size);
+\}
+
+ECOA__return_status
+<componentType.package>_container__seek_<pinfo.name> (<componentType.package>__context* context,
+  ECOA__uint32 offset, ECOA__seek_whence_type whence, ECOA__uint32* new_position)
+{
+  return SARC_seek_pinfo("<componentType.package>_<pinfo.name>", &context->platform_hook->pinfo_<pinfo.name>, offset, whence, new_position);
+\}
+}>
+<endif>
+>>
+
+/*=========================================================================*/
+/* Check utilities                                                         */
+/*=========================================================================*/
+
+checkParameters(componentType, operation, parameters, returnCode, direction) ::=<<
+<if(componentType.validateParameters && parameters)>
+<parameters : {param | 
+<if(param.type.needsCheck)>
+  if (<param.type.cType.qName>_check((<param.type.cType.qName>*) <param.name>, context->platform_hook->errorMessage) == SARC_FALSE) {
+    <componentType.package>_trace (context, SARC_TRACE_ERROR,
+      "operation <componentType.typeName>.<operation.name> got invalid value in <direction> parameter <param.name> : %s", context->platform_hook->errorMessage);
+    return <returnCode>;
+  \}
+<else>
+  /* <param.type.name> always OK */
+<endif>
+}>
+<endif>
+>>
+
+checkInParameters(componentType, operation) ::=<<
+<checkParameters(componentType, operation, operation.inParameters, "SARC_INVALID_IN_PARAMETER", "input")>
+>>
+
+checkOutParameters(componentType, operation) ::=<<
+<checkParameters(componentType, operation, operation.outParameters, "SARC_INVALID_OUT_PARAMETER", "output")>
+>>
+
+
+//#############################################################################
+//@name Sent events implementation
+//@param componentType Component
+//@param exec Executable
+//@param operationsMap OperationsMapType
+implementSentEvents(componentType, exec, operationsMap) ::=<<
+<if (componentType.sentEvents)>
+/*=========================================================================*/
+/* Sent events                                                             */
+/*=========================================================================*/
+<operationsMap.sentEvents : {event | 
+<if(!event.operation.virtual)>
+<sentEvent(exec, event.operation, componentType, event.linkedInstances, event.unlinkedInstances)>
+<endif>
+}>
+<endif>
+>>
+
+
+//---------------------------------------------------------
+//@name Sent event body implementation
+//@param exec Executable
+//@param event Operation
+//@param componentType Component
+//@param linkedInstances LinkedInstance[*]
+//@param unlinkedInstances Instance[*]
+sentEvent(exec, event, componentType, linkedInstances, unlinkedInstances) ::=<<
+<sentEventSignature(event, componentType)>
+{
+  <parametersByValue(event.inParameters)>
+  ECOA__return_status rc __POSSIBLY_UNUSED__;
+  SARC_SerializationContext sarc_serial_ctxt __attribute__ ((unused));
+  SARC_uint32 oper_id __attribute__ ((unused));
+
+  <checkInParameters(componentType, event)>
+
+  switch (context->platform_hook->instanceId)
+    {<linkedInstances : { linkedInstance | 
+    case <linkedInstance.instance.id>:
+      SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<linkedInstance.instance.thread.name>);
+<linkedInstance.links : { link |
+      oper_id = <link.id>;
+      SARC_uint32_serialize (&sarc_serial_ctxt, &oper_id);
+      <event.inParameters : { parameter | 
+      <serializeFunctionName(parameter.type)> (&sarc_serial_ctxt, (const <parameter.qType>*) <parameter.name>);
+      SARC_serial_check_serialize (&sarc_serial_ctxt, "<parameter.name>");}>
+      if (sarc_serial_ctxt.error != SARC_FALSE)
+        {
+          SARC_error_raise (SARC_ERROR_FIFOSIZE_OVERFLOW, <linkedInstance.instance.id>, <linkedInstance.instance.thread.idNo>, "Error serialization event");
+        \}
+      /* Actually send event */
+      <link.destinationThreads : { thread |
+        int err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
+                          (struct sockaddr*) (&SARC_socket_addr_<thread.name>), sizeof(struct sockaddr_un));
+        if (err \<= 0)
+          {
+            perror ("sendto(EVENT <event.name>)");
+            if (errno == EAGAIN)
+              {
+                SARC_error_raise (SARC_ERROR_FIFOSIZE_OVERFLOW, <linkedInstance.instance.id>, <thread.idNo>, "<event.name>");  
+                abort();
+              \}
+           rc = SARC_FAILURE;
+          \}}>
+      }>
+      break;}>
+      <othercases(unlinkedInstances,"SARC_SUCCESS")>  
+  \}
+\}
+>>
+
+
+
+//#############################################################################
+
+implementRequiredRequestResponses(componentType, exec, operationsMap, options) ::=<<
+<if (componentType.requiredRequestResponses)>
+/*=========================================================================*/
+/* Required services                                                       */
+/*=========================================================================*/
+<operationsMap.requiredRequestResponses : { service | 
+<requiredRequestResponse(exec, service.operation, componentType, service.linkedInstances, service.unlinkedInstances, options)>
+}>
+<endif>
+>>
+
+//---------------------------------------------------------
+
+requiredRequestResponse(exec, service, componentType, linkedInstances, unlinkedInstances, options) ::=<<
+<if(service.isAsynchronous)>
+/* Async service <service.name> */
+<asyncRequestResponseCallSignature(service, componentType)>
+<else>
+/* Sync service <service.name> */
+<requiredRequestResponseCallSignature(service, componentType)>
+<endif>
+{
+  <parametersByValue(service.inParameters)>
+  ECOA__return_status rc __POSSIBLY_UNUSED__ = ECOA__return_status_INVALID_PARAMETER;
+  SARC_SerializationContext sarc_serial_ctxt __attribute__ ((unused));
+  SARC_uint32 sarc_oper_id __attribute__ ((unused));
+  SARC_uint32 sarc_request_id = 0;
+
+<service.inParameters : {param | 
+  (void) <param.name>;}>
+<if(!service.isAsynchronous)>
+<service.outParameters : {param | 
+  (void) <param.name>;}>
+<endif>
+
+  <checkInParameters(componentType, service)>
+
+  switch (context->platform_hook->instanceId)
+    {<linkedInstances : {linkedInstance | 
+    case <linkedInstance.instance.id>:
+<linkedInstance.links : {mainlink | 
+<if (mainlink.server.isExtern)>
+      <requiredRequestResponseBody(linkedInstance.instance, mainlink, exec, options)>
+<else>
+<[mainlink, mainlink.failoverLinks] : {link | 
+      if (<common_isLinkActive (link)>)
+        {
+          /* Server: <link.server.name> */
+          <requiredRequestResponseBody (linkedInstance.instance, link, exec, options)>
+        \}};separator="
+      else ">
+<endif>
+}>
+      break;}>
+    <othercases(unlinkedInstances,"ECOA__return_status_INVALID_PARAMETER")>
+    \}
+  return rc;
+\}
+
+>>
+
+//---------------------------------------------------------
+
+requiredRequestResponseBody(instance, link, exec, options) ::=<<
+
+<if (link.isDirect)>
+sarc_ecode = instance_direct_<link.server.name>_<link.operationInServer.name>_SERVICE_provide (<if (options.simulation)>context->tech->simu_instance_id, _activation_id, &_server_instance_id, &_server_activation_id<if(link.requestResponse.inParameters || link.requestResponse.outParameters)>,
+    <endif><endif><operationCallParametersVoid(link.requestResponse)>);
+<if (service.outParameters)>
+if (sarc_ecode == SARC_SUCCESS)
+  {
+    <checkOutParameters(instance.type, link.requestResponse)>
+  \}
+<endif>
+<else>
+SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<instance.thread.name>);
+sarc_oper_id = <link.id>;
+SARC_uint32_serialize(&sarc_serial_ctxt, &sarc_oper_id);
+/* Serialize request ID */
+SARC_uint32 sarc_request_id_client = ++context->platform_hook->request_id;
+sarc_request_id = (<instance.thread.idNo> & 0xFFFF) \<\< 16;
+sarc_request_id |= (sarc_request_id_client & 0xFFFF);
+SARC_uint32_serialize (&sarc_serial_ctxt, &sarc_request_id);
+<if(service.isAsynchronous)>
+*ID = sarc_request_id;
+<endif>
+
+<link.requestResponse.inParameters : { parameter | 
+<serializeFunctionName(parameter.type)> (&sarc_serial_ctxt, (const <parameter.qType>*) <parameter.name>);
+SARC_serial_check_serialize (&sarc_serial_ctxt, "<parameter.name>");
+}>
+
+if (sarc_serial_ctxt.error != SARC_FALSE)
+  {
+    return ECOA__return_status_NO_RESPONSE;
+  \}
+
+<if(link.requestResponse.isTimed)>
+/* Compute timeout */
+<if(link.requestResponse.isAsynchronous)>
+{
+SARC_SerializationContext s;
+SARC_uint32 sarc_oper_id_timed_message = SARC_OP_TIMED_MESSAGE;
+SARC_uint32 sarc_oper_id_timeout = SARC_OP_REQUEST_REPONSE_TIMEOUT;
+SARC_uint32 sarc_oper_id_callback = <link.id> + 1;
+SARC_int32 timeout_buffer[6];
+SARC_serial_start_serialize (&s, timeout_buffer);
+SARC_uint32_serialize(&s, &sarc_oper_id_timed_message);
+SARC_int64 timeout = SARC_get_local_time() + (<link.requestResponse.timeout>LL * 100);
+SARC_int64_serialize (&s, (SARC_int64*) &timeout);
+SARC_uint32_serialize(&s, &sarc_oper_id_timeout);
+SARC_uint32_serialize(&s, &sarc_oper_id_callback);
+SARC_uint32_serialize (&s, &sarc_request_id);
+
+/* Send timeout setting */
+int err = sendto (SARC_socket_out, s.buffer, s.pos, 0,
+                                (struct sockaddr*) (&SARC_socket_addr_<instance.thread.name>), sizeof(struct sockaddr_un));
+if (err \<= 0)
+  {
+	  perror ("sendto(TIMEOUT <link.requestResponse.name>)");
+      abort();
+  \}
+\}
+<else>
+const SARC_uint32 timeout_ms = <link.requestResponse.timeout>LL / 10;
+struct timeval timeout = {timeout_ms / 1000000, timeout_ms % 1000000};
+struct timeval timeout_absolute = {0, 0};          
+gettimeofday(&timeout_absolute, NULL);
+timeradd(&timeout, &timeout_absolute, &timeout_absolute);
+<endif>
+<endif>
+
+/* Send request */
+int err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
+                                (struct sockaddr*) (&SARC_socket_addr_<link.server.thread.name>), sizeof(struct sockaddr_un));
+if (err \<= 0)
+  {
+	  perror ("sendto(REQUEST <link.requestResponse.name>)");
+	  if (errno == EAGAIN)
+	    {
+	      SARC_error_raise (SARC_ERROR_FIFOSIZE_OVERFLOW, <link.server.id>, <link.server.thread.idNo>, "<link.requestResponse.name>, SARC_socket_out buffer null");
+	      abort();
+	    \}
+	  rc = ECOA__return_status_NO_RESPONSE;
+  \}
+<if(!link.requestResponse.isAsynchronous)>
+char recv_data[16+<instance.thread.outsizemax>];
+SARC_int32 msg_size = 0;
+while (1)
+  {
+<if(link.requestResponse.isTimed)>
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    timersub(&timeout_absolute, &now, &timeout);
+    if(timeout.tv_sec \< 0)
+      {
+        return ECOA__return_status_NO_RESPONSE;
+      \}
+    setsockopt (SARC_socket_SYNC_<instance.thread.name>, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(struct timeval));
+<endif>
+    msg_size = recv (SARC_socket_SYNC_<instance.thread.name>, recv_data, sizeof(recv_data), 0);
+    if (msg_size \< 0)
+      {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+          {
+            return ECOA__return_status_NO_RESPONSE;
+          \}
+          perror("recv(SARC_socket_SYNC_<instance.thread.name>)");
+          break;
+      \}
+    if(msg_size \> 0)
+      {
+        if (msg_size \< 4)
+          {
+            SARC_log_error ("received message on socket_SYNC_<instance.thread.name> is too small, size=%d", msg_size);
+          \}
+        else
+          {
+            SARC_DeserializationContext sarc_deserial_ctxt;
+            SARC_serial_start_deserialize (&sarc_deserial_ctxt, recv_data, msg_size);
+            SARC_uint32_deserialize(&sarc_deserial_ctxt, &sarc_oper_id);
+            SARC_uint32_deserialize(&sarc_deserial_ctxt, &sarc_request_id);
+            SARC_uint32 sarc_request_id_serv = sarc_request_id & 0xFFFF;
+                          
+            if(sarc_request_id_client == sarc_request_id_serv)
+              {
+                /* Deserialize out parameters */
+            <service.outParameters : {out |
+		        <deserializeFunctionName(out.type)>(&sarc_deserial_ctxt, <out.name>);}>
+                SARC_serial_check_deserialize (&sarc_deserial_ctxt, "REPLY SYNC:<link.requestResponse.name>");
+                if (sarc_deserial_ctxt.error)
+                  {
+                    return ECOA__return_status_NO_RESPONSE;
+                  \}
+                  break;
+              \}
+            \}
+	      \}
+  \}
+<endif>
+<checkOutParameters(instance.type, link.requestResponse)>
+rc = ECOA__return_status_OK;
+<endif>
+>>
+
+
+//#############################################################################
+
+
+implementProvidedRequestResponses(componentType, exec, operationsMap) ::=<<
+<if (componentType.providedRequestResponses)>
+/*=========================================================================*/
+/* Provided services                                                       */
+/*=========================================================================*/
+<operationsMap.providedRequestResponses : { service | 
+<if (service.operation.isDeferred)>
+<providedRequestResponse(exec, service.operation, componentType, service.linkedInstances, service.unlinkedInstances)>
+<endif>}>
+<endif>
+>>
+
+
+providedRequestResponse (exec, service, componentType, linkedInstances, unlinkedInstances) ::=<<
+<deferredRequestResponseResponseSignature (service, componentType)>
+{
+  <parametersByValue(service.outParameters)>
+  ECOA__return_status rc __POSSIBLY_UNUSED__ = ECOA__return_status_OPERATION_NOT_AVAILABLE;
+<if (linkedInstances)>
+  SARC_RequestInfo sarc_req_info;
+  SARC_Ecode sarc_status;
+  SARC_SerializationContext sarc_serial_ctxt __attribute__ ((unused));
+  SARC_uint32 sarc_oper_id __attribute__ ((unused));
+<endif>
+  (void) sarc_request_id;
+<service.outParameters : { param | 
+  (void) <param.name>;}>
+  (void) sarc_request_id;
+<if (linkedInstances||unlinkedInstances)>
+
+  <checkOutParameters (componentType, service)>
+
+  switch (context->platform_hook->instanceId)
+    {<linkedInstances : { linkedInstance | 
+    case <linkedInstance.instance.id>:
+      /* Retrieve client request identifier */
+      sarc_status = SARC_map_remove (<linkedInstance.instance.name>_<service.name>_map,
+                                     sarc_request_id, &sarc_req_info);
+      if (sarc_status != SARC_SUCCESS)
+        {
+          SARC_log_error
+             ("unable to link server request id to client request id");
+        \}
+      else
+        {
+    <linkedInstance.links : {link |
+      if(sarc_req_info.thread_id == <link.client.thread.idNo> && sarc_req_info.callback_id == <link.callbackId>)
+        {
+          SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<linkedInstance.instance.thread.name>);
+          SARC_uint32_serialize(&sarc_serial_ctxt, &sarc_req_info.callback_id);
+          SARC_uint32_serialize(&sarc_serial_ctxt, &sarc_req_info.client_req_id);
+<service.outParameters : { parameter | 
+  <serializeFunctionName(parameter.type)> (&sarc_serial_ctxt, (const <parameter.qType>*) <parameter.name>);
+  SARC_serial_check_serialize (&sarc_serial_ctxt, "<parameter.name>");
+}>
+          if (sarc_serial_ctxt.error != SARC_FALSE)
+            {
+              rc = ECOA__return_status_INVALID_PARAMETER;
+            \}  
+          else
+            {
+              /* Actually send response */
+              int err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
+                              (struct sockaddr*) (&SARC_socket_addr_<if (!link.requestResponseLink.client.port.requestResponse.isAsynchronous)>SYNC_<endif><link.client.thread.name>), sizeof(struct sockaddr_un));
+              if (err \<= 0)
+                {
+                  perror ("sendto(RESPONSE <service.name>)");
+                  if (errno == EAGAIN)
+                    {
+                      SARC_error_raise (SARC_ERROR_FIFOSIZE_OVERFLOW, <linkedInstance.instance.idNo>, <link.client.thread.idNo>, "<service.name>, SARC_socket_out buffer full");
+                  	  abort();
+                    \}
+                  rc = ECOA__return_status_INVALID_PARAMETER;
+                \}
+              else
+                {
+                  rc = ECOA__return_status_OK;
+                \}
+            \}
+        \}
+      }>
+        \}
+      break;}>
+    <othercases (unlinkedInstances, "ECOA__return_status_INVALID_PARAMETER")>
+    \}
+<else>
+    <componentType.package>_trace(context, SARC_TRACE_ERROR, "No client for <service.name> call");
+<endif>
+   return rc;
+\}
+
+>>
+
+
+
+//#############################################################################
+//@name Read data functions implementation
+//@param componentType Component
+//@param exec Executable
+//@param operationsMap OperationsMapType
+//@param options
+implementReadData(componentType, exec, operationsMap, options) ::=<<
+<if (componentType.readData)>
+/*=========================================================================*/
+/* Read data                                                               */
+/*=========================================================================*/
+<operationsMap.readData : {data | 
+<implementDataGetReader(exec, componentType, data.operation, data.linkedInstances, data.unlinkedInstances, options.hasSafeReaders)>
+
+<implementDataRelease(exec, componentType, data.operation, data.linkedInstances, data.unlinkedInstances, options.hasSafeReaders)>
+
+<implementDataIsInitialized(exec, componentType, data.operation, data.linkedInstances)>
+
+}>
+<endif>
+>>
+
+//#############################################################################
+//@name Written data functions implementation
+//@param componentType Component
+//@param exec Executable
+//@param operationsMap OperationsMap
+//@param options NON-CERT
+implementWrittenData(componentType, exec, operationsMap) ::=<<
+<if (componentType.writtenData)>
+/*=========================================================================*/
+/* Written data                                                            */
+/*=========================================================================*/
+<operationsMap.writtenData : {omEntry | 
+<implementDataGetWriter(exec, componentType, omEntry.operation, omEntry.linkedInstances, omEntry.unlinkedInstances)>
+
+<implementDataCancel(componentType, omEntry.operation, omEntry.linkedInstances, omEntry.unlinkedInstances)>
+
+<implementDataPublish(exec, componentType, omEntry.operation, omEntry.linkedInstances, omEntry.unlinkedInstances, options)>
+
+}>
+<endif>
+>>
+
+//#############################################################################
+//@name Data isInitialized implementation
+//@param exec Executable
+//@param componentType Component
+//@param data OperationData
+//@param linkedInstances LinkedInstance[*]
+implementDataIsInitialized(exec, componentType, data, linkedInstances) ::=<<
+<dataIsInitializedSignature(data, componentType)>
+{
+  SARC_boolean8 result = SARC_FALSE;
+
+  switch (context->platform_hook->instanceId)
+    {<linkedInstances : {linkedInstance | 
+    case <linkedInstance.instance.id> :
+        {
+          if(SARC_data_<linkedInstance.instance.thread.name>_<linkedInstance.referenceLink.id>.current_value != NULL)
+          {
+          	result = SARC_TRUE;
+          \}
+        \}
+      break;}>
+  \}
+
+  return result;
+\}
+>>
+
+//#############################################################################
+//@name Data getReader implementation
+//@param exec Executable
+//@param componentType Component
+//@param data OperationData
+//@param linkedInstances LinkedInstance[*]
+//@param unlinkedInstances Instance[*]
+//@param hasSafeReaders NON-CERT
+implementDataGetReader(exec, componentType, data, linkedInstances, unlinkedInstances, hasSafeReaders) ::=<<
+<dataReaderSignature(data, componentType)>
+{
+  ECOA__return_status rc __POSSIBLY_UNUSED__ = ECOA__return_status_RESOURCE_NOT_AVAILABLE;
+  <data.qType> *sarc_version = NULL;
+  SARC_int32 sarc_id = 0;
+
+  switch (context->platform_hook->instanceId)
+    {<linkedInstances : {linkedInstance | 
+    case <linkedInstance.instance.id> : 
+      <if (componentType.isExternal)>
+      pthread_mutex_lock(&context-\>platform_hook-\><data.name>_mutex);
+      <endif>
+      if (context->platform_hook->r_access_<data.name>.remaining == 0)
+        {
+          SARC_log_error("get_reader failed, MAXVERSION Overflow, instance=<linkedInstance.instance.id>, operation=<data.name>");
+        \}
+      else
+        {
+          if(SARC_data_<linkedInstance.instance.thread.name>_<linkedInstance.referenceLink.id>.current_value != NULL) {
+            sarc_version = (<data.qType>*) malloc(sizeof(<data.qType>));
+            assert(sarc_version != NULL);
+            memcpy(sarc_version, SARC_data_<linkedInstance.instance.thread.name>_<linkedInstance.referenceLink.id>.current_value, sizeof(<data.qType>));
+            context->platform_hook->r_access_<data.name>.remaining -= 1;
+            sarc_id = SARC_data_<linkedInstance.instance.thread.name>_<linkedInstance.referenceLink.id>.ref;
+            rc = ECOA__return_status_OK;
+          \}  
+        \}
+      <if (componentType.isExternal)>
+      pthread_mutex_unlock(&context-\>platform_hook-\><data.name>_mutex);
+      <endif>
+      break;}>
+    <othercases(unlinkedInstances,"ECOA__return_status_RESOURCE_NOT_AVAILABLE")>
+  \}
+
+  /* Set handler */
+  handle->data = (<data.qType>*) sarc_version;
+  handle->stamp = sarc_id;
+
+  return rc;
+\}
+
+>>
+
+//#############################################################################
+//@name Data release implementation
+//@param exec Executable
+//@param componentType Component
+//@param data OperationData
+//@param linkedInstances LinkedInstance[*]
+//@param unlinkedInstances Instance[*]
+//@param hasSafeReaders NON-CERT
+implementDataRelease(exec, componentType, data, linkedInstances, unlinkedInstances, hasSafeReaders) ::=<<
+<dataReleaseSignature(data, componentType)>
+{
+  ECOA__return_status rc __POSSIBLY_UNUSED__ = ECOA__return_status_INVALID_HANDLE;
+  switch (context->platform_hook->instanceId)
+    {<linkedInstances : { linkedInstance | 
+    case <linkedInstance.instance.id>:
+      <implementDataReleaseInternals (componentType, linkedInstance, data)>
+      break;}>
+    <othercases(unlinkedInstances,"ECOA__return_status_INVALID_PARAMETER")>
+    \}
+
+  /* Reset handler anyway */
+  handle->data = NULL;
+  handle->stamp = 0;
+
+  return rc;
+\}
+>>
+
+
+//----------------------------------------------
+//@name Data release internals implementation
+//@param componentType Component
+//@param linkedInstance LinkedInstance
+//@param data OperationData
+implementDataReleaseInternals (componentType, linkedInstance, data) ::=<<
+if (handle->data != NULL)
+  {
+  	free(handle->data);
+  	<if (componentType.isExternal)>
+    pthread_mutex_lock(&context-\>platform_hook-\><data.name>_mutex);
+    <endif>
+    context->platform_hook->r_access_<data.name>.remaining += 1;
+    <if (componentType.isExternal)>
+    pthread_mutex_unlock(&context-\>platform_hook-\><data.name>_mutex);
+    <endif>
+    rc = ECOA__return_status_OK;
+ \}
+>>
+
+
+//#############################################################################
+//@name data get_writer implementation
+//@param exec Executable
+//@param componentType Component
+//@param data Operation
+//@param linkedInstances LinkedInstance[*]
+//@param unlinkedInstances Instance[*]
+implementDataGetWriter(exec, componentType, data, linkedInstances, unlinkedInstances) ::=<<
+<dataWriterSignature(data, componentType)>
+{
+  ECOA__return_status rc __POSSIBLY_UNUSED__ = ECOA__return_status_RESOURCE_NOT_AVAILABLE;
+    <data.qType> *sarc_version = NULL;
+  SARC_int32 sarc_id = 0;
+
+  switch (context->platform_hook->instanceId)
+    {<linkedInstances : {linkedInstance | 
+      case <linkedInstance.instance.id> :
+        <implementDataGetWriterIntrinsic (componentType, linkedInstance, data)>
+        break;
+}>
+    <othercases(unlinkedInstances,"ECOA__return_status_RESOURCE_NOT_AVAILABLE")>
+    \}
+
+  /* Set handler */
+  handle->data = sarc_version;
+  handle->stamp = sarc_id;
+
+  return rc;
+\}
+
+
+>>
+
+//----------------------------------------------
+//@name Data get_writer intrinsic implementation
+//@param componentType Component
+//@param linkedInstance LinkedInstance
+//@param data OperationData
+implementDataGetWriterIntrinsic (componentType, linkedInstance, data) ::=<<
+<if (componentType.isExternal)>
+pthread_mutex_lock(&context-\>platform_hook-\><data.name>_mutex);
+<endif>
+if (context->platform_hook->w_access_<data.name>.remaining == 0)
+  {
+    SARC_log_error("get_writer failed, MAXVERSION Overflow, instance=<linkedInstance.instance.id>, operation=<data.name>");
+  	rc = ECOA__return_status_DATA_NOT_INITIALIZED;
+  \}
+else
+  {
+    <if(!data.writeonly)>
+    sarc_version = malloc(sizeof(<data.qType>));
+    <endif>
+    if(SARC_data_<linkedInstance.instance.thread.name>_<linkedInstance.referenceLink.id>.current_value != NULL)
+      {
+        memcpy(sarc_version, SARC_data_<linkedInstance.instance.thread.name>_<linkedInstance.referenceLink.id>.current_value, sizeof(<data.qType>));
+      \}
+      SARC_data_<linkedInstance.instance.thread.name>_<linkedInstance.referenceLink.id>.ref++;
+      sarc_id = SARC_data_<linkedInstance.instance.thread.name>_<linkedInstance.referenceLink.id>.ref;
+  \}
+<if (componentType.isExternal)>
+pthread_mutex_unlock(&context-\>platform_hook-\><data.name>_mutex);
+<endif>
+if (sarc_version != NULL)
+  {
+    <if (componentType.isExternal)>
+    pthread_mutex_lock(&context-\>platform_hook-\><data.name>_mutex);
+    <endif>
+    context->platform_hook->w_access_<data.name>.remaining -= 1;
+    rc = ECOA__return_status_OK;
+    <if (componentType.isExternal)>
+    pthread_mutex_unlock(&context-\>platform_hook-\><data.name>_mutex);
+    <endif>
+  \}
+else
+  {
+    rc = ECOA__return_status_DATA_NOT_INITIALIZED;
+  \}
+>>
+
+
+//#############################################################################
+//@name Data publish implementation
+//@param exec Executable
+//@param componentType Component
+//@param data OperationData
+//@param linkedInstances LinkedInstance[*]
+//@param unlinkedInstances Instance[*]
+//@param options NON-CERT
+implementDataPublish(exec, componentType, data, linkedInstances, unlinkedInstances, options) ::=<<
+<dataPublishSignature(data, componentType)>
+{
+  ECOA__return_status rc = ECOA__return_status_OK;
+    SARC_SerializationContext sarc_serial_ctxt __attribute__ ((unused));
+  SARC_uint32 oper_id __attribute__ ((unused));
+
+  if (handle->data == NULL)
+    {
+      <componentType.package>_trace (context, SARC_TRACE_WARNING,
+        "operation <componentType.typeName>.<data.name> tried to publish with null handle");
+      return ECOA__return_status_INVALID_HANDLE;
+    }
+
+<if(componentType.validateData && data.type.needsCheck)>
+  if (<data.qType>_check (sarc_handle->data, context->tech->errorMessage) == SARC_FALSE) {
+    <componentType.package>_<data.name>_DATA_cancel(sarc_ctxt, sarc_handle);
+    <componentType.package>_trace (sarc_ctxt, SARC_TRACE_ERROR,
+      "operation <componentType.typeName>.<data.name> tried to publish invalid data : %s", context->tech->errorMessage);
+    return ECOA__return_status_INVALID_HANDLE;
+  }
+<endif>
+
+<if(data.type.needsValidation)>
+  <data.qType>_validate(handle->data);
+<endif>
+
+  switch (context->platform_hook->instanceId)
+    {<linkedInstances : {linkedInstance |
+    case <linkedInstance.instance.id>:
+      {
+        <implementDataPublishIntrinsic (componentType, linkedInstance, data)>
+      \}
+      break;
+}>
+    <othercases(unlinkedInstances,"ECOA__return_status_OK")>
+  \}
+
+  /* Reset handler anyway */
+  handle->data = NULL;
+  handle->stamp = 0;
+
+  return rc;
+\}
+>>
+
+//-------------------------------------------
+//@name Data publish intrinsic implementation
+//@param componentType Component
+//@param linkedInstance LinkedInstance
+//@param data Operation
+implementDataPublishIntrinsic (componentType, linkedInstance, data) ::=<<
+/* Local publications */
+if (<common_isLinkActive(linkedInstance.referenceLink)>)
+  {
+    <if (componentType.isExternal)>
+    pthread_mutex_lock(&context-\>platform_hook-\><data.name>_mutex);
+    <endif>
+    free(SARC_data_<linkedInstance.instance.thread.name>_<linkedInstance.referenceLink.id>.current_value);
+    SARC_data_<linkedInstance.instance.thread.name>_<linkedInstance.referenceLink.id>.current_value = handle->data;
+    SARC_data_<linkedInstance.instance.thread.name>_<linkedInstance.referenceLink.id>.ref++;
+    context-\>platform_hook->w_access_<data.name>.remaining += 1;
+    <if (componentType.isExternal)>
+    pthread_mutex_unlock(&context-\>platform_hook-\><data.name>_mutex);
+    <endif>
+  \}
+<if(linkedInstance.links)>
+<linkedInstance.links : {link |
+<if(link.destinationThreads)>
+
+/* Distant publications */
+<link.destinationThreads : {thread |
+SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<linkedInstance.instance.thread.name>);
+oper_id = <linkedInstance.referenceLink.id>;
+SARC_uint32_serialize(&sarc_serial_ctxt, &oper_id);
+<serializeFunctionName(data.type)> (&sarc_serial_ctxt, (const <data.type.cType.cName>*) handle->data);
+SARC_serial_check_serialize (&sarc_serial_ctxt, "operation <componentType.typeName>.<data.name>");
+
+if (sarc_serial_ctxt.error != SARC_FALSE)
+  {
+    rc = ECOA__return_status_INVALID_HANDLE;
+  \}
+else
+  {
+    int err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
+                      (struct sockaddr*) (&SARC_socket_addr_<thread.name>), sizeof(struct sockaddr_un));
+    if (err \<= 0)
+      {
+        perror ("sendto(DATA <data.name>)");
+        {
+          abort();
+        \}
+        rc = ECOA__return_status_INVALID_HANDLE;
+      \}
+  \}}>
+<endif>}>
+<endif>          
+<if(linkedInstance.notificationLinks)>
+<linkedInstance.notificationLinks : { notificationLink |
+/* Notification */
+SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<linkedInstance.instance.thread.name>);
+oper_id = <notificationLink.notificationReqId>;
+SARC_uint32_serialize(&sarc_serial_ctxt, &oper_id);
+  
+{
+/* Actually send event */
+  int err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
+                    (struct sockaddr*) (&SARC_socket_addr_<notificationLink.notifiedThread.name>), sizeof(struct sockaddr_un));
+  if (err \<= 0)
+  {
+      perror ("sendto(DATA <data.name> notification)");
+      if (errno == EAGAIN)
+        {
+          SARC_error_raise (SARC_ERROR_FIFOSIZE_OVERFLOW, <linkedInstance.instance.idNo>, <notificationLink.notifiedThread.idNo>, "<data.name>, SARC_socket_out buffer full");
+          abort();
+        \}
+      rc = ECOA__return_status_INVALID_HANDLE;
+  \}
+\}}>
+<endif>
+>>
+
+
+//#############################################################################
+//@name Data cancel implementation
+//@param componentType Component
+//@param data Operation
+//@param linkedInstances LinkedInstance[*]
+//@param unlinkedInstances Instance[*]
+implementDataCancel(componentType, data, linkedInstances, unlinkedInstances) ::=<<
+<dataCancelSignature(data, componentType)>
+{
+  ECOA__return_status rc = ECOA__return_status_INVALID_HANDLE;
+  switch (context->platform_hook->instanceId)
+    {<linkedInstances : { linkedInstance | 
+    case <linkedInstance.instance.id>:
+      <implementDataCancelInternals (componentType, linkedInstance, data)>
+      break;}>
+    <othercases(unlinkedInstances, "ECOA__return_status_INVALID_PARAMETER")>
+    \}
+
+  /* Reset handler anyway */
+  handle->data = NULL;
+  handle->stamp = 0;
+
+  return rc;
+\}
+>>
+
+
+//-----------------------------------------------
+//@name Data cancel internals implementation
+//@param componentType Component
+//@param linkedInstance LinkedInstance
+//@param data Operation
+implementDataCancelInternals (componentType, linkedInstance, data) ::=<<
+if (handle->data != NULL)
+  {
+    free(handle->data);
+    handle->data = NULL;
+    handle->stamp = 0;
+    <if (componentType.isExternal)>
+    pthread_mutex_lock(&context-\>platform_hook-\><data.name>_mutex);
+    <endif>
+    context->platform_hook->w_access_<data.name>.remaining += 1;
+    <if (componentType.isExternal)>
+    pthread_mutex_unlock(&context-\>platform_hook-\><data.name>_mutex);
+    <endif>
+    rc = ECOA__return_status_OK;
+  \}
+>>
+
+
+//#######################################################
+//@name release_all_data_handles implementation
+//@param componentType Component
+//@param operationsMap OperationsMapType
+//@param hasSafeReaders NON-CERT
+implementReleaseAllDataHandles(componentType, operationsMap, hasSafeReaders) ::=<<
+<if(componentType.data)>
+void
+<componentType.package>_release_all_data_handles (<componentType.package>_context *context)
+{
+<operationsMap.readData : { data | 
+  /* READ <data.operation.name> */
+  <if (componentType.isExternal)>
+  pthread_mutex_lock(&context-\>platform_hook-\><data.operation.name>_mutex);
+  <endif>
+  context->platform_hook->r_access_<data.operation.name>.remaining = <data.operation.maxversions>;
+  <if (componentType.isExternal)>
+  pthread_mutex_unlock(&context-\>platform_hook-\><data.operation.name>_mutex);
+  <endif>
+}>
+<operationsMap.writtenData : { data | 
+  /* WRITTEN <data.operation.name> */  
+  <if (componentType.isExternal)>
+  pthread_mutex_lock(&context-\>platform_hook-\><data.operation.name>_mutex);
+  <endif>
+  context->platform_hook->w_access_<data.operation.name>.remaining = <data.operation.maxversions>;
+  <if (componentType.isExternal)>
+  pthread_mutex_unlock(&context-\>platform_hook-\><data.operation.name>_mutex);
+  <endif>
+}>
+\}
+<endif>
+>>
+
+//#############################################################################
+
+implementTriggers(triggerPendingRequestIds, componentType, instances, options) ::=<<
+<componentType.triggers,triggerPendingRequestIds : {trigger, requestIds |
+<implementTriggerSet(componentType, instances, trigger, requestIds, options)>
+
+<implementTriggerCancel(componentType, instances, trigger, requestIds)>
+}>
+>>
+
+//#############################################################################
+
+implementTriggerSet(componentType, instances, trigger, triggerPendingRequestIds, options) ::=<<
+<triggerSetSignature(trigger, componentType)>
+{
+  switch (context->platform_hook->instanceId) {
+<instances,triggerPendingRequestIds :{instance,id |
+    case <instance.id>: {
+<if(id)>
+    {
+      SARC_int64 timeout = SARC_get_local_time() + delay.seconds * 1000000000LL + delay.nanoseconds;
+      if (SARC_timed_message_trigger_sendto (<id>, timeout, &SARC_socket_addr_<instance.thread.name>) \<= 0)
+        {
+          perror ("sendto(TRIGGER_SET <id>)");
+          abort();
+        \}
+    \}
+<endif>
+      return ECOA__return_status_OK;
+      break;
+    \}
+}>
+  \}
+  return ECOA__return_status_INVALID_HANDLE;
+\}
+>>
+
+implementTriggerCancel(componentType, instances, trigger, triggerPendingRequestIds) ::=<<
+<triggerCancelSignature(trigger, componentType)>
+{
+  switch (context->platform_hook->instanceId) {
+<instances,triggerPendingRequestIds : {instance,id |
+    case <instance.id>:
+<if(id)>
+      if (SARC_timed_message_trigger_sendto (<id>, 0LL, &SARC_socket_addr_<instance.thread.name>) \<= 0)
+        {
+          perror ("sendto(TRIGGER_CANCEL <id>)");
+          abort();
+        \}
+<endif>
+        return ECOA__return_status_OK;
+}>
+    \}
+    return ECOA__return_status_INVALID_HANDLE;
+\}
+>>
+
+//#############################################################################
+//@name External thread management implementation
+//@param componentType Component
+//@param instances Instances
+//@param operationsMap OperationsMapType
+implementExternalThreadManagement(componentType, instances, operationsMap) ::=<<
+<externalStopSignature(componentType)>
+{
+      /* Not supported inside LDP */
+\}
+
+<externalStartSignature(componentType)>
+{
+  const SARC_uint32 sarc_task_index = SARC_task_get_index ();
+
+  switch(context->platform_hook->instanceId)
+  {
+  <instances : { instance |
+  case <instance.id>:
+  	if (sarc_task_index != context->platform_hook->external_task_index)
+    {
+      SARC_task_start (context->platform_hook->external_task_index, <instance.name>_EXTERNAL_routine);
+    \}
+    break;
+  }>
+  \}
+\}
+
+>>
+
+//#############################################################################
+//@name Save Warm Start Context implementation
+//@param componentType Component
+implementSaveWarmStartContext(componentType) ::=<<
+<startWarmContextSignature(componentType)>
+{
+  /* Not Implemented for LDP */
+\}
+>>
+
+//#############################################################################
+//@name Unknown Instance Error trace call
+traceUnknownInstanceError() ::=<<
+#if (defined __STDC_VERSION__) && (__STDC_VERSION__ > 199409L)
+<componentType.package>_trace
+  (context, SARC_TRACE_ERROR,
+   "%s : Unexpected instance ID %s",
+   __FUNCTION__, context->platform_hook->instanceId);
+#else
+<componentType.package>_trace
+   (context, SARC_TRACE_ERROR,
+    "Unexpected instance ID %d",
+    context->platform_hook->instanceId);
+#endif
+>>
+
+//#############################################################################
+//@name Unlinked instance and default case handling
+//@param unlinkedInstances Instance[*]
+//@param unlinkedStatus String
+othercases(unlinkedInstances, unlinkedStatus) ::=<<
+<if(unlinkedInstances)><unlinkedInstances : { instance | 
+case <instance.id>:}>
+  rc = <unlinkedStatus>;
+  break;
+<endif>
+default:
+  rc = ECOA__return_status_INVALID_PARAMETER;
+  <traceUnknownInstanceError()>
+  break;
+>>

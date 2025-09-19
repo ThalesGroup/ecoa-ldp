@@ -1,0 +1,125 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+// Signatures of functions declared/implemented by the component
+//==================================================================
+
+//---------------------------------------------------------
+//@name Signature of the initialization function for the external thread of an EXTERNAL component.
+//@param model Component
+externalInitSignature(model) ::=<<
+void <model.package>_external_init(<model.package>_context *ctxt)
+>>
+
+//---------------------------------------------------------
+//@name Signature of the main function for the external thread of an EXTERNAL component.
+//@param model Component
+externalRoutineSignature(model) ::=<<
+void <model.package>_external_routine(<model.package>_context *ctxt)
+>>
+
+//=========================================================
+//@name Signature of the handling function for an event received by the component.
+//@param event OperationEvent
+//@param model Component
+receivedEventSignature(event, model) ::=<<
+void <model.package>_<event.name>_EVENT_receive(<model.package>_context *ctxt<if (event.hasInParameters)>,<endif>
+  <inParameters(event.inParameters, false)>
+)>>
+
+//=========================================================
+//
+providedRequestResponseSignature(svc, model) ::=<<
+void <model.package>_<svc.name>_SERVICE_provide(<model.package>_context *ctxt<if (svc.hasParameters)>,<endif>
+  <inParameters(svc.inParameters, svc.hasOutParameters)>
+  <outParameters(svc.outParameters, false)>
+)>>
+
+
+deferredRequestResponseSignature(svc, model) ::=<<
+void <model.package>_<svc.name>_SERVICE_call (<model.package>_context *ctxt,
+   SARC_uint32 sarc_request_id<if(svc.inParameters)>,<endif>
+   <inParameters(svc.inParameters, false)>
+   )
+>>
+
+
+//=========================================================
+//
+componentCallbackSignature(svc, model) ::=<<
+void <model.package>_<svc.name>_Callback(<model.package>_context *ctxt,
+  SARC_uint32 request_id<if (svc.hasOutParameters)>,<endif>
+  <inParameters(svc.outParameters, false)>
+)>>
+
+//=========================================================
+//
+componentCallbackTimeoutSignature(svc, model) ::=<<
+void <model.package>_<svc.name>_Timeout(<model.package>_context *ctxt,
+  SARC_uint32 request_id)>>
+
+//==================================================================
+// Utilities/Factorization
+//==================================================================
+
+//---------------------------------------------------------
+//@name Documentation of an operation, formatted as a C comment.
+//@param op OperationData or OperationEvent
+documentOpAndParams(op) ::=<<
+<if (op.isDocumented || op.hasDocumentedParameters)>
+/**
+<if(op.isDocumented)>
+<op.doc:{ docline | 
+ * <docline>
+}><endif>
+<if(op.hasInParameters)><op.inParameters :{ in |
+ * @param <in.name>
+<if(in.isDocumented)>
+<in.doc:{ docline | 
+ * <docline>
+}><endif>}><endif> <if(op.hasOutParameters)><op.outParameters :{ out |
+ * @return <out.name>
+<if(out.isDocumented)>
+<out.doc:{ docline |
+ * <docline>
+}><endif>}><endif>
+ */
+<endif>
+>>
+
+//---------------------------------------------------------
+//@name Include directives for all libraries used by a component.
+//@param model Component
+includes(model) ::=<<
+<model.usedLibraries: {library | 
+#include "<library.cComponent.fileprefix>_types.h"}>
+>>
+
+//=========================================================
+//@name List of parameters with their types, in C syntax, separated by commas.
+//@param paramsList list of Parameter
+//@param addFinalSeparator boolean
+//@param isIn boolean
+parameters(paramsList, addFinalSeparator, isIn) ::=<<
+<first(paramsList) : { param | <parameter(param, isIn)>}><rest(paramsList) : { param |,
+<parameter(param, isIn)>}><if (addFinalSeparator && paramsList)>,<endif>
+>>
+
+//---------------------------------------------------------
+//@name A parameter with its type, in C syntax. 
+//@param paramsList Parameter
+//@param isIn boolean
+parameter(param, isIn) ::=<<
+<if (isIn)>const <endif><param.type.cType.qName> *<param.name>
+>>
+
+//---------------------------------------------------------
+//@name List of input parameters with their types, in C syntax, separated by commas. 
+//@param paramsList list of Parameter
+//@param addFinalSeparator boolean
+inParameters(paramsList, addFinalSeparator) ::=<<
+<parameters(paramsList, addFinalSeparator, true)>
+>>
+
+outParameters(paramsList, addFinalSeparator) ::=<<
+<parameters(paramsList, addFinalSeparator, false)>
+>>

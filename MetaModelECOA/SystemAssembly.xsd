@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<xsd:include schemaLocation="glaive_common.xsd" />
+	<xsd:element name="system_assembly"
+		type="GL_system_assembly" />
+
+	<xsd:complexType name="GL_system_assembly">
+		<xsd:sequence>
+			<xsd:element name="application_instance"
+				type="GL_application_instance" minOccurs="0" maxOccurs="64" />
+
+			<xsd:element name="multicast_channel"
+				type="GL_multicast_channel" minOccurs="0" maxOccurs="unbounded" />
+
+			<xsd:element name="multi_unicast_channel"
+				type="GL_multi_unicast_channel" minOccurs="0" maxOccurs="unbounded" />
+
+			<xsd:element name="one_to_one_channel"
+				type="GL_onetoone_channel" minOccurs="0" maxOccurs="unbounded" />
+		</xsd:sequence>
+	</xsd:complexType>
+
+	<xsd:complexType name="GL_task_instance">
+		<xsd:attribute name="name" type="tsk_NAME_LENGTH"
+                        use="required" />
+                <xsd:attribute name="priority"
+                        type="xsd:unsignedInt" use="required" />
+                <xsd:attribute name="logical_core_affinity"
+                        type="xsd:unsignedInt" use="required" />
+                <xsd:attribute name="stack_size"
+                        type="xsd:unsignedInt" use="optional" />
+	</xsd:complexType>
+
+	<xsd:complexType name="GL_port_instance">
+		<xsd:attribute name="name" type="tsk_NAME_LENGTH"
+			use="required" />
+	</xsd:complexType>
+
+	<xsd:simpleType name='int_history'>
+		<xsd:restriction base='xsd:integer'>
+			<xsd:minInclusive value='2'/>
+		</xsd:restriction>
+	</xsd:simpleType>
+  
+	<xsd:simpleType name='int_data_ctx_size'>
+		<xsd:restriction base='xsd:integer'>
+			<xsd:maxInclusive value='65000'/>
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<xsd:complexType name="GL_data_ctx">
+		<xsd:attribute name="size"             type="int_data_ctx_size"      use="required" />
+		<xsd:attribute name="name"             type="str_NAME_LENGTH"        use="required" />
+		<xsd:attribute name="replication_mask" type="xsd:string"             use="optional" />
+        	<xsd:attribute name="history_size"     type="int_history"            use="optional" />
+	</xsd:complexType>
+
+	<xsd:complexType name="GL_executable_instance">
+		<xsd:sequence>
+			<xsd:element name="task" type="GL_task_instance"
+				minOccurs="1" maxOccurs="32" />
+                        <xsd:element name="data" type="GL_data_ctx"
+                                minOccurs="0" maxOccurs="unbounded" />  
+                </xsd:sequence>
+                <xsd:attribute name="name" type="str_APP_NAME_LENGTH"
+                        use="required" />
+                <xsd:attribute name="reference" type="str_APP_NAME_LENGTH" 
+                        use="optional" />
+                <xsd:attribute name="path" type="str_PATH_LENGTH"
+                        use="required" />
+                <xsd:attribute name="param2" type="str_ARGUMENT_LENGTH"
+                        use="optional" />
+                <xsd:attribute name="param3" type="str_ARGUMENT_LENGTH"
+			use="optional" />
+		<xsd:attribute name="param4" type="str_ARGUMENT_LENGTH"
+			use="optional" />
+		<xsd:attribute name="param5" type="str_ARGUMENT_LENGTH"
+			use="optional" />
+		<xsd:attribute name="param6" type="str_ARGUMENT_LENGTH"
+			use="optional" />
+		<xsd:attribute name="param7" type="str_ARGUMENT_LENGTH"
+                        use="optional" />
+                <xsd:attribute name="param8" type="str_ARGUMENT_LENGTH"
+                        use="optional" />
+                <xsd:attribute name="param9" type="str_ARGUMENT_LENGTH"
+                        use="optional" />
+                <xsd:attribute name="rpc_prog_id" type="str_ARGUMENT_LENGTH"
+                        use="optional" />       
+                
+
+        </xsd:complexType>
+
+        <xsd:complexType name="GL_virtual_machine_instance">
+                <xsd:attribute name="name" type="str_APP_NAME_LENGTH"
+                        use="required" />
+                <xsd:attribute name="configpath" type="str_PATH_LENGTH"
+                        use="required" />
+
+        </xsd:complexType>
+
+        <xsd:complexType name="GL_virtual_interface">
+                <xsd:complexContent>
+                        <xsd:extension base="GL_task_instance">
+                                <xsd:sequence>
+					<xsd:element name="port_in" minOccurs="0"
+						maxOccurs="unbounded" type="GL_port_instance" />
+					<xsd:element name="port_out" minOccurs="0"
+						maxOccurs="unbounded" type="GL_port_instance" />
+					<xsd:element name="port_in_out" minOccurs="0"
+						maxOccurs="unbounded" type="GL_port_instance" />
+				</xsd:sequence>
+				<xsd:attribute name="addr" type="str_ADDR_LENGTH"
+					use="required" />
+				<xsd:attribute name="netmask" type="str_NAME_LENGTH"
+					use="optional" />
+				<xsd:attribute name="physical_name" type="str_NAME_LENGTH" 
+					use="required"/>
+			</xsd:extension>
+		</xsd:complexContent>
+	</xsd:complexType>
+
+	<xsd:complexType name="GL_application_instance">
+		<xsd:complexContent>
+			<xsd:extension base="GL_executable_instance">
+				<xsd:sequence>
+					<xsd:element name="virtual_machine"
+                                                type="GL_virtual_machine_instance" minOccurs="0" maxOccurs="1" />
+                                        <xsd:element name="executable"
+                                                type="GL_executable_instance" minOccurs="0" maxOccurs="32" />
+                                        <xsd:element name="virtual_interface" type="GL_virtual_interface"
+                                                minOccurs="0" maxOccurs="32" />
+                                </xsd:sequence>
+                                <xsd:attribute name="root_instance_uid"
+                                        type="xsd:unsignedInt" use="required" />
+                                <xsd:attribute name="cores_number"
+                                        type="xsd:unsignedInt" use="required" />
+                                <xsd:attribute name="optimize_restart"
+                                        type="xsd:boolean" use="optional" />
+                        </xsd:extension>
+                </xsd:complexContent>
+        </xsd:complexType>
+
+	<xsd:complexType name="GL_multicast_channel">
+		<xsd:sequence>
+			<xsd:element name="referenced_port_in"
+				type="GL_referenced_application_port" minOccurs="0"
+				maxOccurs="unbounded" />
+			<xsd:element name="referenced_port_out"
+				type="GL_referenced_application_port" minOccurs="0"
+				maxOccurs="unbounded" />
+			<xsd:element name="external_port_in"
+				type="GL_external_port_in" minOccurs="0"
+				maxOccurs="unbounded" />
+			<xsd:element name="external_port_out"
+				type="GL_external_port_in" minOccurs="0"
+				maxOccurs="unbounded" />
+		</xsd:sequence>
+		<xsd:attribute name="kind" type="GL_channel_kind"
+			use="required" />
+		<xsd:attribute name="fragmentation"
+			type="GL_channel_fragmentation" use="required" />
+		<xsd:attribute name="multicast_address"
+			type="xsd:string" use="optional" />
+                <xsd:attribute name="buf_size" use="optional" />
+		<xsd:attribute name="multicast_port"
+			type="xsd:unsignedInt" use="optional" />
+	</xsd:complexType>
+
+	<xsd:complexType name="GL_onetoone_channel">
+		<xsd:sequence>
+			<xsd:element name="referenced_port_inout"
+				type="GL_referenced_application_portin" minOccurs="1" maxOccurs="2" />
+			<xsd:element name="external_port_inout"
+				type="GL_external_port_out" minOccurs="0"
+				maxOccurs="1" />
+		</xsd:sequence>
+		<xsd:attribute name="kind" type="GL_channel_kind"
+			use="required" />
+		<xsd:attribute name="fragmentation"
+			type="GL_channel_fragmentation" use="required" />
+                <xsd:attribute name="buf_size" use="optional" />
+	</xsd:complexType>
+
+	<xsd:complexType name="GL_multi_unicast_channel">
+		<xsd:sequence>
+			<xsd:element name="referenced_port_in"
+				type="GL_referenced_application_portin" minOccurs="0"
+				maxOccurs="unbounded" />
+			<xsd:element name="referenced_port_out"
+				type="GL_referenced_application_port" minOccurs="0"
+				maxOccurs="unbounded" />
+			<xsd:element name="external_port_in"
+				type="GL_external_port_in" minOccurs="0"
+				maxOccurs="unbounded" />
+			<xsd:element name="external_port_out"
+				type="GL_external_port_out" minOccurs="0"
+				maxOccurs="unbounded" />
+		</xsd:sequence>
+		<xsd:attribute name="kind" type="GL_channel_kind"
+			use="required" />
+		<xsd:attribute name="fragmentation"
+			type="GL_channel_fragmentation" use="required" />
+                <xsd:attribute name="buf_size" use="optional" />
+	</xsd:complexType>
+
+	<xsd:complexType name="GL_referenced_application_port">
+		<xsd:attribute name="name" type="str_MSG_NAME_LENGTH"
+			use="required" />
+		<xsd:attribute name="application_instance"
+			type="str_NAME_LENGTH" use="required" />
+	</xsd:complexType>
+
+	<xsd:complexType
+		name="GL_referenced_application_portin">
+		<xsd:complexContent>
+			<xsd:extension base="GL_referenced_application_port">
+				<xsd:attribute name="port"
+					type="xsd:unsignedInt" use="required" />
+			</xsd:extension>
+		</xsd:complexContent>
+	</xsd:complexType>
+
+	<xsd:complexType
+		name="GL_external_port_in">
+	</xsd:complexType>
+	
+	<xsd:complexType
+		name="GL_external_port_out">
+				<xsd:attribute name="port"
+					type="xsd:unsignedInt" use="required" />
+				<xsd:attribute name="addr" type="str_ADDR_LENGTH"
+                                        use="required" />
+        </xsd:complexType>
+
+        <xsd:simpleType name="GL_channel_kind">
+                <xsd:restriction base="xsd:string">
+                        <xsd:enumeration value="tcp" />
+			<xsd:enumeration value="udp" />
+			<xsd:enumeration value="udpmulticast" />
+		</xsd:restriction>
+	</xsd:simpleType>
+
+	<xsd:simpleType name="GL_channel_fragmentation">
+		<xsd:restriction base="xsd:string">
+			<xsd:enumeration value="nofragmentation" />
+			<xsd:enumeration value="xudp0" />
+			<xsd:enumeration value="xudp1" />
+			<xsd:enumeration value="softarc" />
+			<xsd:enumeration value="rawdata" />
+                </xsd:restriction>
+        </xsd:simpleType>
+
+        <xsd:simpleType name="tsk_NAME_LENGTH">
+                <xsd:restriction base="xsd:string">
+                        <xsd:maxLength value="32" />
+		</xsd:restriction>
+	</xsd:simpleType>
+
+</xsd:schema>

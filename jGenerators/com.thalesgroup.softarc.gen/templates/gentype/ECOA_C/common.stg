@@ -1,0 +1,80 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "../../shared/function_names.stg"
+
+//---------------------------------------------------------
+//@name Documentation of an operation, formatted as a C comment.
+//@param op OperationData or OperationEvent
+documentOpAndParams(op) ::=<<
+<if (op.isDocumented || op.hasDocumentedParameters)>
+/**
+<if(op.isDocumented)>
+<op.doc:{ docline | 
+ * <docline>
+}><endif>
+<if(op.hasInParameters)><op.inParameters :{ in |
+ * @param <in.name>
+<if(in.isDocumented)>
+<in.doc:{ docline | 
+ * <docline>
+}><endif>}><endif> <if(op.hasOutParameters)><op.outParameters :{ out |
+ * @return <out.name>
+<if(out.isDocumented)>
+<out.doc:{ docline |
+ * <docline>
+}><endif>}><endif>
+ */
+<endif>
+>>
+
+//=========================================================
+//@name List of parameters with their types, in C syntax, separated by commas.
+//@param paramsList list of Parameter
+//@param addFinalSeparator boolean
+//@param isIn boolean
+parameters(paramsList, addFinalSeparator, isIn) ::=<<
+<first(paramsList) : { param | <parameter(param, isIn)>}><rest(paramsList) : { param |,
+<parameter(param, isIn)>}><if (addFinalSeparator && paramsList)>,<endif>
+>>
+
+//---------------------------------------------------------
+//@name A parameter with its type, in C syntax. 
+//@param paramsList Parameter
+//@param isIn boolean
+parameter(param, isIn) ::=<<
+<if (isIn)>const <endif><param.qType> *<param.name>
+>>
+
+//---------------------------------------------------------
+//@name List of input parameters with their types, in C syntax, separated by commas. 
+//@param paramsList list of Parameter
+//@param addFinalSeparator boolean
+inParameters(paramsList, addFinalSeparator) ::=<<
+<parameters(paramsList, addFinalSeparator, true)>
+>>
+
+outParameters(paramsList, addFinalSeparator) ::=<<
+<parameters(paramsList, addFinalSeparator, false)>
+>>
+
+comment(c) ::=<<
+<if(c)>/* <c> */<endif>
+>>
+
+c_include_protection(macro_protection_name,body) ::=<<
+#if !defined(<macro_protection_name>_H)
+#define <macro_protection_name>_H
+
+#if defined(__cplusplus)
+extern "C" {  
+#endif /* __cplusplus */
+
+<body>
+
+#if defined(__cplusplus)
+} 
+#endif /* __cplusplus */
+
+#endif  /* <macro_protection_name>_H */
+
+>>

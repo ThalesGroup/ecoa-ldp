@@ -1,0 +1,538 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+xmlns="http://www.ecoa.technology/Assembly/3.0"
+targetNamespace="http://www.ecoa.technology/Assembly/3.0"
+elementFormDefault="qualified" >
+    <xsd:include schemaLocation="inc/common.xsd" />
+    <xsd:element name="assembly" type="AS_assembly">
+        <xsd:annotation>
+            <xsd:documentation>
+Assembly Root node. The assembly defines instances of components and operation links between instances.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:key name="instancekey">
+            <xsd:selector xpath="instance" />
+            <xsd:field xpath="@name" />
+        </xsd:key>
+    </xsd:element>
+    <xsd:complexType name="AS_assembly">
+        <xsd:annotation>
+            <xsd:documentation>
+Definition of an assembly of instantiated components.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+            <xsd:element name="instance" type="AS_instance" minOccurs="0" maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Defines an instance of a component.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="links" type="AS_links">
+                <xsd:annotation>
+                    <xsd:documentation>
+Defines links between operations of instantiated components.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+        <xsd:attribute name="componentType" type="xsd:NCName" use="optional">
+            <xsd:annotation>
+                <xsd:documentation>
+ComponentType model describing the logical interface of the whole system / composite of components.
+Only needed if "extern" instance is used in the toplevel assembly.
+This attribute value must reference an existing componentType model. 
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="AS_instance">
+        <xsd:annotation>
+            <xsd:documentation>
+Definition of an instance of component.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+            <xsd:element name="propertyValue" type="AS_member_value" minOccurs="0" maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Initialization of properties defined in component model.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="pinfoValue" type="AS_member_value" minOccurs="0" maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Initialization of post-compilation attributes defined in component model via Pinfo mechanism.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="variableInit" type="AS_identified_member_value"
+                minOccurs="0" maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Numerical variable (defined by a SUPERVISOR component) used as activation condition for certain connections (cf. 'when' elements). 
+The values of variables can be modified during the execution by supervisor components.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="variableAlias" type="AS_variable_alias"
+                minOccurs="0" maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Makes accessible a numerical variable defined internally, outside of the component.
+This element can only be declared by SUPERVISOR components.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+        <xsd:attribute name="name" type="xsd:NCName" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Name of the instance. This attribute value must be unique in the assembly.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="componentType" type="xsd:NCName" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Reference to the associated component model. 
+This attribute value must reference an already defined componentType.
+The name of a componentType is defined by the name a the component.xml parent directory (Cf. 01-Components).
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="implementation" type="xsd:NCName" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Name of the component implementation used for this instance. 
+This attribute must reference an already defined component implementation. 
+The component implementation name is the implementation.xml parent directory name.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="AS_member_value">
+        <xsd:annotation>
+            <xsd:documentation>
+Association between the name of a member (property, pinfo) and a value.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+        </xsd:sequence>
+        <xsd:attribute name="name" type="xsd:NCName" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Name of the member. 
+This must match the name of a property or pinfo defined in the associated component type.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="value" type="xsd:string" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Value of the member for this specific component instance.
+If the value starts with special character '$', it refers to a property or pinfo defined by the enclosing composite.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType abstract="true" name="AS_operation_link">
+        <xsd:annotation>
+            <xsd:documentation>
+Base type for datalink, eventlink, requestlink.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+        </xsd:sequence>
+        <xsd:attribute name="id" type="positiveInt" use="optional">
+            <xsd:annotation>
+                <xsd:documentation>
+Unique Id of the operation link.
+This Id may be fixed by user in order to guarantee code generation stability.
+If not fixed by user, a unique Id will be generated.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="AS_default_data_value">
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="type" type="xsd:string" use="optional">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Type is optional when two different contexts of use allow correct interpretation of the value.
+If not, then the type should be made explicit.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:complexType name="AS_data_link">
+        <xsd:annotation>
+            <xsd:documentation>
+Link between DATA operations.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="AS_operation_link">
+                <xsd:sequence>
+                    <xsd:element name="writer" type="AS_op_ref_write" minOccurs="0" maxOccurs="unbounded" />
+                    <xsd:element name="reader" type="AS_op_ref_read" minOccurs="0" maxOccurs="unbounded" />
+                    <xsd:element name="defaultValue" type="AS_default_data_value" minOccurs="0" maxOccurs="1">
+                        <xsd:annotation>
+                            <xsd:documentation>
+The value that consumers will read while no production has occurred. 
+</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                </xsd:sequence>
+                <xsd:attribute name="uncontrolledAccess" type="xsd:boolean" default="false">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Optimization directive. 
+Data with "uncontrolledAccess" exists in a single version at any time.
+Special care should be taken about exclusive read and write cycles.
+Data has to be identified as optimizable all along the path of
+inner assemblies of composite components to actually be optimized.
+If this attribute value is true then ECOA will not protect anymore this data against concurrent accesses.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AS_event_link">
+        <xsd:annotation>
+            <xsd:documentation>
+Link between EVENT operations.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="AS_operation_link">
+                <xsd:sequence>
+                    <xsd:element name="sender" type="AS_op_ref_send" minOccurs="1" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:documentation>
+Identification of the event sender.
+</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                    <xsd:element name="receiver" type="AS_op_ref_receive" minOccurs="1" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:documentation>
+Identification of the event receiver.
+</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AS_links">
+        <xsd:annotation>
+            <xsd:documentation>
+Definition of the links of the assembly.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:choice minOccurs="0" maxOccurs="unbounded">
+                <xsd:element name="dataLink" type="AS_data_link" />
+                <xsd:element name="eventLink" type="AS_event_link" />
+                <xsd:element name="requestLink" type="AS_request_response_link" />
+            </xsd:choice>
+            <xsd:element name="implicitLinks" type="AS_implicitLinks" minOccurs="0" maxOccurs="unbounded" />
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="AS_op_ref" abstract="true">
+        <xsd:annotation>
+            <xsd:documentation>
+Contribution to a link (as producer, consumer, server or client).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element name="when" type="AS_when_condition"
+                minOccurs="0" maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Expression of inclusion/exclusion of an operation in a link.
+The operation belongs to the link only if the specified variable has the specified value.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+        <xsd:attribute name="instance" type="Name" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Reference to a component instance then the attribut value must be an existing instance name 
+(ie one of the instances defined in this assembly), or to the assembly itself then the attribute value 
+must be "extern".
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="operation" type="OperationName" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Reference to an operation of the componentType model associated to the instance by the "instance" attribute.
+This attribute value must reference a valid operation name defined in the associated componentType.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="AS_op_ref_read">
+        <xsd:annotation>
+            <xsd:documentation>
+Contribution to a data link (as reader).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="AS_op_ref">
+                <xsd:attribute name="activating" type="xsd:boolean" default="true">
+                    <xsd:annotation>
+                        <xsd:documentation>
+True if the notification event should activate the thread hosting the instance.
+Only meaningful if notifying=true on the component's operation.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="fifoSize" type="xsd:unsignedInt" default="8">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Max number of notification events waiting to be processed.
+Only meaningful if notifying=true on the component's operation.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AS_op_ref_write">
+        <xsd:annotation>
+            <xsd:documentation>
+Contribution to a data link (as writer).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="AS_op_ref_read">
+                <xsd:attribute name="reference" type="xsd:boolean" default="true">
+                    <xsd:annotation>
+                        <xsd:documentation>
+If a 'dataWritten' operation is connected to several datalinks, then there must be one and only one datalink
+for which reference=true on this operation. 
+The 'current value' is always taken from this datalink.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AS_op_ref_send">
+        <xsd:annotation>
+            <xsd:documentation>
+Contribution to an event link (as sender).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="AS_op_ref"></xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AS_op_ref_receive">
+        <xsd:annotation>
+            <xsd:documentation>
+Contribution to an event link (as receiver).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="AS_op_ref">
+                <xsd:attribute name="activating" type="xsd:boolean" default="true">
+                    <xsd:annotation>
+                        <xsd:documentation>
+If true, the event cause the activation of the receiver component.
+If false, the event will be added into the FIFO and executed on the next activating event reception.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="fifoSize" type="xsd:unsignedInt" default="8">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Max number of operations waiting to be processed.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AS_identified_member_value">
+        <xsd:annotation>
+            <xsd:documentation>
+Add of a numerical identifier to a member.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="AS_member_value">
+                <xsd:attribute name="id" type="xsd:unsignedInt" use="optional" />
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AS_request_response_link">
+        <xsd:annotation>
+            <xsd:documentation>
+Link between RequestResponse operations. Exactly one client; one nominal server + backup servers (cf. 'when' element).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="AS_operation_link">
+                <xsd:sequence>
+                    <xsd:element name="client" type="AS_op_ref_client"
+                        minOccurs="1" maxOccurs="1" />
+                    <xsd:element name="server" type="AS_op_ref_server"
+                        minOccurs="0" maxOccurs="unbounded" />
+                </xsd:sequence>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AS_op_ref_client">
+        <xsd:annotation>
+            <xsd:documentation>
+Contribution to a RequestResponse link (as client).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="AS_op_ref">
+                <xsd:attribute name="callbackActivating" type="xsd:boolean" default="true">
+                    <xsd:annotation>
+                        <xsd:documentation>
+True if the callback should activate the thread hosting the instance.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="fifoSize" type="xsd:unsignedInt" default="8">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Max number of responses waiting to be processed.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AS_op_ref_server">
+        <xsd:annotation>
+            <xsd:documentation>
+Contribution to a RequestResponse link (as server).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="AS_op_ref">
+                <xsd:attribute name="activating" type="xsd:boolean" default="true">
+                    <xsd:annotation>
+                        <xsd:documentation>
+True if the request should activate the thread hosting the instance.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="fifoSize" type="xsd:unsignedInt" default="8">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Max number of requests waiting to be processed.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="AS_variable_alias">
+        <xsd:annotation>
+            <xsd:documentation>
+Association between the internal and the external names of a same variable.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:attribute name="name" type="xsd:NCName" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Internal name of the variable.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="alias" type="xsd:NCName" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+External name of the variable.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="AS_when_condition">
+        <xsd:attribute name="instance" type="Name" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Name of the instance.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="variable" type="Name" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Name of the variable.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="value" type="xsd:string" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Value of the variable.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="AS_implicitLinks_operations">
+        <xsd:annotation>
+            <xsd:documentation>
+Select some operations on some component instances.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:attribute name="instance" type="xsd:string" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+The name of an instance of this assembly, or a pattern matching several instances.
+The character "*" matches any sequence of characters.</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="prefix" type="xsd:string" default="">
+            <xsd:annotation>
+                <xsd:documentation>
+A prefix that is used to filter operations. The name of the operation must start with the prefix value.
+Moreover, the prefix is removed from the operation's name when comparing with other operation names.</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="AS_implicitLinks">
+        <xsd:annotation>
+            <xsd:documentation>
+Create automatically links, based on operation names.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+            <xsd:element name="operations" type="AS_implicitLinks_operations" minOccurs="0" maxOccurs="unbounded" />
+        </xsd:sequence>
+        <xsd:attribute name="activating" type="xsd:boolean" default="true">
+            <xsd:annotation>
+                <xsd:documentation>
+Value of the corresponding attribute on all created links.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+</xsd:complexType>
+</xsd:schema>

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project name="LDP_SOFTARC" basedir="." default="build">
+  <description>
+    Softarc Lightweight Dev Platform.
+  </description>
+
+  <target name="gen" description="Build all code generators">
+    <ant dir="jGenerators" target="build"/>
+  </target>
+
+  <target name="build" depends="gen" />
+  <target name="rebuild" depends="clean,build" />
+
+  <target name="clean">
+    <ant dir="jGenerators" target="clean"/>
+  </target>
+
+</project>

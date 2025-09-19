@@ -1,0 +1,87 @@
+@startuml Implementation
+
+note as title_note
+  The implementation model defines the "inside" of a Component.
+  It may be either "composite" (an assembly other components),
+  or "concrete" (code in a given programming language).
+end note
+
+abstract class Implementation {
+	+string name
+	string doc
+}
+
+Implementation -left-> Component
+note left: See dedicated diagram
+
+Implementation <|-- ConcreteImplementation
+
+abstract class ConcreteImplementation {
+	string APIType
+	string APIVersion
+	int stack
+	int externalStack
+}
+
+ConcreteImplementation <|-- ImplementationC
+ConcreteImplementation <|-- ImplementationCpp
+ConcreteImplementation <|-- ImplementationAda
+ConcreteImplementation <|-- ImplementationRust
+ConcreteImplementation <|-- ImplementationJava
+ConcreteImplementation <|-- ImplementationPython
+
+
+Implementation <|-- CompositeImplementation
+
+CompositeImplementation --> Assembly
+note bottom: See dedicated diagram
+
+
+
+class ImplementationC {
+	+string fullName
+	string filePrefix
+}
+class ImplementationCpp {
+	+string namespace
+	string filePrefix
+}
+class ImplementationJava {
+	+string packageName
+}
+class ImplementationAda {
+	+string packageName
+}
+class ImplementationRust {
+	+string packageName
+}
+class ImplementationPython {
+	+string packageName
+}
+class Extra {
+	string production
+	+string value
+}
+note right: Extra parameter that can optionally depend on the production type (see Deployment diagram).
+ConcreteImplementation o-- "*" Extra : srcDir
+ConcreteImplementation o-- "*" Extra : compilationFlags
+ConcreteImplementation o-- "*" Extra : linkFlags
+ImplementationJava o-- "*" Extra : additionalJar
+ImplementationC o-- "*" Extra : incDir
+ImplementationCpp o-- "*" Extra : incDir
+
+ConcreteImplementation o-left- "0..1" BinaryDescription
+
+class BinaryDescription {
+	int userContextSize
+	int warmStartContextSize
+}
+
+BinaryDescription o-- "*" Extra : objectFile
+
+Implementation o-right- "*" Option
+
+class Option {
+	+string name
+	boolean value
+}

@@ -1,0 +1,145 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+
+// The templates of this group define the API related to ECOA operations. !>
+// Any other information needed is passed through parameters.             !> 
+
+
+data_read_api(operation, model) ::=<<
+ECOA__return_status
+<model.package>_container__<operation.name>__get_read_access (
+  <model.package>__context* context,
+  <model.package>_container__<operation.name>_handle* handle);
+
+ECOA__return_status 
+<model.package>_container__<operation.name>__release_read_access (
+  <model.package>__context* context, 
+  <model.package>_container__<operation.name>_handle* handle);
+
+/* HOW TO USE:
+<model.package>_container__<operation.name>_handle h;
+<model.package>_container__<operation.name>__get_read_access (context, &h);
+... use *h.data, h.timestamp ...
+<model.package>_container__<operation.name>__release_read_access (context, &h);
+*/
+
+>>
+
+
+data_written_api(operation, model) ::=<<
+ECOA__return_status 
+<model.package>_container__<operation.name>__get_write_access (
+  <model.package>__context* context, 
+  <model.package>_container__<operation.name>_handle* handle);
+
+ECOA__return_status 
+<model.package>_container__<operation.name>__cancel_write_access (
+  <model.package>__context* context, 
+  <model.package>_container__<operation.name>_handle* handle);
+
+ECOA__return_status 
+<model.package>_container__<operation.name>__publish_write_access (
+  <model.package>__context* context, 
+  <model.package>_container__<operation.name>_handle* handle);
+
+/* HOW TO USE:
+<model.package>_container__<operation.name>_handle h;
+<model.package>_container__<operation.name>__get_write_access (context, &h);
+... modify *h.data ...
+<model.package>_container__<operation.name>__publish_write_access (context, &h);
+(or cancel)
+*/
+
+>>
+
+
+event_sent_api(operation, model) ::=<<
+void 
+<model.package>_container__<operation.name>__send (
+  <model.package>__context* context 
+  <operation.inParameters: {p |, <pIn(p)>}>)
+>>
+
+
+event_received_entrypoint(operation, model) ::=<<
+void 
+<model.package>__<operation.name>__received (
+  <model.package>__context* context
+  <operation.inParameters: {p |, <pIn(p)>}> )
+>>
+
+data_notification_entrypoint(operation, model) ::=<<
+void 
+<model.package>__<operation.name>__updated (
+  <model.package>__context* context)
+>>
+
+
+sync_call_api(operation, model) ::=<<
+ECOA__return_status 
+<model.package>_container__<operation.name>__request_sync (
+  <model.package>__context* context
+  <operation.inParameters: {p |, <pIn(p)>}> 
+  <operation.outParameters: {p |, <pOut(p)>}> )
+>>
+
+
+async_call_api(operation, model) ::=<<
+ECOA__return_status 
+<model.package>_container__<operation.name>__request_async (
+  <model.package>__context* context,
+  ECOA__uint32* ID 
+  <operation.inParameters: {p |, <pIn(p)>}>)
+>>
+
+async_callback_entrypoint(operation, model) ::=<<
+void 
+<model.package>__<operation.name>__response_received (
+  <model.package>__context* context,
+  const ECOA__uint32 ID, 
+  const ECOA__return_status status
+  <operation.outParameters: {p |, <pIn(p)>}>)
+>>
+
+deferred_requestresponse_entrypoint(operation, model) ::=<<
+void 
+<model.package>__<operation.name>__request_received (
+  <model.package>__context* context,
+  const ECOA__uint32 ID
+  <operation.inParameters: {p |, <pIn(p)>}>)
+>>
+
+deferred_requestresponse_reply(operation, model) ::=<<
+ECOA__return_status 
+<model.package>_container__<operation.name>__response_send (
+  <model.package>__context* context,
+  const ECOA__uint32 ID
+  <operation.outParameters: {p |, <pIn(p)>}>)
+>>
+
+nondeferred_requestresponse_entrypoint(operation, model) ::=<<
+void 
+<model.package>__<operation.name>__request_received (
+  <model.package>__context* context
+  <operation.inParameters: {p |, <pIn(p)>}>
+  <operation.outParameters: {p |, <pOut(p)>}>)
+>>
+
+external_operation_api(operation, model) ::=<<
+void 
+<model.package>__<operation.name> (
+  <operation.inParameters: {p |<pIn(p)>};separator=", ">)
+>>
+
+
+pIn(p) ::=<<
+<if(p.type.isScalar)>
+<p.type.qName> <p.name>
+<else>
+const <p.type.qName> *<p.name>
+<endif>
+>>
+
+pOut(p) ::=<<
+<p.type.qName> *<p.name>
+>>

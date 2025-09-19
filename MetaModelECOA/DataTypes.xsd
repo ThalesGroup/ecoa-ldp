@@ -1,0 +1,470 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+xmlns="http://www.ecoa.technology/DataTypes/3.0"
+targetNamespace="http://www.ecoa.technology/DataTypes/3.0"
+elementFormDefault="qualified" >
+    <xsd:include schemaLocation="inc/common.xsd" />
+    <xsd:group name="library_types">
+        <xsd:annotation>
+            <xsd:documentation>
+List of all possible data types.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:choice>
+            <xsd:element name="simple" type="CT_simple">
+                <xsd:annotation>
+                    <xsd:documentation>
+A simple is an alias for another simple, an enum or a base type. 
+It allow defining a unit (for documentary purpose only), as well as min and max range.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="record" type="CT_record">
+                <xsd:annotation>
+                    <xsd:documentation>
+A record follows the same definition as a structure in C language. 
+It is a sequence of fields, each one having a name and a type.
+</xsd:documentation>
+                </xsd:annotation>
+                <xsd:unique name="field">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Field of a record, with an association of a name and a type.
+</xsd:documentation>
+                    </xsd:annotation>
+                    <xsd:selector xpath="field" />
+                    <xsd:field xpath="@name" />
+                </xsd:unique>
+            </xsd:element>
+            <xsd:element name="variantRecord" type="CT_variant_record">
+                <xsd:annotation>
+                    <xsd:documentation>
+A variant record follows the same definition as ADA variant records, which is a special type of discriminated
+record where the presence of some elements depends on the value of the discriminant (called "the selector").
+</xsd:documentation>
+                </xsd:annotation>
+                <xsd:unique name="fieldunion">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Element of the variant record, that can be either a field or a union, with a name and a type.
+      					</xsd:documentation>
+                    </xsd:annotation>
+                    <xsd:selector xpath="field|union" />
+                    <xsd:field xpath="@name" />
+                </xsd:unique>
+                <xsd:unique name="when">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Selector in the variant record.
+</xsd:documentation>
+                    </xsd:annotation>
+                    <xsd:selector xpath="union" />
+                    <xsd:field xpath="@when" />
+                </xsd:unique>
+            </xsd:element>
+            <xsd:element name="array" type="CT_array">
+                <xsd:annotation>
+                    <xsd:documentation>
+Array definition allows specifying the maximum number of elements in the array, as well as the type of those
+elements. 
+When an array is sent over the network, or written to memory, only the current number of elements in the array
+will be affected.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="fixedArray" type="CT_fixed_array">
+                <xsd:annotation>
+                    <xsd:documentation>
+Fixed array definition allows specifying the maximum number of elements in the array, as well as the type of
+those elements. 
+In opposition to array type, when a fixed array is sent over the network, or written to memory, all its
+elements are sent even though some of them had never been assigned.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="enum" type="CT_enum">
+                <xsd:annotation>
+                    <xsd:documentation>
+A ECOA enumerate follows the same definition as a C enumerate, except that it allows defining the base type
+of the values. 
+This is mandatory for ECOA to know the size of this enumerate, once written to memory.
+An enumerate can contain values of predefined integer types.
+</xsd:documentation>
+                </xsd:annotation>
+                <xsd:unique name="value">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Field of the enumerate, that is defined with a name and optionally a valnum.
+</xsd:documentation>
+                    </xsd:annotation>
+                    <xsd:selector xpath="value" />
+                    <xsd:field xpath="@name" />
+                </xsd:unique>
+                <xsd:unique name="valnum">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Numerical value of the enumerate field.
+</xsd:documentation>
+                    </xsd:annotation>
+                    <xsd:selector xpath="value" />
+                    <xsd:field xpath="@valnum" />
+                </xsd:unique>
+            </xsd:element>
+            <xsd:element name="constant" type="CT_constant">
+                <xsd:annotation>
+                    <xsd:documentation>
+A symbolic constant defining a numeric constant that can be used an an array size, or as a range limit in a simple type.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:choice>
+    </xsd:group>
+    <xsd:complexType name="CT_library">
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+            <xsd:group ref="library_types" minOccurs="0" maxOccurs="unbounded" />
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:simpleType name="E_predef">
+        <xsd:annotation>
+            <xsd:documentation>
+Predefined ECOA types.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="boolean8" />
+            <xsd:enumeration value="int8" />
+            <xsd:enumeration value="int16" />
+            <xsd:enumeration value="int32" />
+            <xsd:enumeration value="int64">
+                <xsd:annotation>
+            <xsd:documentation>
+This type may not be supported on all platforms/languages ([OPTION INT64]).
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="uint64">
+                <xsd:annotation>
+            <xsd:documentation>
+This type may not be supported on all platforms/languages ([OPTION UINT64]).
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:enumeration>
+            <xsd:enumeration value="uint8" />
+            <xsd:enumeration value="uint16" />
+            <xsd:enumeration value="uint32" />
+            <xsd:enumeration value="char8" />
+            <xsd:enumeration value="float32" />
+            <xsd:enumeration value="double64" />
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="CT_type">
+        <xsd:annotation>
+            <xsd:documentation>
+Base type of all ECOA data types.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+        </xsd:sequence>
+        <xsd:attribute name="name" type="TypeName" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+This attribute value is the key used to reference this type.
+The value shall be unique in the library scope.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="CT_derived_type">
+        <xsd:annotation>
+            <xsd:documentation>
+Base type of all ECOA data types that rely on a previous type definition.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_type">
+                <xsd:attribute name="type" type="TypeQName" use="required">
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_simple">
+        <xsd:annotation>
+            <xsd:documentation>
+A type based on any other type (renaming case), with a name, min/max constraints, and a unit.
+Base type shall only be a predefined type or another simple type.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_derived_type">
+                <xsd:attribute name="minRange" type="ConstantReferenceOrValue" use="optional">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Minimal range value for this type.
+This value shall be equal or superior to the minimal range value for the base type.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="maxRange" type="ConstantReferenceOrValue" use="optional">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Maximal range value for this type.
+This value shall be inferior or equal to the maximal range value for the base type.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="unit" type="xsd:string" use="optional">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Use of International System units is recommended.
+This attribute is only used as a documentation.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_enum">
+        <xsd:annotation>
+            <xsd:documentation>
+Enumerated type.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_derived_type">
+                <xsd:sequence>
+                    <xsd:element name="value" type="CT_value" minOccurs="1" maxOccurs="unbounded">
+                        <xsd:annotation>
+                            <xsd:documentation>
+Definition of a valid value for this enumerated type.
+</xsd:documentation>
+                        </xsd:annotation>
+                    </xsd:element>
+                </xsd:sequence>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_value">
+        <xsd:annotation>
+            <xsd:documentation>
+Value and label of an enumerated type item.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+        </xsd:sequence>
+        <xsd:attribute name="name" type="Name" use="required">
+            <xsd:annotation>
+                <xsd:documentation>
+Label of the item.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="valNum" type="ConstantReferenceOrIntegerValue">
+            <xsd:annotation>
+                <xsd:documentation>
+Numerical value of the item.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="CT_fixed_array">
+        <xsd:annotation>
+            <xsd:documentation>
+Constant size array.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_derived_type">
+                <xsd:attribute name="maxNumber" type="ConstantReferenceOrPositiveIntegerValue" use="required">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Maximum number of elements in the array.
+When a fixed array is sent over the network, or written to memory, all its elements are sent, even those which
+had never been assigned.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_array">
+        <xsd:annotation>
+            <xsd:documentation>
+Variable size array.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_derived_type">
+                <xsd:attribute name="maxNumber" type="ConstantReferenceOrPositiveIntegerValue" use="required">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Maximum number of elements in the array.
+When an array is sent over the network, or written to memory, only the current number of elements in the array
+are sent.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_union_field">
+        <xsd:annotation>
+            <xsd:documentation>
+Optional field associated to a specific value of the variant in the definition of a variantrecord type.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="QualifiedField">
+                <xsd:attribute name="when" type="xsd:string" use="required">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Expression of the condition.
+The value of this attribute can be an integer value or an already defined enumerated type item name if the
+defined selectType is a enumerated type.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_record">
+        <xsd:annotation>
+            <xsd:documentation>
+Sequence of fields, each one having a name and a type.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_type">
+                <xsd:sequence>
+                    <xsd:element name="field" type="QualifiedField" minOccurs="0" maxOccurs="unbounded" />
+                </xsd:sequence>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_variant_record">
+        <xsd:annotation>
+            <xsd:documentation>
+Special type of discriminated record: sequence of conditional fields.
+The condition is based on a specific attribute called selector.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_type">
+                <xsd:sequence>
+                    <xsd:element name="field" type="QualifiedField" minOccurs="0" maxOccurs="unbounded" />
+                    <xsd:element name="union" type="CT_union_field" minOccurs="1" maxOccurs="unbounded" />
+                    <xsd:element name="default" type="QualifiedField" minOccurs="0" maxOccurs="1" />
+                </xsd:sequence>
+                <xsd:attribute name="selectName" type="Name" use="required">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Name of the selector.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="selectType" type="TypeQName" use="required">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Type of the selector.
+This attribute value references an already defined type name.
+The referenced type shall be an enumerated one or an integer one.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_constant">
+        <xsd:annotation>
+            <xsd:documentation>Constant definition</xsd:documentation>
+        </xsd:annotation>
+        <xsd:complexContent>
+            <xsd:extension base="CT_type">
+                <xsd:attribute name="type" type="TypeQName" use="required" />
+                <xsd:attribute name="value" type="ConstantReferenceOrValue" use="required" />
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:simpleType name="ConstantReferenceOrValue">
+        <xsd:annotation>
+            <xsd:documentation>
+Use of a constant reference or of any constant value.
+Note: the ConstantValue type is replaced by its flattened union members.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:union
+            memberTypes="ConstantReference xsd:double xsd:integer CharConstantType HexaCharConstantType" />
+    </xsd:simpleType>
+    <xsd:simpleType name="ConstantReference">
+        <xsd:annotation>
+            <xsd:documentation>
+Constant reference
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="%([A-Za-z][A-Za-z0-9_]*\.)?[A-Za-z][A-Za-z0-9_]*%" />
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="ConstantReferenceOrPositiveIntegerValue">
+        <xsd:annotation>
+            <xsd:documentation>
+Use of a constant or of a positive integer value.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern
+                value="%([A-Za-z][A-Za-z0-9_]*\.)?[A-Za-z][A-Za-z0-9_]*%|[0-9]+" />
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="ConstantReferenceOrIntegerValue">
+        <xsd:annotation>
+            <xsd:documentation>
+Use of a constant or of an integer value.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern
+                value="%([A-Za-z][A-Za-z0-9_]*\.)?[A-Za-z][A-Za-z0-9_]*%|(\+|-)?[0-9]*" />
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="CharConstantType">
+        <xsd:annotation>
+            <xsd:documentation>Character Constant Type</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="'\p{IsBasicLatin}'" />
+            <xsd:length value="3" />
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:simpleType name="HexaCharConstantType">
+        <xsd:annotation>
+            <xsd:documentation>
+This type shall be used as the base type for
+any XML schema attribute or element that contains a hex-encoded
+char value.
+This hex-encoded binary value contains the mandatory
+string 0x followed by a sequence of 1 or 2 characters 0–9 and
+a–f.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="0x[0-9A-Fa-f][0-9A-Fa-f]|0x[0-9A-Fa-f]" />
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:element name="library" type="CT_library">
+        <xsd:annotation>
+            <xsd:documentation>
+A library allows to define types in a unique implementation space, shared between components.
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:key name="librarytypekey">
+            <xsd:selector xpath="simple|record|variantRecord|array|fixedArray|enum" />
+            <xsd:field xpath="@name" />
+        </xsd:key>
+    </xsd:element>
+</xsd:schema>

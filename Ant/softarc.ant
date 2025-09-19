@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project name="softarc" xmlns:if="ant:if">
+  <description>
+This is a library of predefined ant tasks and targets to use SOFTARC code generators.
+
+It shall be 'imported' by a project-specific build.xml file.
+See ${softarc_home}/Tests/Dummy/build.xml for an example.
+
+REQUIREMENTS:
+    * ${softarc_home} must be set
+    * ${deploymentname} identifies the deployment to work on (no .xml extension)
+    * ${basedir} (predefined property) shall contain an ECOA project workspace directory
+
+TIPS:
+    * Use "ant -p" or "ant help" for help.
+    * Use "ant -v" to print debugging information.
+    * Use "ant -e" to produce logging information without adornments.
+
+CUSTOMISATION:
+    * You can customise some properties (see below) in your build.xml file (do it before the 'import' line).
+    * Use "ant -Dprop=value" to override a property in a temporary way from outside of Ant.
+    * Ant is very flexible. Almost everything can be redefined (properties, targets, macrodefs,..).
+    * To extend/customize the build process:
+    - Define your own targets in your build.xml file.
+    - You can insert your own targets between the predefined steps, using extension-points (see below).
+    - If needed, just copy some of the following targets in your own build.xml file,
+      and adapt them to suit your needs. The new target will replace the original one.
+  </description>
+
+  <!-- Internal properties
+       (do not modify)    -->
+  <property environment="env" />
+  <property name="softarc_home" location="${env.SOFTARC_HOME}"/>
+  <property name="version" value="SOFTARC X.Y.Z" />
+  <property name="gendir" location="${basedir}/04-Integration/${deploymentname}" description="Generation directory for a given deployment" />
+
+  <!-- Other properties
+      (to override in your project's build file if needed) -->
+  <property name="verbose" value="false" description="Produce XML files representing the intermediate states of generation" />
+  <property name="createnew" value="false" description="Create .new files when preserving manual code" />
+
+  <!-- Extension points:
+       You can add used-defined targets at each stage (cf. ant doc, <target name="mytarget" extensionOf="">) -->
+  <extension-point name="ready-to-generate" />
+  <extension-point name="ready-to-build-exes" />
+  <extension-point name="ready-to-start-exes" />
+  <extension-point name="ready-to-start-panel" />
+
+  <!--                      -->
+  <!-- IMPLEMENTATION       -->
+  <!--                      -->
+
+  <!-- Use antlib that defines a task for each generator -->
+
+  <path id="jaxb.classpath">
+    <fileset dir="${softarc_home}/jGenerators/lib/jaxb-ri-4.0.1">
+      <include name="angus-activation.jar"/>
+      <include name="jakarta.activation-api.jar"/>
+      <include name="jakarta.xml.bind-api.jar"/>
+      <include name="jaxb-core.jar"/>
+      <include name="jaxb-impl.jar"/>
+    </fileset>
+  </path>
+
+  <taskdef resource="com/thalesgroup/softarc/ant/antlib-core.xml">
+    <classpath>
+      <pathelement location="${softarc_home}/jGenerators/bin"/>
+      <!-- StringTemplate -->
+      <fileset dir="${softarc_home}/jGenerators/lib">
+        <include name="StringTemplate/stringtemplate-4.0.1.jar"/>
+        <include name="antlr3/antlr-3.3-runtime.jar"/>
+      </fileset>
+      <!-- JAXB -->
+      <path refid="jaxb.classpath"/>
+    </classpath>
+  </taskdef>
+
+  <!--                      -->
+  <!-- XML Validation Tasks -->
+  <!--                      -->
+
+  <target name="validate_all" description="Validate all model files found in the workspace against XSD schema"
+    depends="validate_all_LI,validate_all_CT,validate_all_CI,validate_all_AS,validate_all_DE,validate_all_WS"/>
+
+  <presetdef name="validateECOA">
+    <schemavalidate>
+      <!-- rq:  "catalog" serait mieux mais comment le faire fonctionner ?? -->
+      <schema namespace="http://www.ecoa.technology/DataTypes/3.0" file="${softarc_home}/MetaModelECOA/SOFTARC/DataTypes.xsd"/>
+      <schema namespace="http://www.ecoa.technology/ComponentType/3.0" file="${softarc_home}/MetaModelECOA/ComponentType.xsd"/>
+      <schema namespace="http://www.ecoa.technology/Implementation/3.0" file="${softarc_home}/MetaModelECOA/SOFTARC/Implementation.xsd"/>
+      <schema namespace="http://www.ecoa.technology/Assembly/3.0" file="${softarc_home}/MetaModelECOA/Assembly.xsd"/>
+      <schema namespace="http://www.ecoa.technology/Deployment/3.0" file="${softarc_home}/MetaModelECOA/SOFTARC/Deployment.xsd"/>
+      <schema namespace="http://www.ecoa.technology/Workspace/3.0" file="${softarc_home}/MetaModelECOA/Workspace.xsd"/>
+    </schemavalidate>
+  </presetdef>
+
+  <target name="validate_all_LI" description="Validate all Libraries (.types.xml) against XSD schema">
+    <validateECOA>
+      <fileset dir="." includes="00-Types/**/*.types.xml"/>
+    </validateECOA>
+  </target>
+  <target name="validate_all_CT" description="Validate all ComponentType files (.comp.xml) against XSD schema">
+    <validateECOA>
+      <fileset dir="." includes="01-Components/**/*.comp.xml"/>
+    </validateECOA>
+  </target>
+  <target name="validate_all_CI" description="Validate all Implementation files (.impl.xml) against XSD schema">
+    <validateECOA>
+      <fileset dir="." includes="01-Components/**/*.impl.xml"/>
+    </validateECOA>
+  </target>
+  <target name="validate_all_AS" description="Validate all Assembly files against XSD schema">
+    <validateECOA>
+      <fileset dir="02-Assemblies" includes="*.assembly.xml"/>
+    </validateECOA>
+  </target>
+  <target name="validate_all_DE" description="Validate all Deployment files against XSD schema">
+    <validateECOA>
+      <fileset dir="03-Deployments" includes="*.deployment.xml"/>
+    </validateECOA>
+  </target>
+  <target name="validate_all_WS" description="Validate workspace.xml against XSD schema">
+    <validateECOA>
+      <fileset dir="." includes="workspace.xml"/>
+    </validateECOA>
+  </target>
+
+  <!--                  -->
+  <!-- Generation Tasks -->
+  <!--                  -->
+
+  <target name="gendir">
+    <fail unless="deploymentname" />
+    <mkdir dir="${gendir}"/>
+    <echo>Generating in ${gendir} for DE=${deploymentname}</echo>
+    <echo level="verbose">Deployment file is: ${basedir}/03-Deployments/${deploymentname}.deployment.xml</echo>
+  </target>
+
+  <target name="gen" description="Generate all technical code (gentechnicalassembly,gensoftarc)"
+    depends="ready-to-generate,gentechnicalassembly,gensoftarc">
+  </target>
+
+  <target name="gensoftarc" depends="gendir" description="Run the SOFTARC generator">
+    <echo message="Running GenSoftarc..."/>
+    <GenSoftarc deployment="03-Deployments/${deploymentname}.deployment.xml"
+             createnew="${createnew}"
+             verbose="${verbose}"
+             log="${gendir}/gensoftarc.log"/>
+  </target>
+
+  <!-- GenTechnicalAssembly -->
+  <target name="gentechnicalassembly" depends="gendir"
+          description="Generate TechnicalAssembly.xml file">
+    <echo message="Running GenTechnicalAssembly..."/>
+    <GenTechnicalAssembly deployment="03-Deployments/${deploymentname}.deployment.xml" log="${gendir}/gentechnical.log"/>
+  </target>
+
+  <!--                   -->
+  <!-- Compilation Tasks -->
+  <!--                   -->
+
+  <target name="exes" description="Compile the executable from source code" 
+     depends="ready-to-build-exes">
+    <echo message="========="/>
+    <echo message="Running 'make' in '${gendir}':"/>
+    <exec executable="make" dir="${gendir}" failonerror="true">
+      <arg value="-B"/>
+    </exec>
+    <copy file="${gendir}/a.out" todir="." />
+    <chmod file="a.out" perm="+x" />
+    <echo message="========="/>
+  </target>
+
+
+  <!-- alias -->
+  <target name="exe" depends="exes" />
+  <target name="executables" depends="exes" />
+
+  <target name="all" description="Generate everything and compile executables" depends="gen,exes" />
+
+  <!--                 -->
+  <!-- Execution Tasks -->
+  <!--                 -->
+
+  <target name="run" description="Start the application (warning: output can be buffered by Ant) and wait for termination" depends="ready-to-start-exes">
+    <exec executable="./a.out" failonerror="true"/>
+  </target>
+  <target name="start_exes" depends="run"/> <!-- alias -->
+  <target name="start_exes_console" depends="run"/> <!-- alias, for compatiblity -->
+  <target name="run_with" description="Same as 'run', with a script file defined by the property ${script}"
+    depends="ready-to-start-exes">
+    <exec executable="./a.out" failonerror="true" input="${script}"/>
+  </target>
+
+  <target name="start_all" depends="start_exes"/> <!-- for compatiblity -->
+
+  <target name="kill_exes" description="Kill the running application(s)">
+    <exec executable="killall">
+      <arg value="./a.out"/>
+    </exec>
+  </target>
+
+  <!--                 -->
+  <!-- Delivery Tasks  -->
+  <!--                 -->
+
+  <target name="zip_exes">
+    <echo message="Creating zip file for delivery of the application: ${deploymentname}.zip"/>
+    <zip destfile="${deploymentname}.zip">
+      <fileset dir="${gendir}">
+        <include name="a.out"/>
+      </fileset>
+    </zip>
+  </target>
+
+  <target name="deliver_app" depends="zip_exes" description="Zip all executables and configuration files for delivery"/>
+
+
+  <!--               -->
+  <!-- Miscellaneous -->
+  <!--               -->
+
+  <!-- Extracts all models in a single ZIP file -->
+  <target name="models.zip" description="Zip all models (no source code) in one file; please join it to every bug report" depends="env.txt">
+    <zip destfile="models.zip" basedir="." includes="env.txt,**/*.xml,03-Deployments/*.mak,03-Deployments/*.properties.xml" excludes="04-Integration/**,workspace.xml"/>
+  </target>
+  <target name="zip_models" depends="models.zip" />
+
+  <!-- Identifying current SOFTARC version -->
+  <target name="version" description="Print currently used version of SOFTARC product">
+    <echo message="${version}"/>
+  </target>
+
+  <target name="softarc_home" description="Print currently used home directory of SOFTARC product">
+    <echo message="${softarc_home}" />
+  </target>
+
+  <target name="env.txt" description="Generate a file containing a summary of current environment">
+    <echo output="env.txt" append="false">Version:${version}</echo>
+    <echo output="env.txt" append="true">&#10;SOFTARC_HOME=${env.SOFTARC_HOME}&#10;</echo>
+    <exec output="env.txt" append="true" executable="uname" failifexecutionfails="false">
+      <arg line="-a"/>
+    </exec>
+    <echo output="env.txt" append="true">&#10;--- GCC ---&#10;</echo>
+    <exec output="env.txt" append="true" executable="gcc" dir="." failifexecutionfails="false">
+      <arg line="-v"/>
+    </exec>
+    <echo output="env.txt" append="true">&#10;--- ANT ---</echo>
+    <echo output="env.txt" append="true">&#10;ANT_HOME=${env.ANT_HOME}</echo>
+    <echo output="env.txt" append="true">&#10;ANT_OPTS=${env.ANT_OPTS}&#10;</echo>
+    <exec output="env.txt" append="true" executable="ant" dir="." failifexecutionfails="false">
+      <arg line="-version"/>
+    </exec>
+    <echo output="env.txt" append="true">&#10;--- JAVA ---</echo>
+    <echo output="env.txt" append="true">&#10;JAVA_HOME=${env.JAVA_HOME}</echo>
+    <echo output="env.txt" append="true">&#10;JUNIT_JAR=${env.JUNIT_JAR}&#10;</echo>
+    <exec output="env.txt" append="true" executable="java" dir="." failifexecutionfails="false">
+      <arg line="-version"/>
+    </exec>
+  </target>
+  <target name="env" depends="env.txt" />
+
+  <target name="help">
+    <java classname="org.apache.tools.ant.Main">
+      <arg value="-projecthelp"/>
+    </java>
+  </target>
+
+  <target name="gentest_all"/> <!-- for compatiblity -->
+  <target name="gentest_run"/> <!-- for compatiblity -->
+
+</project>

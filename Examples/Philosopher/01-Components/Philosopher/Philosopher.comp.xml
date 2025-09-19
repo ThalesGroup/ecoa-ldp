@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<componentType xmlns="http://www.ecoa.technology/ComponentType/3.0">
+  <properties>
+    <property type="uint32" name="Id"></property>
+  </properties>
+
+  <operations>
+    <requestSent isSynchronous="true" name="take">
+      <parameter name="which" type="int32"/>
+      <parameter name="who" type="int32"/>
+      <out name="taken" type="boolean8"/>
+    </requestSent>
+
+    <requestSent isSynchronous="true" name="surrender">
+      <parameter name="which" type="int32"/>
+      <parameter name="who" type="int32"/>
+    </requestSent>
+
+    <eventReceived name="tick"/>
+
+    <dataRead type="boolean8" name="ready"/>
+  </operations>
+
+
+  <triggers>
+    <trigger name="ticker" event="tick"></trigger>
+  </triggers>
+</componentType>

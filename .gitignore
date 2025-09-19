@@ -1,0 +1,23 @@
+# temporary files
+*~
+[#]*[#]
+TAGS
+.ant-targets-build.xml
+
+# build artefacts
+bin/
+bin-test/
+*.[do]
+src-gen
+src-gen-xsd
+
+# ECOA projects artefacts
+local.properties
+04-Integration
+inc-gen
+src-gen
+
+# Eclipse artefacts
+.settings
+
+

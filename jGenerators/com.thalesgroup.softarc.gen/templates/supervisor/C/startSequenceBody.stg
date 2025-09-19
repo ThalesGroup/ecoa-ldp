@@ -1,0 +1,14 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+startSequenceBody(exec, componentType) ::=<<
+#include "softarc.h"
+#include "<componentType.fileprefix>_constants.h"
+#include "<componentType.fileprefix>_container.h"
+#include "<componentType.fileprefix>.h"
+
+void
+<componentType.package>_startSequence (<componentType.package>_context *ctxt)
+{
+}
+
+>>

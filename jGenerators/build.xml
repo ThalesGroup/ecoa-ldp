@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project name="SoftarcGenerators" default="build">
+
+  <target name="models" >
+    <ant target="build" dir="com.thalesgroup.softarc.tools" />
+    <ant target="build" dir="com.thalesgroup.ecoa.model" />
+  </target>
+
+  <target name="gensoftarc" depends="models">
+    <ant dir="com.thalesgroup.softarc.gen" target="build"/>
+  </target>
+
+  <target name="gentechnicalassembly" depends="models" >
+    <ant target="build" dir="com.thalesgroup.softarc.gen.technicalassembly" />
+  </target>
+
+  <target name="build" depends="gensoftarc,gentechnicalassembly" description="Build all code generators">
+    <!-- Warning: the order is important -->
+    <ant target="build" dir="com.thalesgroup.softarc.ant" />
+  </target>
+
+  <target name="qgen" description="Quickly update softarc.jar after a change in gensoftarc java code or templates --no JAXB">
+    <ant dir="com.thalesgroup.softarc.gen" target="qgen"/>
+  </target>
+
+
+  <!-- Clean -->
+  <target name="clean">
+    <delete dir="bin" />
+    <delete dir="." includes="*/src-gen*/*" />
+  </target>
+
+</project>

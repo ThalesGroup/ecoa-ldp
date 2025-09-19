@@ -1,0 +1,355 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+xmlns="http://www.ecoa.technology/Implementation/3.0"
+targetNamespace="http://www.ecoa.technology/Implementation/3.0"
+elementFormDefault="qualified" >
+    <xsd:include schemaLocation="inc/common.xsd" />
+    <xsd:element name="implementation" type="CT_implementation">
+        <xsd:annotation>
+            <xsd:documentation>
+Root node of implementation model.
+This model contains the implementation specific information.
+</xsd:documentation>
+        </xsd:annotation>
+    </xsd:element>
+    <!-- C programming language -->
+    <xsd:simpleType name="CFullName">
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="[A-Za-z][A-Za-z0-9_]*">
+                <xsd:annotation>
+                    <xsd:documentation>
+Unique prefix for global identifiers, preventing name conflicts in C language and in object files.
+This string will be used as a prefix for every method and attribute name of the corresponding component.
+</xsd:documentation>
+                </xsd:annotation>
+                
+            </xsd:pattern>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="CT_language">
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+            <xsd:element name="binaryDescription" type="CT_bindesc" minOccurs="0" maxOccurs="1">
+                <xsd:annotation>
+                    <xsd:documentation>
+If this element is present, then the component is assumed to be provided in compiled form and not in source form.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="incDir" type="CT_extra" minOccurs="0"
+                maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Optional directory to be added to compilation includes for this
+component.
+$(PROJECT_ROOT) may be used to refer to the root of the ECOA workspace.
+$(X) will be expanded to the value of the make variable X, or the
+environment variable X.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="srcDir" type="CT_extra" minOccurs="0"
+                maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Optional directory to be added to compilation source path for this
+component.
+$(PROJECT_ROOT) may be used to refer to the root of the ECOA workspace.
+$(X) will be expanded to the value of the make variable X, or the
+environment variable X.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="compilationFlags" type="CT_extra"
+                minOccurs="0" maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Optional compilation flags specific to this component.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="linkFlags" type="CT_extra"
+                minOccurs="0" maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Optional compilation link flags specific to this component.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+            <xsd:element name="additionalJar" type="CT_extra"
+                minOccurs="0" maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Optional JAR files needed for this implementation.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+        <xsd:attribute name="APIType" type="xsd:string" use="optional">
+            <xsd:annotation>
+                <xsd:documentation>
+An optional string identifying the type of the language binding used by
+this implementation.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="APIVersion" type="xsd:string" use="optional">
+            <xsd:annotation>
+                <xsd:documentation>
+An optional string identifying the version of the language binding used by
+this implementation.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="stack" type="xsd:unsignedInt"
+            use="optional" default="32768">
+            <xsd:annotation>
+                <xsd:documentation>
+Maximum stack size, in bytes, used by the implementation, considering
+all entry points of the component contract.
+This value will be used to calculate the thread stack
+needs.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="externalStack"
+            type="xsd:unsignedInt" use="optional" default="32768">
+            <xsd:annotation>
+                <xsd:documentation>
+Maximum stack size, in bytes, used by the implementation of the
+external thread of an 'EXTERNAL' component.
+This value will be used to calculate the thread stack
+needs.
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="CT_languagec">
+        <xsd:complexContent>
+            <xsd:extension base="CT_language">
+                <xsd:attribute name="fullName" type="CFullName"
+                    use="required">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Name used as a prefix for identifiers (types, functions) in the C code.
+All C implementations used in the same ECOA system must have
+different fullnames.
+Recommendation: if component type name is X.Y.Z, this should be X_Y_Z.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="filePrefix" type="xsd:string" use="optional">
+                    <xsd:annotation>
+                        <xsd:documentation>
+The name to use when building file names for this component implementation.
+If not defined, use the value of 'fullName'.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <!-- -->
+    <xsd:complexType name="CT_implementation">
+        <xsd:annotation>
+            <xsd:documentation>
+Defines everything about a given component implementation, that is needed for the
+integration of this implementation in an application (i.e., programming language, etc.).
+</xsd:documentation>
+        </xsd:annotation>
+        <xsd:sequence>
+            <xsd:element ref="doc" minOccurs="0" />
+            <xsd:element name="meta" type="MetaData" minOccurs="0" maxOccurs="unbounded" />
+            <xsd:choice>
+                <xsd:annotation>
+                    <xsd:documentation>
+    Defines the programming language and all language-specific details,
+    required for the use of this implementation in a system.
+    </xsd:documentation>
+                </xsd:annotation>
+                <xsd:element name="language.c" type="CT_languagec" />
+                <xsd:element name="language.cpp" type="CT_languagecpp" />
+                <xsd:element name="language.ada" type="CT_languageada" />
+                <xsd:element name="language.rust" type="CT_languagerust" />
+                <xsd:element name="language.java" type="CT_languagejava" />
+                <xsd:element name="language.python" type="CT_languagepython" />
+                <xsd:element name="composite" type="CT_composite" />
+            </xsd:choice>
+            <xsd:element name="option" type="CT_option" minOccurs="0" maxOccurs="unbounded">
+                <xsd:annotation>
+                    <xsd:documentation>
+Feature of the software execution platform, needed by this component implementation.
+An option that does not appear in the list is not needed.
+An option that appears in the list without an explicit value is needed.
+An option that appears in the list with an explicit value is needed only if value=true.
+</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+    </xsd:complexType>
+    <xsd:complexType name="CT_composite" />
+    <!-- C++ programming language -->
+    <xsd:simpleType name="CppNamespace">
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="[A-Za-z:][A-Za-z0-9_:]*">
+            </xsd:pattern>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="CT_languagecpp">
+        <xsd:complexContent>
+            <xsd:extension base="CT_language">
+                <xsd:attribute name="namespace" type="CppNamespace"
+                    use="required">
+                    <xsd:annotation>
+                        <xsd:documentation>
+The C++ namespace containing the component code (e.g., company::project::component).
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+                <xsd:attribute name="filePrefix" type="xsd:string" use="optional">
+                    <xsd:annotation>
+                        <xsd:documentation>
+The name to use when building file names for this component implementation.
+If not defined, use the value of 'namespace' with '::' replaced by '_'.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <!-- Java programming language -->
+    <xsd:simpleType name="JavaPackageName">
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="[A-Za-z][A-Za-z0-9_\.]*">
+            </xsd:pattern>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="CT_languagejava">
+        <xsd:complexContent>
+            <xsd:extension base="CT_language">
+                <xsd:attribute name="packageName" type="JavaPackageName"
+                    use="required">
+                    <xsd:annotation>
+                        <xsd:documentation>
+The name of the Java package (e.g., company.project.component) containing the code of the
+component.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <!-- Ada programming language -->
+    <xsd:simpleType name="AdaPackageName">
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="[A-Za-z][A-Za-z0-9_\.]*">
+            </xsd:pattern>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="CT_languageada">
+        <xsd:complexContent>
+            <xsd:extension base="CT_language">
+                <xsd:attribute name="packageName" type="AdaPackageName"
+                    use="required">
+                    <xsd:annotation>
+                        <xsd:documentation>
+The name of the Ada package containing the code of the
+component (ex: project.component).
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <!-- Rust programming language -->
+    <xsd:simpleType name="RustPackageName">
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="[A-Za-z0-9_-]+">
+                <xsd:annotation>
+                    <xsd:documentation>
+Reference: https://doc.rust-lang.org/cargo/reference/manifest.html#the-name-field
+</xsd:documentation>
+                </xsd:annotation>
+        </xsd:pattern>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="CT_languagerust">
+        <xsd:complexContent>
+            <xsd:extension base="CT_language">
+                <xsd:attribute name="packageName" type="RustPackageName"
+                    use="required">
+                    <xsd:annotation>
+                        <xsd:documentation>
+The name of the Rust package containing the code of the component.
+This package must contain a root crate of type 'library', implementing the component's entry points.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <!-- Python programming language -->
+    <xsd:simpleType name="PythonPackageName">
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="[A-Za-z][A-Za-z0-9_\.]*">
+            </xsd:pattern>
+        </xsd:restriction>
+    </xsd:simpleType>
+    <xsd:complexType name="CT_languagepython">
+        <xsd:complexContent>
+            <xsd:extension base="CT_language">
+                <xsd:attribute name="packageName" type="PythonPackageName"
+                    use="required">
+                    <xsd:annotation>
+                        <xsd:documentation>
+The name of the Python package containing the code of the component.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:complexContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_extra">
+        <xsd:simpleContent>
+            <xsd:extension base="xsd:string">
+                <xsd:attribute name="production" type="xsd:string">
+                    <xsd:annotation>
+                        <xsd:documentation>
+Production for which this element is applicable to.
+</xsd:documentation>
+                    </xsd:annotation>
+                </xsd:attribute>
+            </xsd:extension>
+        </xsd:simpleContent>
+    </xsd:complexType>
+    <xsd:complexType name="CT_bindesc">
+        <xsd:sequence>
+            <xsd:element name="objectFile" type="CT_extra" maxOccurs="unbounded">
+                <xsd:annotation>
+                <xsd:documentation>
+Filename of a binary file implementing the component. The filename may contain path information
+relative to the location of the implementation, e.g. "binaries/module.o"
+relates a file 'module.o' located in a subdirectory 'binaries' of the directory containing this file.
+Separators are '/'.</xsd:documentation>
+                </xsd:annotation>
+            </xsd:element>
+        </xsd:sequence>
+        <xsd:attribute name="userContextSize" type="xsd:unsignedInt">
+            <xsd:annotation>
+                <xsd:documentation>
+Size in bytes of the component's user context.</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        <xsd:attribute name="warmStartContextSize" type="xsd:unsignedInt" default="0">
+            <xsd:annotation>
+                <xsd:documentation>
+Size in bytes of the component's warm start context.</xsd:documentation>
+                </xsd:annotation>
+        </xsd:attribute>
+    </xsd:complexType>
+    <xsd:complexType name="CT_option">
+        <xsd:attribute name="name" type="Name"/>
+        <xsd:attribute name="value" type="xsd:boolean" default="true"/>
+    </xsd:complexType>
+</xsd:schema>
