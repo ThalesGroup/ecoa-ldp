@@ -1,7 +1,7 @@
 # ECOA LDP: Lightweight Development Platform for the ECOA standard
 
 [ECOA] (European Component Oriented Architecture) is an open specification of a software framework 
-for component-based mission system software.
+for component-based avionics mission system software.
 
 ECOA allows to develop _real-time_, _embeddable_ software, in the form of simple, independent and testable _components_.
 
@@ -11,9 +11,13 @@ It is also a great tool to learn and evaluate ECOA on a ordinary Linux computer 
 
 The Lightweight Development Platform is developed by [Thales] Defence Mission Systems.
 
-## Usage guide
+## Installation
 
-See the [Usage guide](USAGE.md) to get started.
+Refer to [](INSTALLING.md) to install the LDP on a Linux machine.
+
+## User's guide
+
+See the [User's guide](USAGE.md) to get started.
 
 ## Features and non features
 
@@ -36,17 +40,6 @@ for contributing to this project.
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-
-## Dependencies
-
-This project uses the following Java libraries, which are redistributed in binary form, and with the following licenses:
-
-* [StringTemplate](https://github.com/antlr/stringtemplate4),
-* [ANTLR3](https://www.antlr3.org/),
-* [JAXB](https://eclipse-ee4j.github.io/jaxb-ri/4.0.1).
-
-See [jGenerators/lib/README.md](jGenerators/lib/README.md) for instructions on how to download and install Java dependencies.
 
 
 ---

@@ -27,13 +27,19 @@ dnf install make gcc
 ```
 
 
-## Installation
+## Installation directory
 
 The LDP (this repository) may be installed in any directory.
 
-The environment variable `SOFTARC_HOME` shall point to this directory.
+The environment variable `SOFTARC_HOME` shall be set to this directory.
 
 ## Dependencies
+
+This project uses the following Java libraries, which are redistributed in binary form, and with the following licenses:
+
+* [StringTemplate](https://github.com/antlr/stringtemplate4),
+* [ANTLR3](https://www.antlr3.org/),
+* [JAXB](https://eclipse-ee4j.github.io/jaxb-ri/4.0.1).
 
 See [jGenerators/lib/README.md](jGenerators/lib/README.md) for instructions on how to download and install Java dependencies.
 
