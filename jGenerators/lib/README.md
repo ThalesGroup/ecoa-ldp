@@ -37,8 +37,9 @@ and install them in the expected directories.
 
 Adapt the script if needed.
 
-
 ```bash
+cd $SOFTARC_HOME/jGenerators/lib
+
 mkdir jaxb-ri-4.0.1
 wget https://repo1.maven.org/maven2/com/sun/xml/bind/jaxb-ri/4.0.1/jaxb-ri-4.0.1.zip
 unzip jaxb-ri-4.0.1.zip jaxb-ri/mod/*.jar -d jaxb-ri-4.0.1
@@ -47,7 +48,7 @@ mkdir jaxb-ri-4.0.1/devel
 mv jaxb-ri-4.0.1/jaxb-xjc.jar jaxb-ri-4.0.1/devel
 
 mkdir StringTemplate
-wget https://github.com/antlr/website-st4/blob/gh-pages/download/ST-4.0.1.jar
+wget https://github.com/antlr/website-st4/raw/refs/heads/gh-pages/download/ST-4.0.1.jar
 mv ST-4.0.1.jar StringTemplate/stringtemplate-4.0.1.jar
 
 mkdir antlr3

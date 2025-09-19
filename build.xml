@@ -4,11 +4,11 @@
     Softarc Lightweight Dev Platform.
   </description>
 
-  <target name="gen" description="Build all code generators">
+  <target name="gen">
     <ant dir="jGenerators" target="build"/>
   </target>
 
-  <target name="build" depends="gen" />
+  <target name="build" depends="gen" description="Build all code generators"/>
   <target name="rebuild" depends="clean,build" />
 
   <target name="clean">
