@@ -4,7 +4,8 @@
     * Root access is not required
 * The following software must be available:
     * A Java JRE, version 11 (tested with OpenJDK [](https://openjdk.org) 11)
-    * Ant [](https://ant.apache.org/) (tested with version 1.10.8)
+    * Ant [](https://ant.apache.org/), version 1.10.8
+      * **Warning**: Newer versions may cause Java compilation errors with JAXB.
     * The `make` build tool
     * The `gcc` compiler (tested with version 10.2.1)
 

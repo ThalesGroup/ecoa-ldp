@@ -11,6 +11,9 @@ bin-test/
 src-gen
 src-gen-xsd
 
+jGenerators/com.thalesgroup.softarc.gen/generateFormalism.log
+jGenerators/com.thalesgroup.softarc.gen/formalism/attributes.properties
+
 # ECOA projects artefacts
 local.properties
 04-Integration
@@ -19,5 +22,4 @@ src-gen
 
 # Eclipse artefacts
 .settings
-
 
