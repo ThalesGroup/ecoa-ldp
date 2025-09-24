@@ -100,111 +100,18 @@ typedef SARC_uint32 SARC_ExecutablesCommands;
 #define SARC_PANEL_COMMAND_KILL 2
 
 
-/**
- * This service shall initialize a boolean8 value to a well-known,
- * deterministic value.
- * @param[out] value variable to initialize
- */
-
-void SARC_boolean8_initialize (SARC_boolean8 * value);
-
-/**
- * This service shall initialize a char8 value to a well-known,
- * deterministic value.
- * @param[out] value variable to initialize
- */
-
-void SARC_char8_initialize (SARC_char8 * value);
-
-
-/**
- * This service shall initialize a int8 value to a well-known,
- * deterministic value.
- * @param[out] value variable to initialize
- */
-
-void SARC_int8_initialize (SARC_int8 * value);
-
-
-/**
- * This service shall initialize a uint8 value to a well-known,
- * deterministic value.
- * @param[out] value variable to initialize
- */
-
-void SARC_uint8_initialize (SARC_uint8 * value);
-
-
-/**
- * This service shall initialize a int16 value to a well-known,
- * deterministic value.
- * @param[out] value variable to initialize
- */
-
-void SARC_int16_initialize (SARC_int16 * value);
-
-
-/**
- * This service shall initialize a uint16 value to a well-known,
- * deterministic value.
- * @param[out] value variable to initialize
- */
-
-void SARC_uint16_initialize (SARC_uint16 * value);
-
-
-/**
- * This service shall initialize a int32 value to a well-known,
- * deterministic value.
- * @param[out] value variable to initialize
- */
-
-void SARC_int32_initialize (SARC_int32 * value);
-
-
-/**
- * This service shall initialize a uint32 value to a well-known,
- * deterministic value.
- * @param[out] value variable to initialize
- */
-
-void SARC_uint32_initialize (SARC_uint32 * value);
-
-
-/**
- * This service shall initialize a int64 value to a well-known,
- * deterministic value.
- * @param[out] value variable to initialize
- */
-
-void SARC_int64_initialize (SARC_int64 * value);
-
-
-/**
- * This service shall initialize a uint64 value to a well-known,
- * deterministic value.
- * @param[out] value variable to initialize
- */
-
-void SARC_uint64_initialize (SARC_uint64 * value);
-
-
-/**
- * This service shall initialize a float32 value to a well-known,
- * deterministic value.
- * @param[out] value variable to initialize
- */
-
-void SARC_float32_initialize (SARC_float32 * value);
-
-
-/**
- * This service shall initialize a double64 value to a well-known,
- * deterministic value.
- * @param[out] value variable to initialize
- */
-
-void SARC_double64_initialize (SARC_double64 * value);
+#define SARC_boolean8_initialize(x) *(x)=0
+#define SARC_char8_initialize(x) *(x)=0
+#define SARC_int8_initialize(x) *(x)=0
+#define SARC_uint8_initialize(x) *(x)=0
+#define SARC_int16_initialize(x) *(x)=0
+#define SARC_uint16_initialize(x) *(x)=0
+#define SARC_int32_initialize(x) *(x)=0
+#define SARC_uint32_initialize(x) *(x)=0
+#define SARC_int64_initialize(x) *(x)=0
+#define SARC_uint64_initialize(x) *(x)=0
+#define SARC_float32_initialize(x) *(x)=0
+#define SARC_double64_initialize(x) *(x)=0
 
 
 /* ===========================================================================
