@@ -1,13 +1,10 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <project>
 
-  <property name="deploymentname" value="D1"/>
-
-  <!-- use ant libraries provided by Softarc -->
   <property environment="env"/>
+  <property file="local.properties"/> <!-- optional, ignored by git -->
+  <property file="build.properties"/> <!-- optional, managed with git -->
+  <!-- use ant library provided by SOFTARC -->
   <property name="softarc_home" location="${env.SOFTARC_HOME}"/>
-  <echo message="${softarc_home}" />
-  <import file="${softarc_home}/Ant/softarc.ant" />
+  <import file="${softarc_home}/Ant/softarc.ant" /> <!-- to import predefined targets such as 'gen', 'exe', etc. -->
 
-  <echo message="SOFTARC_HOME=${softarc_home}" />
 </project>

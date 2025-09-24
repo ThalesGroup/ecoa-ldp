@@ -137,7 +137,7 @@ CUSTOMISATION:
   </target>
 
   <target name="gen" description="Generate all technical code (gentechnicalassembly,gensoftarc)"
-    depends="ready-to-generate,gentechnicalassembly,gensoftarc">
+    depends="ready-to-generate,validate_all,gentechnicalassembly,gensoftarc">
   </target>
 
   <target name="gensoftarc" depends="gendir" description="Run the SOFTARC generator">
@@ -268,5 +268,16 @@ CUSTOMISATION:
 
   <target name="gentest_all"/> <!-- for compatiblity -->
   <target name="gentest_run"/> <!-- for compatiblity -->
+
+  <target name="clean">
+    <delete failOnError="false">
+      <fileset dir=".">
+        <include name="04-Integration/**"/>
+        <include name="a.out"/>
+        <include name="**/src-gen/**"/>
+        <include name="**/inc-gen/**"/>
+      </fileset>
+    </delete>
+  </target>
 
 </project>
