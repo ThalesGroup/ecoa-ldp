@@ -15,10 +15,11 @@ component_types(model) ::=<<
 body_of_the_file() ::=<<
 /* Standard ECOA Types not generated from any model */
 #define ECOA_64BIT_SUPPORT
-#include \<SOFTARC_ECOA.h\>
 
 #ifdef SARC_IS_LDP
 #include "ecoa.h"
+#else
+#include \<SOFTARC_ECOA.h\>
 #endif
 
 <model.usedLibraries: {library |
