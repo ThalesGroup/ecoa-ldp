@@ -1,0 +1,59 @@
+<library xmlns="http://www.ecoa.technology/DataTypes/3.0">
+
+	<record name="ImageType">
+		<field name="RawImage" type="RawImageType"></field>
+		<field name="Metadatas" type="MetadatasType"></field>
+	</record>
+
+	<record name="RawImageType">
+		<field name="height" type="uint32"></field>
+		<field name="width" type="uint32"></field>
+		<field name="data" type="RawImageData"></field>
+	</record>
+	<array maxNumber="1000" name="RawImageData" type="uint8"></array>
+
+	<record name="MetadatasType">
+		<field name="detectionsNb" type="uint32"></field>
+		<field name="detectionsMetadata" type="DetectionMetadatasType"></field>
+		<field name="captureMetadata" type="CaptureMetadatasType"></field>
+		<field name="geoLocation" type="GeoLocationType"></field>
+	</record>
+	<record name="DetectionMetadatasType">
+		<field name="detectionsNb" type="uint32"></field>
+		<field name="detectionsArray" type="DetectionsType"></field>
+	</record>
+	<array maxNumber="100" type="DetectionType" name="DetectionsType"></array>
+	<record name="DetectionType">
+		<field name="boundedbox" type="BoundedBoxType"></field>
+		<field name="category" type="CategoryEnum"></field>
+		<field name="probability_score" type="int32"></field>
+	</record>
+	<record name="BoundedBoxType">
+		<field name="x" type="uint32"></field>
+		<field name="y" type="uint32"></field>
+		<field name="height" type="uint32"></field>
+		<field name="width" type="uint32"></field>
+	</record>
+	<enum name="CategoryEnum" type="int32">
+		<value name="Undefined"></value>
+		<value name="Human"></value>
+	</enum>
+	<record name="CaptureMetadatasType">
+		<field name="timestamp" type="TimeType"></field>
+		<field name="cameraId" type="uint32"></field>
+	</record>
+	<record name="TimeType">
+		<field name="year" type="uint32"></field>
+		<field name="month" type="uint32"></field>
+		<field name="day" type="uint32"></field>
+		<field name="hour" type="uint32"></field>
+		<field name="min" type="uint32"></field>
+		<field name="sec" type="uint32"></field>
+	</record>
+	<record name="GeoLocationType">
+		<field name="latitude" type="float32"></field>
+		<field name="longitude" type="float32"></field>
+		<field name="altitude_m" type="int32"></field>
+	</record>
+
+</library>

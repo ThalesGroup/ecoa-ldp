@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<componentType xmlns="http://www.ecoa.technology/ComponentType/3.0"
+    kind="PERIODIC_TRIGGER_MANAGER"
+>
+    <operations>
+        <eventSent name="tick" period="1000" />
+    </operations>
+</componentType>

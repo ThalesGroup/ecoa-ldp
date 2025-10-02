@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<application xmlns="http://www.ecoa.technology/Deployment/3.0" assembly="AS1" name="MyApp">
+    <task name="TASK1" relativePriority="10">
+        <deployedInstance ref="ImageSampler" />
+        <deployedInstance ref="Detector" />
+        <deployedInstance ref="HMI" />
+        <deployedInstance ref="Ticker" />
+    </task>
+</application>
