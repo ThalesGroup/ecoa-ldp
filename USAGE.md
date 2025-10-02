@@ -233,6 +233,8 @@ It is also possible to run the application through Ant with a script:
 ant run_with -Dscript=my_script_file.txt
 ```
 
+**Warning**: When running through Ant, it is not possible to use the integrated console, because the `stdin` and*`stdout` streams are not directly attached to the terminal (they are attached to Ant). 
+
 
 ### Applications with several executables
 
