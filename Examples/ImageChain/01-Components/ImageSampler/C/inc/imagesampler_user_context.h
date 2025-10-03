@@ -1,19 +1,30 @@
-#ifndef _imagesampler_USER_CONTEXT_H
-#define _imagesampler_USER_CONTEXT_H
+/* @file imagesampler_user_context.h
+ * This is an example of a user defined User Module context
+ */
 
-#include "imagesampler_types.h"
+ #if !defined(imagesampler_USER_CONTEXT_H)
+ #define imagesampler_USER_CONTEXT_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+ #if defined(__cplusplus)
+ extern "C" {  
+ #endif /* __cplusplus */
+
+ #include "image.h"
+ #include "image_types.h"
+ /* Container Types */
+ #include "imagesampler_container_types.h"
+
+ /* User Module Context structure example */
+ typedef struct
+ {
+    /* declare the User Module Context "local" data here */
+
+ } imagesampler_user_context;
 
 
-typedef struct
-{
-  SARC_int32 dummy; /* this field should be replaced by real component context fields, if needed */
-} imagesampler_user_context;
 
-#ifdef __cplusplus
-}
-#endif
-#endif /* _imagesampler_USER_CONTEXT_H */
+ #if defined(__cplusplus)
+ } 
+ #endif /* __cplusplus */
+
+ #endif  /* imagesampler_USER_CONTEXT_H */

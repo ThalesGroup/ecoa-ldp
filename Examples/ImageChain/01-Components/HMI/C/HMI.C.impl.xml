@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <implementation xmlns="http://www.ecoa.technology/Implementation/3.0">
-    <language.c fullName="HMI" />
+    <language.c fullName="HMI" APIType="ECOA_C"/>
 </implementation>

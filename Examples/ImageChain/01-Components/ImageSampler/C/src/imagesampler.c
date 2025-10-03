@@ -1,34 +1,50 @@
+/*
+ * @file imagesampler.c
+ * Module Interface for Module imagesampler
+ */
+
+/* Include module interface header */
 #include "imagesampler.h"
+#include <string.h>
+
+/* Event operation handlers */
+void 
+imagesampler__tick__received (
+  imagesampler__context* context
+ )
+{
+  image__ImageType image;
+
+  memset (&image, 0, sizeof(image));
+
+  imagesampler_container__image_out__send (context, &image);
+}
 
 
-void imagesampler_initialize(imagesampler_context *ctxt)
+
+/* Request-Response operation handlers */
+
+/* Lifecycle operation handlers */
+
+void imagesampler__INITIALIZE__received(imagesampler__context* context)
 {
   /* TODO: to be implemented */
 }
-void imagesampler_start(imagesampler_context *ctxt)
+
+void imagesampler__START__received(imagesampler_context* context)
 {
   /* TODO: to be implemented */
 }
-void imagesampler_stop(imagesampler_context *ctxt)
+
+void imagesampler__STOP__received(imagesampler_context* context)
 {
   /* TODO: to be implemented */
 }
-void imagesampler_shutdown(imagesampler_context *ctxt)
-{
-  /* TODO: to be implemented */
-}
-void imagesampler_reset(imagesampler_context *ctxt)
+
+void imagesampler__SHUTDOWN__received(imagesampler_context* context)
 {
   /* TODO: to be implemented */
 }
 
 
-void imagesampler_tick_EVENT_receive(imagesampler_context *ctxt
-)
-{
-  image_ImageType image;
-
-  image_ImageType_initialize (&image);
-
-  imagesampler_image_out_EVENT_send (ctxt, &image);
-}
+ 
