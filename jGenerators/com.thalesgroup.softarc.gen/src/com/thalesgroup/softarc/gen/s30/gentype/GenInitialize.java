@@ -35,11 +35,11 @@ public class GenInitialize extends AbstractGenerationPass {
             || component.getIsRustComponent()) {
             // rien à faire
 
-        } else {
+        } else if (!component.getIsEcoa()){
             generateFileFromTemplate(component, KindOfFile.COMPONENT_INITIALIZE_HEADER_FILE, "initializeHeader");
 
             if (!component.getTypes().isEmpty()) {
-                if (component.getIsCComponent()) { // y compris C_ECOA
+                if (component.getIsCComponent()) {
                     generateFileFromTemplate(component, KindOfFile.COMPONENT_INITIALIZE_SOURCE_FILE, "initializeSource");
                 }
             }
