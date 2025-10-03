@@ -39,11 +39,14 @@ The LDP supports the following elements of the **[ECOA Architecture Specificatio
       * attribute `fifoSize` in assemblies (see [FIFO queues sizes](#fifo-queues-sizes) below)
     * The following features are supported, but experimental:
       * Multiple executables in an application (make single-executable applications if possible: they are easier to run and to debug)
-      * WarmStart Context. API is implemented, but nothing is memorized by the infrastructure. 
-
+.
   * Standard Options
-    * OPTION INT64
     * OPTION SUPERVISION (with restrictions; [see below](#non-supported-elements))
+    * OPTION INT64
+    * OPTION WARM START CONTEXT (the API is implemented, but no information is kept beween application restarts)
+    * OPTION AUTO START EXTERNAL TASK
+    * OPTION UTC TIME
+
   * Standard Extensions
     * None
 
@@ -94,13 +97,16 @@ The compiler *gcc* shall be used, with option `-std=gnu99`.
 
 The following features are **not** supported presently, but could be added in future evolutions of the LDP:
 
-* "bin-desc": using components delivered in binary form
-* OPTION COMM PORTS: application communication ports, external operations (no <external_io> section shall be present in the deployment;
-  external operations may appear in the assembly, but they will be ignored)
 * OPTION SUPERVISION: supervision of executables is not supported (starting/stopping/querying state/querying names)
 * OPTION SUPERVISION: conditional links (elements `<when>` in the assembly) and supervision variables
-* OPTION DYNAMIC TRIGGER: Dynamic Trigger Manager 
+* OPTION DYNAMIC TRIGGER 
 * OPTION UINT64
+* OPTION FAULT HANDLER
+* OPTION EXTERNAL INTERFACE
+* OPTION PINFO WRITE
+* OPTION COMM PORTS: application communication ports, external operations (no <external_io> section shall be present in the deployment;
+  external operations may appear in the assembly, but they will be ignored)
+* "bin-desc": using components delivered in binary form
 * Some new or minor aspects of the ECOA C Binding (especially those added after version AS6):
   * files `#library#_compare.h` and `#library#_initialize.h`
   * file `epsilon_definition.h`
