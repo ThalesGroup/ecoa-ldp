@@ -365,7 +365,8 @@ sentEvent(exec, event, componentType, linkedInstances, unlinkedInstances) ::=<<
           SARC_error_raise (SARC_ERROR_FIFOSIZE_OVERFLOW, <linkedInstance.instance.id>, <linkedInstance.instance.thread.idNo>, "Error serialization event");
         \}
       /* Actually send event */
-      <link.destinationThreads : { thread |
+<link.destinationThreads : { thread |
+      {
         int err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
                           (struct sockaddr*) (&SARC_socket_addr_<thread.name>), sizeof(struct sockaddr_un));
         if (err \<= 0)
@@ -377,7 +378,9 @@ sentEvent(exec, event, componentType, linkedInstances, unlinkedInstances) ::=<<
                 abort();
               \}
            rc = SARC_FAILURE;
-          \}}>
+          \}
+      \}
+}>
       }>
       break;}>
       <othercases(unlinkedInstances,"SARC_SUCCESS")>  
@@ -1072,7 +1075,8 @@ SARC_uint32_serialize(&sarc_serial_ctxt, &oper_id);
         \}
       rc = ECOA__return_status_INVALID_HANDLE;
   \}
-\}}>
+\}
+}>
 <endif>
 >>
 

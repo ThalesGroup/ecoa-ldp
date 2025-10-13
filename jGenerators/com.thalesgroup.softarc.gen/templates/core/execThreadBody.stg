@@ -259,7 +259,8 @@ void SARC_handle_message_<thread.name>(const void * bufin, SARC_uint32 size){
       <implementInstanceOperationRequestFunctions(exec, thread, instance)>
       default:
         break;
-    \}}>
+    \}
+}>
   
   if(operation_found == SARC_FALSE)
     {
@@ -526,8 +527,9 @@ if( !operation_found )
           \}
         memcpy(SARC_data_<instance.thread.name>_<operationLink.id>.current_value , &usrparam_value_<operationLink.id>, <operationLink.data.type.sizeof>);
         SARC_data_<instance.thread.name>_<operationLink.id>.ref++;
-    \}}>
+    \}
   \}
+}>
 >>
 
 

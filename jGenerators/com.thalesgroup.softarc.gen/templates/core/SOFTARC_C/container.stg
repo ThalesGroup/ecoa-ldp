@@ -297,7 +297,8 @@ sentEvent(exec, event, componentType, linkedInstances, unlinkedInstances) ::=<<
       /* Actually send event */
       if (sarc_ecode == SARC_SUCCESS)
         {
-        <link.destinationThreads : { thread |
+          {
+<link.destinationThreads : { thread |
           int err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
                             (struct sockaddr*) (&SARC_socket_addr_<thread.name>), sizeof(struct sockaddr_un));
           if (err \<= 0)
@@ -309,7 +310,9 @@ sentEvent(exec, event, componentType, linkedInstances, unlinkedInstances) ::=<<
                   abort();
                 \}
               sarc_ecode = SARC_FAILURE;
-            \}}>
+            \}
+}>
+          \}
         \}
       }>
       break;}>
