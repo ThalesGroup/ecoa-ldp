@@ -1,0 +1,5 @@
+<library xmlns="http://www.ecoa.technology/DataTypes/3.0">
+
+    <simple name="T_Int_Type" type="uint32"/>
+
+</library>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<componentType xmlns="http://www.ecoa.technology/ComponentType/3.0">
+
+  <operations>
+    <eventSent name="myEvent">
+        <parameter name="parameter" type="extra_types.T_Int_Type"/>
+    </eventSent>
+    <eventReceived name="tick"/>
+    <dataWritten name="myData_write" type="extra_types.T_Int_Type" writeOnly="false"/>
+    <dataRead name="myData_read" type="extra_types.T_Int_Type" notifying="true"/>
+  </operations>
+
+
+  <triggers>
+    <trigger name="ticker" event="tick"></trigger>
+  </triggers>
+</componentType>
