@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <componentType xmlns="http://www.ecoa.technology/ComponentType/3.0">
+<properties>
+<property name="p1" type="image.RawImageData"/>
+</properties>
     <operations>
         <eventReceived name="image_in">
             <parameter name="image" type="image.ImageType"></parameter>

@@ -148,7 +148,11 @@ extern SARC_int64 <instance.name>_<ep.requestResponse.name>_map[1 + (6 + <ep.req
 
 
 <system.assembly.instances : {instance | <instance.attributes : {attribute | 
-extern const <attribute.type.cName> K_ATT_<instance.name>_<attribute.name>;}>}>
+<if(!attribute.type.isPredef)>
+#include "<attribute.type.cType.parent.package>_types.h"
+<endif>
+extern const <attribute.type.cName> K_ATT_<instance.name>_<attribute.name>;
+}>}>
 
 <system.assembly.instances : {instance | <instance.variables : {variable | 
 extern const SARC_int32 K_VAR_<instance.name>_<variable.name>;}>}>

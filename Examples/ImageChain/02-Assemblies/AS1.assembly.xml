@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <assembly xmlns="http://www.ecoa.technology/Assembly/3.0">
     <instance name="ImageSampler" componentType="ImageSampler" implementation="C"/>
-    <instance name="Detector" componentType="Detector" implementation="C"/>
+    <instance name="Detector" componentType="Detector" implementation="C">
+<propertyValue name="p1" value="{123,1,2,3}"/>
+</instance>
     <instance name="HMI" componentType="HMI" implementation="C"/>
     <instance name="Ticker" componentType="Ticker" implementation="C"/>
 
