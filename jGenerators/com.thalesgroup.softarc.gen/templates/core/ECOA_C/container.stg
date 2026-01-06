@@ -362,24 +362,27 @@ sentEvent(exec, event, componentType, linkedInstances, unlinkedInstances) ::=<<
       SARC_serial_check_serialize (&sarc_serial_ctxt, "<parameter.name>");}>
       if (sarc_serial_ctxt.error != SARC_FALSE)
         {
-          SARC_error_raise (SARC_ERROR_FIFOSIZE_OVERFLOW, <linkedInstance.instance.id>, <linkedInstance.instance.thread.idNo>, "Error serialization event");
+          SARC_error_raise (SARC_ERROR_SERIAL_CHECK, <linkedInstance.instance.id>, <linkedInstance.instance.thread.idNo>, "Error in serialization of event");
+          abort();
         \}
-      /* Actually send event */
+      else
+        {
+          /* Actually send event */
 <link.destinationThreads : { thread |
-      {
-        int err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
-                          (struct sockaddr*) (&SARC_socket_addr_<thread.name>), sizeof(struct sockaddr_un));
-        if (err \<= 0)
           {
-            perror ("sendto(EVENT <event.name>)");
-            if (errno == EAGAIN)
+            int err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
+                              (struct sockaddr*) (&SARC_socket_addr_<thread.name>), sizeof(struct sockaddr_un));
+            if (err \<= 0)
               {
-                SARC_error_raise (SARC_ERROR_FIFOSIZE_OVERFLOW, <linkedInstance.instance.id>, <thread.idNo>, "<event.name>");  
-                abort();
+                perror ("sendto(EVENT <event.name>)");
+                if (errno == EAGAIN)
+                  {
+                    SARC_error_raise (SARC_ERROR_FIFOSIZE_OVERFLOW, <linkedInstance.instance.id>, <thread.idNo>, "<event.name>");  
+                    abort();
+                  \}
               \}
-           rc = SARC_FAILURE;
           \}
-      \}
+        \}
 }>
       }>
       break;}>
