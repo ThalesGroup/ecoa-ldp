@@ -16,7 +16,6 @@ RUN echo "export LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/usr/local/lib:/usr/local/ld
 RUN echo "export SOFTARC_HOME=/ecoa/ldp" >> ${SYS_BASHRC}
 RUN echo "export WORK=/ecoa/WORK" >> ${SYS_BASHRC}
 RUN echo "export PS1=\"EcoaAS7:\w >> \"" >> ${SYS_BASHRC} && chmod +x ${SYS_BASHRC}
-RUN echo 'root:ecoa' | chpasswd
 
 RUN --mount=type=cache,target=/var/cache/apt \
 	/usr/bin/apt-get update -qq \
