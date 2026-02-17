@@ -14,6 +14,7 @@ The Lightweight Development Platform is developed by [Thales] Defence Mission Sy
 ## Installation
 
 Refer to the [Installation guide](INSTALLING.md) to install the LDP on a Linux machine.
+You may also use the development-container (see [containers](./containers)), which includes everything needed to develop with the ECOA LDP.
 
 ## User's guide
 
