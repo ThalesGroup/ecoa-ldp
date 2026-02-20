@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
-# setup all needed libraries
-# we also install (apart from ecoa)
-# - a json c lib
-# - protobuf c-libs (compiler, code generator)
-# - protobuf python lib
+# setup all needed libs, paths, directories
 export LDP_DIR=/ecoa/ldp
 export LIB_DIR=$LDP_DIR/jGenerators/lib
 export REPO="https://github.com/ThalesGroup/ecoa-ldp"
@@ -13,6 +9,7 @@ export PATH=/ecoa/apache-ant-1.10.8/bin:$PATH
 export LDP_DIR="/ecoa/ldp"
 export LIB_DIR=$LDP_DIR/jGenerators/lib
 export CMAKE_INSTALL_PREFIX=/usr/local
+
 function thales_stack() {
 	mkdir -p TMP
 	pushd TMP
@@ -37,61 +34,7 @@ function thales_stack() {
 
 	popd
 }
-function python_modules() {
-	pip -q install grpcio-tools
-	apt install python3-grpcio
-}
-function local_protobuf_library() {
-  mkdir -p TMP
-  pushd TMP
-	git clone https://github.com/protocolbuffers/protobuf.git
-	pushd protobuf
-	git checkout v26.1
-	git submodule update --init
-	mkdir -p build
-	pushd build
-	cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
-	make -j6 all install
-	popd
-	popd
-	popd
-}
-function json_header() {
-  mkdir -p TMP
-  pushd TMP
-	git clone https://github.com/sheredom/json.h.git
-	install -d -m 755 /usr/local/include/sheredom
-	install -D -m 664 --target-directory=/usr/local/include/sheredom json.h/json.h 
-	popd
-}
-function local_protobuf_compiler() {
-  mkdir -p TMP
-  pushd TMP
-	git clone ${PROTOC_REPO} protobuf-c
-	git checkout v1.0.2
-	pushd protobuf-c
-	patch -p1 -- << END
-diff --git a/protoc-gen-c/c_generator.h b/protoc-gen-c/c_generator.h
-index c19a786..5fd34c8 100644
---- a/protoc-gen-c/c_generator.h
-+++ b/protoc-gen-c/c_generator.h
-@@ -94,7 +94,7 @@ class PROTOBUF_C_EXPORT CGenerator : public google::protobuf::compiler::CodeGene
-                 std::string* error) const;
- 
- #if GOOGLE_PROTOBUF_VERSION >= 5026000
--  uint64_t GetSupportedFeatures() const { return 0; }
-+  uint64_t GetSupportedFeatures() const { return FEATURE_PROTO3_OPTIONAL; }
-   google::protobuf::Edition GetMinimumEdition() const { return google::protobuf::Edition::EDITION_PROTO2; }
-   google::protobuf::Edition GetMaximumEdition() const { return google::protobuf::Edition::EDITION_PROTO3; }
- #endif
-END
-	./autogen.sh
-	./configure
-	make -j4 all
-	make install
-	popd
-	popd
-}
+
 rm -rf "$LDP_DIR"
 rm -rf TMP
 git clone "$REPO" "$LDP_DIR"
@@ -100,10 +43,6 @@ mkdir -p "$LIB_DIR"
 git config --global --add safe.directory /ecoa
 
 thales_stack
-python_modules
-local_protobuf_library
-local_protobuf_compiler
-json_header
 
 cd $LDP_DIR
 git checkout HEAD
