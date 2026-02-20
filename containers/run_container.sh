@@ -7,8 +7,10 @@ else
 
 TMPDIR=$(mktemp -d)
 
+echo "starting the container. Copy results to /ecoa/tmp"
+echo "It can afterwards be accessed at ${TMPDIR}"
+
 docker run -tid --rm \
-    -u $(id -u)\
     -e http_proxy=${http_proxy} \
     -e https_proxy=${https_proxy} \
     -e _USER=$USER \
