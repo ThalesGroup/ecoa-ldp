@@ -3,8 +3,7 @@
 TOP=`git rev-parse --show-toplevel`
 export TOP
 
-# <dockerfile> <image label> <docker directory>
-
+# <image label> <dockerfile>
 function build_container() {
   echo "- building"
   cat "$2" \
@@ -16,4 +15,4 @@ function build_container() {
   -t "$1" -f - .
 }
 
-build_container tmp_ecoa-as7-zenoh-devel Dockerfile
+build_container ecoa-as7-devel Dockerfile
