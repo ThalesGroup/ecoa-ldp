@@ -3,12 +3,10 @@
 export LDP_DIR=/ecoa/ldp
 export LIB_DIR=$LDP_DIR/jGenerators/lib
 export REPO="https://github.com/ThalesGroup/ecoa-ldp"
-export PROTOC_REPO="https://github.com/protobuf-c/protobuf-c.git"
 export SOFTARC_HOME=/ecoa/ldp
 export PATH=/ecoa/apache-ant-1.10.8/bin:$PATH
 export LDP_DIR="/ecoa/ldp"
 export LIB_DIR=$LDP_DIR/jGenerators/lib
-export CMAKE_INSTALL_PREFIX=/usr/local
 
 function thales_stack() {
 	mkdir -p TMP
