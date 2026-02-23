@@ -21,7 +21,7 @@ docker run -tid --rm \
     -v $HOME/.ssh:/ecoa/.ssh \
     -v $TMPDIR:/ecoa/tmp \
     -v $1:/ecoa/WORK \
-    --name ${USER}-$(uuidgen) ecoa-as7-zenoh-devel
+    --name ${USER}-$(uuidgen) ecoa-as7-devel
     # do not run the command automatically.
     # attach to the container and run in manually
     # you can the export the created exported data with ssh/git
