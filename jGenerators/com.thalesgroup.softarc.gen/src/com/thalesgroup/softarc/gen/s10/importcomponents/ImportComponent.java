@@ -544,11 +544,10 @@ public class ImportComponent extends AbstractPass {
             component.setIsSupervisor(ct.getKind() == EComponentKind.SUPERVISOR);
             component.setIsTimer(ct.getKind() == EComponentKind.PERIODIC_TRIGGER_MANAGER);
             if (component.getIsTimer()) {
-                if (!component.getLanguage().equals("C")
-                        && !component.getLanguage().equals(Language.ADA.name())) {
+                if (!LanguagesHandler.defaultBinding.equals(component.getApiVariant())) {
                     warning(
-                            "Converting implementation of timer %s from %s to C",
-                            component.getXmlID(), component.getLanguage());
+                            "Converting implementation of trigger manager %s from %s to %s",
+                            component.getXmlID(), component.getApiVariant(), LanguagesHandler.defaultBinding);
                     component.setLanguage("C");
                     component.setApiVariant(LanguagesHandler.defaultBinding);
                     component.setIsEcoa(false);

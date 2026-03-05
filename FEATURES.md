@@ -74,6 +74,9 @@ The LDP supports only the C programming language, with the following language bi
 
 The attribute _APIVersion_ in implementation files is ignored, as only one version of each binding is supported.
 
+Note that technical components, such as _Periodic trigger managers_, are always assumed to have APIType='SOFTARC_C'.
+Since these components have no manual code, this does not matter for the user of the LDP.
+
 ### Interoperability between different bindings
 
 Components using different bindings can be deployed in the same application, the same

@@ -123,6 +123,8 @@ public class GenMain extends AbstractGenerationPass {
 
             // Timer specific case
             if (container.getComponent().getIsTimer()) {
+                if (!"SOFTARC_C".equals(apiVariant))
+                    errorModel("Periodic trigger components must have APIType='SOFTARC_C' but %s has APIType='%s'", container.getComponent().toString(), apiVariant);
                 // Timer body
                 generateFileFromTemplate(attributes, fpr.getFilePath(KindOfFile.COMPONENT_TIMER_SOURCE_FILE, container),
                         "core", apiVariant, "timerBody");
