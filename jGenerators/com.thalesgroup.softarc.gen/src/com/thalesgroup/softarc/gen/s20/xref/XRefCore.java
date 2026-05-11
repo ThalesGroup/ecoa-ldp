@@ -38,7 +38,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -782,6 +782,9 @@ public class XRefCore extends AbstractPass {
                                 p.setQWhen(languageHandler.getQValue(td.getBaseType(), p.getWhen()));
                                 td.getUnspecifiedEnumValues().add(p);
                             }
+                            
+                            
+                            
                         }
                     }
 
@@ -1210,7 +1213,7 @@ public class XRefCore extends AbstractPass {
         }
     }
 
-    private HashMap<String, LanguageHandler> usedLanguages = new HashMap<>();
+    private LinkedHashMap<String, LanguageHandler> usedLanguages = new LinkedHashMap<>();
 
     private Dictionnary<TypeDefinition> typesDictionnary = new Dictionnary<>();
     private Dictionnary<ConstantDefinition> constantsDictionnary = new Dictionnary<>();

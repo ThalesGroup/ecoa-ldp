@@ -5,6 +5,7 @@ package com.thalesgroup.softarc.types;
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.Collection;
+import java.math.BigInteger;
 
 import com.thalesgroup.softarc.sf.Parameter;
 import com.thalesgroup.softarc.sf.TypeDefinition;
@@ -311,6 +312,40 @@ public class ValueReader extends AbstractValueReader {
             error("invalid integer number format '%s'", s);
             return Long.MAX_VALUE;
         }
+    }
+
+    @Override
+    protected Value readUnsignedInt64(TypeDefinition type) throws SyntaxError {
+        return new UnsignedInt64Value(type, parseUnsignedInt64());
+    }
+
+    protected BigInteger parseUnsignedInt64() throws SyntaxError {
+        buf.setLength(0);
+
+        if (c == '0') {
+        	add(c);
+        }
+        if (c == 'x') {
+        	add(c);
+        }
+        if (c == '-') {
+            error("expecting positive number");
+            return new BigInteger("0");
+        }
+        while (Character.isDigit(c) || isHexLetter(c)) {
+            add(c);
+        }
+        String s = buf.toString();
+        if (s.isEmpty())
+            error("expecting integer number");
+        
+        BigInteger MAX_VALUE = new BigInteger(Long.toString(Long.MAX_VALUE)).multiply(new BigInteger("2")).add(BigInteger.ONE);
+        BigInteger v = new BigInteger(s);
+        if (v.compareTo(MAX_VALUE) > 0) {
+            error("expecting number less than or equal to " + MAX_VALUE.toString());
+            return MAX_VALUE;
+        }
+        return v;
     }
 
     @Override

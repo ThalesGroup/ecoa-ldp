@@ -12,7 +12,6 @@ CFLAGS   = -std=gnu99 -ggdb -W -Wall -Wno-unused-parameter -Wextra -Wformat -DSA
 
 LDFLAGS  = "-lrt" "-lpthread" -lm
 
-INCDIRS = ../../01-Components/*/*/inc* ../../00-Types/*/*/inc-gen
 SRCDIRS = ../../01-Components/*/*/src*/*.c ../../00-Types/*/*/src-gen/*.c
 
 -include makefile_dirs
@@ -31,7 +30,7 @@ cflags:
 COMPILE.c = $(CC) @cflags $(TARGET_ARCH) -c
 
 MAIN_SRC = $(wildcard src-gen/*.c src-gen/*/*.c)
-CMP_SRC = $(wildcard $(SRCDIRS))
+CMP_SRC = $(wildcard $(patsubst %,%/*.c,$(SRCDIRS)))
 
 # Link ------------------------------------------
 

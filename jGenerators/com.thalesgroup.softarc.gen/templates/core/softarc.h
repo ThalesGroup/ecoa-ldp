@@ -84,6 +84,16 @@ typedef SARC_uint32 SARC_Counter;
 #define SARC_COUNTER_INVALID 0xDEADFEED
 
 /**
+ * 2 bytes reserved + 2 bytes external_id + 4 bytes for length payload
+ */
+#define SARC_EXTERNAL_ROUTE_HEADER_SIZE 8
+
+/**
+ * SARC_EXTERNAL_ROUTE_HEADER_SIZE + 4 bytes for the message length
+ */
+#define SARC_EXTERNAL_ROUTE_HEADER_MESSAGE_SIZE 12
+
+/**
  * Executable states - 4 bytes
  */
 typedef SARC_uint32 SARC_ExecutableStates;
@@ -254,6 +264,10 @@ typedef SARC_uint32 SARC_LifeCycleShift;
 /** KILL transition */
 #define SARC_LIFE_CYCLE_SHIFT_KILL 0x07
 
-
+#if defined(__GNUC__) || defined(__clang__)
+#define SARC_FORMAT_STRING(fmtarg, vaarg) __attribute__ ((format (printf, (fmtarg), (vaarg))))
+#else
+#define SARC_FORMAT_STRING(fmtarg, vaarg)
+#endif
 
 #endif /* SARC_SOFTARC_MINIMAL_H */

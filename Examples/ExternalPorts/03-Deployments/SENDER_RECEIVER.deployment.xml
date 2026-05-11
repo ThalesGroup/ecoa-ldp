@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<application xmlns="http://www.ecoa.technology/Deployment/3.0" assembly="SENDER_RECEIVER" name="SENDER_RECEIVER" start_mode='FAST'>
+  <task name="Task1">
+    <deployedInstance ref="SENDER"/>
+  </task>
+  <task name="Task2">
+    <deployedInstance ref="RECEIVER"/>
+  </task>
+</application>

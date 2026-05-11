@@ -100,15 +100,7 @@ public class Generate extends AbstractGenerator {
                 }
             }
         });
-        // group.registerModelAdaptor(Class.class, new ObjectModelAdaptor() {
-        // @Override
-        // public Object getProperty(Interpreter interp, ST self, Object o, Object property, String propertyName)
-        // throws STNoSuchPropertyException {
-        // if (propertyName.equals("isString"))
-        // return o instanceof String;
-        // return super.getProperty(interp, self, o, property, propertyName);
-        // }
-        // });
+
         group.registerModelAdaptor(Field.class, new ObjectModelAdaptor() {
             @Override
             public Object getProperty(Interpreter interp, ST self, Object o, Object property, String propertyName)

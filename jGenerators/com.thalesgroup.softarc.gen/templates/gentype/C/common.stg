@@ -7,14 +7,14 @@
 //@name Signature of the initialization function for the external thread of an EXTERNAL component.
 //@param model Component
 externalInitSignature(model) ::=<<
-void <model.package>_external_init(<model.package>_context *ctxt)
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>external_init(<model.package>_context *ctxt)
 >>
 
 //---------------------------------------------------------
 //@name Signature of the main function for the external thread of an EXTERNAL component.
 //@param model Component
 externalRoutineSignature(model) ::=<<
-void <model.package>_external_routine(<model.package>_context *ctxt)
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>external_routine(<model.package>_context *ctxt)
 >>
 
 //=========================================================
@@ -22,21 +22,21 @@ void <model.package>_external_routine(<model.package>_context *ctxt)
 //@param event OperationEvent
 //@param model Component
 receivedEventSignature(event, model) ::=<<
-void <model.package>_<event.name>_EVENT_receive(<model.package>_context *ctxt<if (event.hasInParameters)>,<endif>
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif><event.name>_EVENT_receive(<model.package>_context *ctxt<if (event.hasInParameters)>,<endif>
   <inParameters(event.inParameters, false)>
 )>>
 
 //=========================================================
 //
 providedRequestResponseSignature(svc, model) ::=<<
-void <model.package>_<svc.name>_SERVICE_provide(<model.package>_context *ctxt<if (svc.hasParameters)>,<endif>
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif><svc.name>_SERVICE_provide(<model.package>_context *ctxt<if (svc.hasParameters)>,<endif>
   <inParameters(svc.inParameters, svc.hasOutParameters)>
   <outParameters(svc.outParameters, false)>
 )>>
 
 
 deferredRequestResponseSignature(svc, model) ::=<<
-void <model.package>_<svc.name>_SERVICE_call (<model.package>_context *ctxt,
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif><svc.name>_SERVICE_call (<model.package>_context *ctxt,
    SARC_uint32 sarc_request_id<if(svc.inParameters)>,<endif>
    <inParameters(svc.inParameters, false)>
    )
@@ -46,7 +46,7 @@ void <model.package>_<svc.name>_SERVICE_call (<model.package>_context *ctxt,
 //=========================================================
 //
 componentCallbackSignature(svc, model) ::=<<
-void <model.package>_<svc.name>_Callback(<model.package>_context *ctxt,
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif><svc.name>_Callback(<model.package>_context *ctxt,
   SARC_uint32 request_id<if (svc.hasOutParameters)>,<endif>
   <inParameters(svc.outParameters, false)>
 )>>
@@ -54,7 +54,7 @@ void <model.package>_<svc.name>_Callback(<model.package>_context *ctxt,
 //=========================================================
 //
 componentCallbackTimeoutSignature(svc, model) ::=<<
-void <model.package>_<svc.name>_Timeout(<model.package>_context *ctxt,
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif><svc.name>_Timeout(<model.package>_context *ctxt,
   SARC_uint32 request_id)>>
 
 //==================================================================

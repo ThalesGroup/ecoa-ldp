@@ -3,15 +3,22 @@
 package com.thalesgroup.softarc.gen.s70.main.core;
 
 import com.thalesgroup.softarc.gen.common.AbstractGenerationPass;
-import com.thalesgroup.softarc.sf.*;
+import com.thalesgroup.softarc.gen.s30.gentype.FilePathResolver;
+import com.thalesgroup.softarc.sf.Container;
+import com.thalesgroup.softarc.sf.Dispatch;
+import com.thalesgroup.softarc.sf.Executable;
+import com.thalesgroup.softarc.sf.Instance;
+import com.thalesgroup.softarc.sf.Mapping;
 import com.thalesgroup.softarc.sf.Thread;
+import com.thalesgroup.softarc.sf.Trigger;
+import com.thalesgroup.softarc.sf.TriggerInstance;
 import com.thalesgroup.softarc.tools.Utilities;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -45,7 +52,8 @@ public class GenMain extends AbstractGenerationPass {
                 "sarc_launcher.c",
                 "sarc_task.c",
                 "sarc_pinfo.c",
-                "sarc_map.c" })
+                "sarc_map.c",
+                "sarc_tcp.c"})
             //@formatter:on
             generateFile(new File(gendir, (file.endsWith(".h") ? INC_GEN_DIR : SRC_GEN_DIR) + file), TEMPLATE_CORE_DIR + file);
 
@@ -56,7 +64,7 @@ public class GenMain extends AbstractGenerationPass {
         options.fastStart = mapping.getFastStart();
         options.initializeParameters = mapping.getInitializeOutput();
 
-        Map<String, Object> attributes = new HashMap<String, Object>();
+        Map<String, Object> attributes = new LinkedHashMap<String, Object>();
         attributes.put("system", context.system);
 
         generateFileFromTemplate(attributes, fpr.getFilePath(KindOfFile.EXEC_MAIN_SOURCE_FILE), "core", null,
@@ -66,6 +74,7 @@ public class GenMain extends AbstractGenerationPass {
 
         generateExecutableGlobal(mapping.getGlobalExecutable());
         generateAllForComponents(mapping.getGlobalExecutable());
+        generateAllDispatchers(mapping.getGlobalExecutable());
     }
 
     // =========================================================================
@@ -73,7 +82,7 @@ public class GenMain extends AbstractGenerationPass {
     // =========================================================================
 
     private void generateExecutableGlobal(Executable execWrap) throws IOException {
-        Map<String, Object> attributes = new HashMap<String, Object>();
+        Map<String, Object> attributes = new LinkedHashMap<String, Object>();
         attributes.put("exec", execWrap);
 
         // Component threads routines
@@ -86,12 +95,42 @@ public class GenMain extends AbstractGenerationPass {
 
     }
 
+    private void generateAllDispatchers(Executable globalExecutable) throws IOException {
+        // Dispatch threads routines
+        Map<String, Object> attributes = new LinkedHashMap<String, Object>();
+        attributes.put("exec", globalExecutable);
+
+        if (globalExecutable.getIsDispatcher()) {
+            for (Dispatch dispatch : globalExecutable.getDispatches()) {
+                attributes.put("dispatch", dispatch);
+                attributes.put("osProperties", globalExecutable.getParent().getOsProperties());
+                attributes.put("options", this.options);
+
+                generateFileFromTemplate(attributes, fpr.getFilePath(KindOfFile.EXEC_DISPATCH_SOURCE_FILE, globalExecutable, dispatch),
+                        "core", null, "execDispatchBody");
+
+                attributes.remove("osProperties");
+                attributes.remove("options");
+
+                generateFileFromTemplate(attributes, fpr.getFilePath(KindOfFile.EXEC_DISPATCH_HEADER_FILE, globalExecutable, dispatch),
+                        "core", null, "execDispatchHeader");
+                attributes.remove("dispatch");
+            }
+        }
+
+        File externalConfFile = new File(fpr.getFilePath(KindOfFile.LDP_EXTERNAL_CONF_FILE));
+        if(!externalConfFile.exists()) {
+            generateFileFromTemplate(attributes, fpr.getFilePath(KindOfFile.LDP_EXTERNAL_CONF_FILE), "core", null,
+                    "externalConf");
+        }
+    }
+
     // =========================================================================
     // Component-level files generation
     // =========================================================================
 
     private void generateAllForComponents(Executable execWrap) throws IOException {
-        Map<String, Object> attributes = new HashMap<String, Object>();
+        Map<String, Object> attributes = new LinkedHashMap<String, Object>();
 
         for (Container container : execWrap.getContainers()) {
 
@@ -109,26 +148,32 @@ public class GenMain extends AbstractGenerationPass {
 
             // Component container
             // Necessary attribute for Triggers
-            List<List<Long>> liTrigId = getPendingRequestIds(container);
+            List<List<TriggerInstance>>  liTrigId = getPendingIds(container);
             attributes.put("triggerPendingRequestIds", liTrigId);
             attributes.put("mapping", mapping);
             generateFileFromTemplate(attributes, fpr.getFilePath(KindOfFile.COMPONENT_CONTAINER_SOURCE_FILE, container),
                     "core", apiVariant, "container");
             attributes.remove("mapping");
             attributes.remove("triggerPendingRequestIds");
-            attributes.remove("componentInstanceList");
             
             attributes.remove("options");
             attributes.remove("operationsMap");
 
             // Timer specific case
             if (container.getComponent().getIsTimer()) {
-                if (!"SOFTARC_C".equals(apiVariant))
-                    errorModel("Periodic trigger components must have APIType='SOFTARC_C' but %s has APIType='%s'", container.getComponent().toString(), apiVariant);
-                // Timer body
-                generateFileFromTemplate(attributes, fpr.getFilePath(KindOfFile.COMPONENT_TIMER_SOURCE_FILE, container),
-                        "core", apiVariant, "timerBody");
+                // Generate container header which has not been
+                // generated by GenType
+                Map<String, Object> container_attribute = new LinkedHashMap<String, Object>();
+                container_attribute.put("model", container.getComponent());
+                FilePathResolver fprTimerGenType = new FilePathResolver();
+                generateFileFromTemplate(container_attribute,
+                        fprTimerGenType.getFilePath(com.thalesgroup.softarc.gen.s30.gentype.KindOfFile.COMPONENT_CONTAINER_HEADER_FILE,
+                                container.getComponent()).getPath(),
+                        "core",
+                        apiVariant,
+                        "timerHeaderContainer");
             }
+
             // Supervisor specific case
             if (container.getComponent().getIsSupervisor()) {
                 if (container.getComponent().getIsEcoa()) {
@@ -158,16 +203,15 @@ public class GenMain extends AbstractGenerationPass {
         }
     }
 
-    private List<List<Long>> getPendingRequestIds(Container container) {
+    public List<List<TriggerInstance>> getPendingIds(Container container) {
         /*
-         * 1ere dimension: trigger dans le component type 2eme dimension: instance de composant Contenu du tableau: id de
-         * l'opération (evènement) émis par le trigger
+         * 1ere dimension: trigger dans le component type 2eme dimension: instance de composant Contenu du tableau: TriggerInstance
          */
-        List<List<Long>> finalList = new ArrayList<List<Long>>();
+        List<List<TriggerInstance>> finalList = new ArrayList<List<TriggerInstance>>();
 
         // Pour chaque trigger du composant
         for (Trigger trigger : container.getComponent().getTriggers()) {
-            List<Long> bi = new ArrayList<Long>();
+            List<TriggerInstance> bi = new ArrayList<TriggerInstance>();
             // alors pour chaque instance de composants deployee dans l'executable
             for (Instance inst : container.getInstances()) {
                 // pour chaque trigger associe a l'instance du composant
@@ -176,7 +220,8 @@ public class GenMain extends AbstractGenerationPass {
                     // depuis le CT
                     if (triggerInstance.getName().equals(trigger.getName())) {
                         // alors on recupere l'ID qui nous interesse
-                        bi.add(triggerInstance.getRequestId());
+
+                        bi.add(triggerInstance);
                     }
                 }
             }

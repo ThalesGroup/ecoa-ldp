@@ -4,10 +4,12 @@ package com.thalesgroup.softarc.gen.s91.genbuild;
 
 import java.io.File;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import com.thalesgroup.softarc.gen.common.AbstractGenerationPass;
+import com.thalesgroup.softarc.sf.Extra;
+
 import java.io.IOException;
 
 import com.thalesgroup.softarc.tools.ReportStatus;
@@ -24,10 +26,62 @@ public class GenBuildLDP extends AbstractGenerationPass {
         generateFile(new File(gendir, "makefile"), "templates/core/makefile");
 
         Map<String, Object> attributes = new LinkedHashMap<String, Object>();
-        attributes.put("LIB_IMPLEMENTATIONS", context.system.getComponents().stream().filter(c -> c.getIsLibrary())
-                .map(c -> c.getTypeName() + "/" + c.getImplName()).collect(Collectors.toList()));
-        attributes.put("CMP_IMPLEMENTATIONS", context.system.getComponents().stream().filter(c -> !c.getIsLibrary())
-                .map(c -> c.getTypeName() + "/" + c.getImplName()).collect(Collectors.toList()));
+
+        // collect INCDIRS and SRCDIRS from all components
+        {
+            LinkedHashSet<String> flags = new LinkedHashSet<>();
+            for (var c : context.system.getComponents()) {
+                flags.add(c.getImplDir() + "/inc");
+                flags.add(c.getImplDir() + "/inc-gen");
+                for (Extra dir : c.getIncdir()) {
+                    flags.add(dir.getValue());
+                }
+                for (Extra dir : c.getSrcdir()) {
+                    flags.add(dir.getValue());
+                }
+                if (c.getIsLibrary()) {
+                }
+                else {
+                }
+            }
+            attributes.put("INCDIRS", flags);
+        }
+        {
+            LinkedHashSet<String> flags = new LinkedHashSet<>();
+            for (var c : context.system.getComponents()) {
+                flags.add(c.getImplDir() + "/src");
+                flags.add(c.getImplDir() + "/src-gen");
+                for (Extra dir : c.getSrcdir()) {
+                    flags.add(dir.getValue());
+                }
+                if (c.getIsLibrary()) {
+                }
+                else {
+                }
+            }
+            attributes.put("SRCDIRS", flags);
+        }
+        // collect compilationFlags and linkFlags from all components
+        {
+            LinkedHashSet<String> flags = new LinkedHashSet<>();
+            for (var c : context.system.getComponents()) {
+                for (var extra : c.getCompilationFlags()) {
+                    if (extra.getProduction().isEmpty() || extra.getProduction().equals("linux-glaive2-x64"))
+                        flags.add(Utilities.expandPath(extra.getValue(), context.workspace.getProjectRoot(), true));
+                }
+            }
+            attributes.put("CFLAGS", flags);
+        }
+        {
+            LinkedHashSet<String> flags = new LinkedHashSet<>();
+            for (var c : context.system.getComponents()) {
+                for (var extra : c.getLinkFlags()) {
+                    if (extra.getProduction() == null || extra.getProduction().isEmpty() || extra.getProduction().equals("linux-glaive2-x64"))
+                        flags.add(Utilities.expandPath(extra.getValue(), context.workspace.getProjectRoot(), true));
+                }
+            }
+            attributes.put("LDFLAGS", flags);
+        }
 
         createFileFromTemplate(new File(gendir, "makefile_dirs"), "core/makefile_dirs", "makefile_dirs", attributes);
     }

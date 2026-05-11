@@ -11,16 +11,14 @@
       <xsd:complexContent>
         <xsd:extension base="IO_interface">
           <xsd:sequence>
-            <xsd:element maxOccurs="1" minOccurs="0"
-              name="all_operations" type="CT_empty">
-              <xsd:annotation>
-                <xsd:documentation>
-Adds all the operations defined in the component type, identified
-by ids starting from 1 in the order of their declaration.
-                </xsd:documentation>
-              </xsd:annotation>
-            </xsd:element>
           </xsd:sequence>
+          <xsd:attribute name="endianness" type="Endianness">
+            <xsd:annotation>
+                <xsd:documentation>
+Endianness used in network messages
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
         </xsd:extension>
       </xsd:complexContent>
     </xsd:complexType>
@@ -28,7 +26,7 @@ by ids starting from 1 in the order of their declaration.
     <xsd:complexType name="IO_interface_in">
       <xsd:complexContent>
         <xsd:extension base="IO_interface_in">
-        <xsd:attribute name="nbProducers" type="xsd:positiveInteger" default="4">
+        <xsd:attribute name="nbProducers" type="xsd:positiveInteger" default="1">
             <xsd:annotation>
                 <xsd:documentation>
 Maximum number of independent producers that may send messages to this interface.
@@ -40,9 +38,21 @@ If this value is too low communication errors may be occur.
       </xsd:complexContent>
     </xsd:complexType>
 
-  </xsd:redefine>
+    <xsd:complexType name="IO_operation">
+      <xsd:complexContent>
+        <xsd:extension base="IO_operation">
+        <xsd:attribute name="bufSizeFactor" type="xsd:positiveInteger" default="1">
+          <xsd:annotation>
+            <xsd:documentation>
+A sizing factor used to handle n times the operation. It is used in calculating the port's receive buffer
+</xsd:documentation>
+            </xsd:annotation>
+        </xsd:attribute>
+        </xsd:extension>
+      </xsd:complexContent>
+    </xsd:complexType>
 
-  <xsd:complexType name="CT_empty">
-  </xsd:complexType>
+
+  </xsd:redefine>
 
 </xsd:schema>

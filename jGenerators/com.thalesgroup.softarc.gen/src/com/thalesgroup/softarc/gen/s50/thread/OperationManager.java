@@ -13,11 +13,9 @@ import com.thalesgroup.softarc.sf.DataLinkElement;
 import com.thalesgroup.softarc.sf.EventLink;
 import com.thalesgroup.softarc.sf.EventLinkReceiver;
 import com.thalesgroup.softarc.sf.EventLinkSender;
-import com.thalesgroup.softarc.sf.Instance;
 import com.thalesgroup.softarc.sf.OperationData;
 import com.thalesgroup.softarc.sf.OperationEvent;
 import com.thalesgroup.softarc.sf.OperationRequestResponse;
-import com.thalesgroup.softarc.sf.Platform;
 import com.thalesgroup.softarc.sf.PortData;
 import com.thalesgroup.softarc.sf.RequestResponseLink;
 import com.thalesgroup.softarc.sf.RequestResponseLinkReceiver;
@@ -27,14 +25,9 @@ import com.thalesgroup.softarc.tools.InconsistentModelError;
 // un fichier d'assemblage
 
 public class OperationManager {
-
-    private static final long OPERATION_HEADER_SIZE = 16;
-
-    private final boolean simulation;
     private final boolean generateObservation;
 
-    public OperationManager(boolean isSimulation, boolean generateObservation) {
-        this.simulation = isSimulation;
+    public OperationManager(boolean generateObservation) {
         this.generateObservation = generateObservation;
     }
 
@@ -44,7 +37,7 @@ public class OperationManager {
     public Map<Long, OperationContext> generateOperationContext(Assembly assembly) throws IOException {
         Map<Long, OperationContext> result = new LinkedHashMap<Long, OperationContext>();
 
-        OperationSizer operationSizer = new OperationSizer(this.simulation);
+        OperationSizer operationSizer = new OperationSizer();
         long operId;
 
         // RequestResponses
@@ -89,7 +82,7 @@ public class OperationManager {
             PortData link = null;
             OperationData operationDefinition = null;
 
-            if (dataLink.getWriters().size() > 0) {
+            if (!dataLink.getWriters().isEmpty()) {
                 link = dataLink.getWriters().iterator().next().getPort();
                 operationDefinition = link.getData();
             }
@@ -113,20 +106,20 @@ public class OperationManager {
     }
 
     private long bufferSizeRequestResponse(OperationContext operationCtxt) {
-        return OPERATION_HEADER_SIZE + Math.max(operationCtxt.in.raw_size, operationCtxt.out.raw_size);
+        return Math.max(operationCtxt.in.rawSize, operationCtxt.out.rawSize);
     }
 
     private long bufferSizeEvent(OperationContext operationCtxt) {
-        return OPERATION_HEADER_SIZE + operationCtxt.in.raw_size;
+        return operationCtxt.in.rawSize;
     }
 
     private long bufferSizeData(OperationContext operationCtxt) {
-        return OPERATION_HEADER_SIZE + operationCtxt.in.raw_size;
+        return operationCtxt.in.rawSize;
     }
 
     public void computeInstancesBufferSizes(Assembly assemblyModel) throws IOException {
 
-        OperationSizer operationSizer = new OperationSizer(this.simulation);
+        OperationSizer operationSizer = new OperationSizer();
 
         // RequestResponses
         for (RequestResponseLink link : assemblyModel.getRequestResponseLinks()) {
@@ -146,6 +139,7 @@ public class OperationManager {
                 OperationContext ctxt = new OperationContext(false, linksvr.getPort().getInstance(), link);
                 operationSizer.computeRequestResponseSize(op, ctxt);
                 ctxt.updateBufferSize(bufferSizeRequestResponse(ctxt));
+
             }
         }
 
@@ -160,7 +154,6 @@ public class OperationManager {
                 OperationContext ctxt =
                         new OperationContext(false, r.getPort().getInstance(), link);
                 operationSizer.computeEventSize(op, ctxt);
-                // ctxt.updateBufferSize(bufferSizeEvent(ctxt));
             }
 
             // Sent
@@ -171,6 +164,7 @@ public class OperationManager {
                 operationSizer.computeEventSize(op, ctxt);
                 ctxt.updateBufferSize(bufferSizeEvent(ctxt));
             }
+
         }
 
         // Data
@@ -182,7 +176,8 @@ public class OperationManager {
                 operationSizer.computeDataSize(op, ctxt);
 
                 if (generateObservation || r.getPort().getInstance().getType().getIsJavaComponent()
-                        || r.getPort().getInstance().getType().getIsPythonComponent()) {
+                        || r.getPort().getInstance().getType().getIsPythonComponent()
+                        || !isLocal(link)) {
                     ctxt.updateBufferSize(bufferSizeData(ctxt));
                 }
             }

@@ -4,7 +4,7 @@ package com.thalesgroup.ecoa.model;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import technology.ecoa.model.componenttype.CTComponentType;
@@ -26,7 +26,7 @@ public class ModelLoader {
         this.workspace = workspace;
     }
 
-    private Map<String, Library> libraries = new HashMap<String, Library>();
+    private Map<String, Library> libraries = new LinkedHashMap<String, Library>();
 
     /**
      * Loads an assembly, indexes the named parts of the assembly model and returns a wrapper to the JAXB class {@link ASAssembly}

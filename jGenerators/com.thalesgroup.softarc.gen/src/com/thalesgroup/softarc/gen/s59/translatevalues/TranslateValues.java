@@ -16,7 +16,6 @@ import com.thalesgroup.softarc.sf.Instance;
 import com.thalesgroup.softarc.sf.InstanceAttribute;
 import com.thalesgroup.softarc.sf.Platform;
 import com.thalesgroup.softarc.sf.TypeDefinition;
-import com.thalesgroup.softarc.types.AbstractValueReader.SyntaxError;
 import com.thalesgroup.softarc.types.Value;
 import com.thalesgroup.softarc.types.ValueReader;
 import com.thalesgroup.softarc.types.ValueWriter;

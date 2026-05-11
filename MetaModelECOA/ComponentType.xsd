@@ -202,7 +202,7 @@ Definition of an property of the component type.
     <xsd:complexType name="CT_pinfo">
         <xsd:annotation>
             <xsd:documentation>
-Definition of a string identifier
+Definition of a Persistent Information storage area
 </xsd:documentation>
         </xsd:annotation>
         <xsd:sequence>
@@ -219,7 +219,7 @@ Value of the string identifier
         <xsd:attribute name="writable" type="xsd:boolean" default="false">
             <xsd:annotation>
                 <xsd:documentation>
-If the true, the contents of the pinfo can be modified by the component with an API.
+If true, the contents of the pinfo can be modified by the component with an API.
 By default, a pinfo is read only.
 This may not be supported on all platforms [OPTION PINFO WRITE].
 </xsd:documentation>

@@ -34,7 +34,9 @@ public final class GenSoftarcLDP extends AbstractGenSoftarc {
             com.thalesgroup.softarc.gen.s51.entrypoints.EntryPoints.class,
             com.thalesgroup.softarc.gen.s53.operationlinks.OperationLinks.class,
             com.thalesgroup.softarc.gen.s55.containers.ContainersLDP.class,
+            com.thalesgroup.softarc.gen.s57.dispatches.DispatchesLDP.class,
             com.thalesgroup.softarc.gen.s59.translatevalues.TranslateValues.class,
+            com.thalesgroup.softarc.gen.s60.config.GenConfigLDP.class,
             com.thalesgroup.softarc.gen.s70.main.core.GenSerialize04.class,
             com.thalesgroup.softarc.gen.s70.main.core.GenMain.class,
             com.thalesgroup.softarc.gen.s91.genbuild.GenBuildLDP.class 
@@ -60,7 +62,7 @@ public final class GenSoftarcLDP extends AbstractGenSoftarc {
     public static final String ARGUMENT_KEY_DEPLOYMENT = "deployment";
 
     public GenSoftarcLDP() throws Exception {
-        super("GenSoftarc", "templates");
+        super("GenSoftarcLDP", "templates");
 
         addArgument(ARGUMENT_KEY_DEPLOYMENT, 'd', File.class, 0, 1, "Specifies deployment model file.", null);
         getArguments().setOptionActivated(ARGUMENT_KEY_DEPLOYMENT, true);

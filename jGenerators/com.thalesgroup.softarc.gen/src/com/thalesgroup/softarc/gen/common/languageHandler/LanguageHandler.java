@@ -4,7 +4,7 @@ package com.thalesgroup.softarc.gen.common.languageHandler;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.HashSet;
 
 import com.thalesgroup.ecoa.model.Language;
@@ -81,7 +81,7 @@ public abstract class LanguageHandler {
 
     public static final String predefLibName = "";
 
-    public HashMap<EPredef, TypeDefinition> predefTypes = new HashMap<>();
+    public LinkedHashMap<EPredef, TypeDefinition> predefTypes = new LinkedHashMap<>();
     public Component predefTypesLib;
 
     final public Language language;
@@ -127,11 +127,6 @@ public abstract class LanguageHandler {
         predefTypesLib.setXmlID("predeflib:" + predefTypesLib.getFullName());
 
         for (EPredef t : EPredef.values()) {
-            // TODO "uint64" défini dans le métamodèle ECOA mais non supporté par SOFTARC.
-            // Bypass à retirer avec la FR 3773
-            if (t == EPredef.UINT_64)
-                continue;
-
             QTypeDefinition td = new QTypeDefinition();
             definePredefTypeAttributes(td, t);
             switch (lang) {
@@ -183,7 +178,7 @@ public abstract class LanguageHandler {
             break;
         case UINT_64:
             valMin = BigDecimal.ZERO;
-            valMax = null; // TODO FR 3773
+            valMax = new BigDecimal("18446744073709551615");
             break;
         case INT_8:
             valMin = new BigDecimal("-128");

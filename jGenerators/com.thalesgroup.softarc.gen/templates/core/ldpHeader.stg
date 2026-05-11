@@ -25,6 +25,8 @@ applicationSpecificConstants() ::=<<
 
 #define SARC_MAX_NB_COMPONENT  <system.mapping.nbInstances>
 
+#define SARC_MAX_SOCKET <length(system.mapping.globalExecutable.channels)>
+
 <system.assembly.instances :  {instance | 
 #define <instance.id> <instance.idNo>
 }>
@@ -53,6 +55,27 @@ extern int SARC_socket_<thread.name>;
 extern int SARC_socket_SYNC_<thread.name>;
 <endif>
 }>
+
+<system.mapping.globalExecutable.channels : { channel |
+<if ((channel.directionIn) && (channel.directionOut))>
+extern int SARC_socket_<channel.name>_EXTERN;
+extern struct sockaddr_in SARC_socket_addr_<channel.name>_EXTERN;
+extern int SARC_socket_<channel.name>_EXTERN_OUT;
+extern struct sockaddr_in SARC_socket_addr_<channel.name>_EXTERN_OUT;
+<else>
+<if(channel.directionIn)>
+extern int SARC_socket_<channel.name>_EXTERN;
+extern struct sockaddr_in SARC_socket_addr_<channel.name>_EXTERN;
+<else>
+extern int SARC_socket_<channel.name>_EXTERN_OUT;
+extern struct sockaddr_in SARC_socket_addr_<channel.name>_EXTERN_OUT;
+<endif>
+<endif>
+}>
+
+extern SARC_ExternalOperationInfo SARC_external_socket_out_info[SARC_MAX_SOCKET];
+
+extern SARC_uint32 SARC_nb_external_socket;
 
 extern const SARC_int32 SARC_table_task_of_instance[SARC_MAX_NB_COMPONENT];
 

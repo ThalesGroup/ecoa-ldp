@@ -22,12 +22,20 @@ public class AbstractLogger {
      * 
      */
     public Logger _log;
+    private long _warningCount;
+    private long _errorCount;
+    
+    private void resetCounters() {
+    	_warningCount = 0;
+        _errorCount = 0;
+    }
 
     protected void flushLogs() throws SecurityException {
         for (Handler h : _log.getHandlers())
             h.flush();
         for (Handler h : _report.getHandlers())
             h.flush();
+        resetCounters();
     }
 
     protected void configureLogging() throws IOException {
@@ -67,6 +75,8 @@ public class AbstractLogger {
             }
         if (_report.getHandlers().length == 0)
             _report.addHandler(new ReportHandler(System.out));
+        
+        resetCounters();
     }
 
     private OutputStream outputStream(File f) throws FileNotFoundException {
@@ -76,7 +86,19 @@ public class AbstractLogger {
             return System.err;
         return new FileOutputStream(f);
     }
-
+    
+    public void addError() {
+    	_errorCount++;
+    }
+    
+    public long getWarningCount() {
+    	return _warningCount;
+    }
+    
+    public long getErrorCount() {
+    	return _errorCount;
+    }
+    
     /**
      * Report a status of a generated file.
      * 
@@ -111,6 +133,7 @@ public class AbstractLogger {
     @Requirement(ids = { "GenFramework-SRS-REQ-138", "GenFramework-SRS-REQ-139" })
     public void warning(String format, Object... arguments) {
         _log.warning(String.format(format, arguments));
+        _warningCount++;
     }
 
     /**
@@ -121,12 +144,13 @@ public class AbstractLogger {
     public void errorModel(String format, Object... arguments) throws InconsistentModelError {
         throw new InconsistentModelError(String.format(format, arguments));
     }
-
+    
     /**
      * Report an error to the execution log.
      */
     @Requirement(ids = { "GenFramework-SRS-REQ-138", "GenFramework-SRS-REQ-139" })
     public void error(String format, Object... arguments) {
+    	addError();
         _log.severe(String.format(format, arguments));
     }
 

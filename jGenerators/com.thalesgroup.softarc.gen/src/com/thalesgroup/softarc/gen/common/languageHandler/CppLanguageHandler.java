@@ -22,7 +22,7 @@ public class CppLanguageHandler extends LanguageHandler {
             return "false";
     }
     
-    private static final String cppExtensions[] = { "cpp", "C", "cc", "cp", "cxx", "CPP", "c++" };
+    private static final String cppExtensions[] = { "cpp", "C", "cc", "cp", "cxx", "CPP", "c++", "c" };
 
     final static String keywords[] = { "auto", "double", "int", "struct", "break", "else", "long", "switch", "case", "enum",
             "register", "typedef", "char", "extern", "return", "union", "const", "float", "short", "unsigned", "continue", "for",

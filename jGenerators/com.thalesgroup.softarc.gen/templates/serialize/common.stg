@@ -3,7 +3,7 @@
 //@name Generic serialize function name
 //@param type TypeDescription
 serializeFunctionName(type) ::=<<
-<if(type.parent.isAdaComponent)><adaSerializeFunctionName(type)><elseif(type.parent.isCComponent || type.parent.isCppComponent || type.parent.isRustComponent)>
+<if(type.parent.isAdaComponent || type.parent.isCComponent || type.parent.isCppComponent || type.parent.isRustComponent)>
 <cSerializeFunctionName(type.cType)>
 <elseif(type.parent.isJavaComponent)><javaSerializeFunctionName(type)><else>ERROR_<type.parent.language><endif>
 >>
@@ -12,7 +12,7 @@ serializeFunctionName(type) ::=<<
 //@name Generic deserialize function name
 //@param type TypeDescription
 deserializeFunctionName(type) ::=<<
-<if(type.parent.isAdaComponent)><adaDeserializeFunctionName(type)><elseif(type.parent.isCComponent || type.parent.isCppComponent || type.parent.isRustComponent)>
+<if(type.parent.isAdaComponent || type.parent.isCComponent || type.parent.isCppComponent || type.parent.isRustComponent)>
 <cDeserializeFunctionName(type.cType)>
 <elseif(type.parent.isJavaComponent)><javaDeserializeFunctionName(type)><endif>
 >>

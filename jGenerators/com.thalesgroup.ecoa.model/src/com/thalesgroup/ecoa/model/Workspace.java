@@ -70,6 +70,10 @@ public class Workspace extends WorkspaceStandard {
     public File getTechnicalAssembly() {
         return new File(getGenDir(), "TechnicalAssembly.xml");
     }
+    
+    public File getResolvedAssembly() {
+        return new File(getGenDir(), "ResolvedAssembly.xml");
+    }
 
     public File getMapping() {
         return new File(getGenDir(), "Mapping.xml");

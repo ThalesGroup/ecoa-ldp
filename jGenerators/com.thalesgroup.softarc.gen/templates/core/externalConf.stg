@@ -1,0 +1,14 @@
+externalConf(exec) ::=<<
+<exec.channels : { channel |
+<if((channel.directionIn) && (channel.directionOut))>
+<channel.name> 0.0.0.0 55555
+<channel.name>_OUT 127.0.0.1 55555
+<else>
+<if (channel.directionIn)>
+<channel.name> 0.0.0.0 55555
+<else>
+<channel.name> 127.0.0.1 55555
+<endif>
+<endif>
+}>
+>>

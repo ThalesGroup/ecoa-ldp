@@ -9,6 +9,7 @@ public class JsonWriter {
     final public Appendable out;
     private boolean first;
     public int depth = 0;
+    public char stringDelimiterChar = '\"';
 
     public JsonWriter(Appendable output) {
         out = output;
@@ -18,9 +19,9 @@ public class JsonWriter {
         if (string == null) {
             out.append("null");
         } else {
-            out.append('\"');
+            out.append(stringDelimiterChar);
             quoteString(string);
-            out.append('\"');
+            out.append(stringDelimiterChar);
         }
     }
 

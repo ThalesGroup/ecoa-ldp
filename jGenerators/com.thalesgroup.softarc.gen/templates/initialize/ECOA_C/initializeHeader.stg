@@ -1,0 +1,36 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "../../shared/function_names.stg"
+
+//====================================================
+//@name Initialize header
+//@param model Component
+initializeHeader(model)::=<<
+#ifndef _<model.fileprefix>_INITIALIZE_H
+#define _<model.fileprefix>_INITIALIZE_H
+
+#include "<model.fileprefix>.h"
+
+<model.usedLibraries: {library | 
+#include "<library.fileprefix>_initialize.h"}>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+<model.types: { type | 
+void <initializeFunctionName(type)> (<type.qName> *v);
+}>
+
+<model.types: { type | <if(!type.isScalar)>
+ECOA__boolean8 <equalsFunctionName(type)> (const <type.qName> *v1, const <type.qName> *v2);
+<endif>}>
+
+
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* _<model.fileprefix>_INITIALIZE_H */
+
+>>

@@ -25,6 +25,10 @@ public class ValueWriterC extends ValueWriter {
                     sb.append("LL");
                 }
             }
+            else if (v.type.getRealType().getName().equals("uint64")) {
+                super.append(v);
+                sb.append("LLU");
+            }
             else if (v.type.getRealType().getName().startsWith("uint")) {
                 super.append(v);
                 sb.append('U');

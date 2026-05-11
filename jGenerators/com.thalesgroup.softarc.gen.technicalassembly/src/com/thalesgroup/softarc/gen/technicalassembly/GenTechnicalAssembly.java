@@ -25,9 +25,15 @@ public final class GenTechnicalAssembly extends AbstractGenerator {
     Workspace workspace = new Workspace(this);
     public ModelLoader modelLoader = new ModelLoader(workspace);
 
-    RootInstance _rootInstance;
-
     boolean DO_NOT_USE_DEPLOYMENT = false; // used for testing GTA only
+    
+    private ASAssembly createAssembly(Assembly model, DEApplication deployment, File assemblyFile) throws Exception {
+
+        // build internal model of assembly (wires)
+        RootInstance _rootInstance = new RootInstance(model, this, assemblyFile, false);
+        
+        return new OutputWriter().createTechnicalAssembly(_rootInstance, false);
+    }
 
     /**
      * Create the technical assembly from an original assembly.
@@ -41,7 +47,8 @@ public final class GenTechnicalAssembly extends AbstractGenerator {
     private ASAssembly createTechnicalAssembly(Assembly model, DEApplication deployment, File assemblyFile) throws Exception {
 
         // build internal model of assembly (wires)
-        _rootInstance = new RootInstance(model, this, assemblyFile);
+        RootInstance _rootInstance = new RootInstance(model, this, assemblyFile);
+                
         _rootInstance.resolveAttributes();
 
         _rootInstance.resolveVariableAliases();
@@ -58,7 +65,7 @@ public final class GenTechnicalAssembly extends AbstractGenerator {
 
         _rootInstance.dump();
 
-        return new OutputWriter().createTechnicalAssembly(_rootInstance);
+        return new OutputWriter().createTechnicalAssembly(_rootInstance, true);
     }
 
     public GenTechnicalAssembly() throws Exception {
@@ -79,7 +86,15 @@ public final class GenTechnicalAssembly extends AbstractGenerator {
         Deployment deploymentModel = modelLoader.loadDeployment(deploymentFile);
         File assemblyFile = workspace.getAssemblyFile(deploymentModel.getDeployment().getAssembly());
         Assembly assembly = modelLoader.loadAssemblyDeeply(assemblyFile);
-
+        
+        // Generate resolved assembly
+        ASAssembly resolvedAssembly = createAssembly(assembly, deploymentModel.getDeployment(), assemblyFile);
+        
+        // Save assembly
+        File outputResolvedFile = workspace.getResolvedAssembly();
+        modelLoader.saveAssembly(resolvedAssembly, outputResolvedFile);
+        report(outputResolvedFile, ReportStatus.CREATED);
+        
         // Generate technical assembly
         ASAssembly technicalAssembly = createTechnicalAssembly(assembly, deploymentModel.getDeployment(), assemblyFile);
 

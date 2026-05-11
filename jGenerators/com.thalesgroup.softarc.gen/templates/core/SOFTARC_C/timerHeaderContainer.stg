@@ -1,0 +1,119 @@
+// Copyright (c) 2025 THALES -- All rights reserved
+
+import "../common.stg"
+import "signatures.stg"
+
+//=========================================================
+//@name Main body of the component_container.h file.
+//@param model Component
+timerHeaderContainer(model) ::=<<
+#ifndef _<model.fileprefix>_<if(!model.isCComponent)><model.implName>_<endif>CONTAINER_H
+#define _<model.fileprefix>_<if(!model.isCComponent)><model.implName>_<endif>CONTAINER_H
+
+<if(!model.isTimer)>
+<if(model.isCComponent)>
+#include "<model.fileprefix>_user_context.h"
+<endif>
+#include "<model.fileprefix>_types.h"
+#include "<model.fileprefix>_data.h"
+<endif>
+<if(model.isSupervisor && model.isCComponent)>
+#include "<model.fileprefix>_constants.h"
+<endif>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+struct <model.package>_tech_context;
+
+typedef struct
+{
+  <if(!model.isCComponent)>
+  /* Instance ID for one language */
+  SARC_uint16 languageInstanceIndex;
+  <endif>
+  SARC_int32 instanceId;
+  <if(!model.isTimer)>
+  <if(model.isCComponent)>
+  /* User context */
+  <model.package>_user_context user;
+  <endif>
+  <endif>
+  /* Pointer to technical context */
+  struct <model.package>_tech_context *tech;
+} <model.package>_context;
+
+SARC_int64 <model.package>_<if(!model.isCComponent)><model.implName>_<endif>get_local_time(); /* Access to Local Platform Time (in nanoseconds) */
+SARC_int64 <model.package>_<if(!model.isCComponent)><model.implName>_<endif>get_time(<model.package>_context *ctxt); /* Access to Synchronized Time (in nanoseconds) */
+<! The display method is stubbed SOFTARC-CERT for SOFTARC product-line compatibility purpose !>
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>display(<model.package>_context *ctxt, const char *format, ...); /* Print information on the 'DISPLAY' channel */
+<! The trace method is stubbed SOFTARC-CERT for SOFTARC product-line compatibility purpose !>
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>trace(<model.package>_context *ctxt, SARC_TraceLevel level, const char *format, ...); /* Print information on the 'TRACE' channel */
+SARC_boolean8 <model.package>_<if(!model.isCComponent)><model.implName>_<endif>trace_is_active(<model.package>_context *ctxt, SARC_TraceLevel level);
+<declareUserTracePoints(model)>
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>raise_fatal_error(<model.package>_context *ctxt, const char *format, ...); /* Component auto-shutdown and error message log */
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>sleep(SARC_uint32 useconds); /* Component time delay (in microseconds) */
+
+<declareSentEvents(model)>
+
+<declareTriggers(model)>
+
+#ifdef __cplusplus
+}
+#endif
+#endif /* _<model.fileprefix>_<if(!model.isCComponent)><model.implName>_<endif>CONTAINER_H */
+
+>>
+
+//=========================================================
+//@name Container functions for all sent events.
+//@param model Component
+declareSentEvents(model) ::=<<
+<model.sentEvents : { event |
+<sentEventSignature(event, model)>;
+}>
+>>
+
+
+//=========================================================
+declareTriggers(model) ::=<<
+<model.triggers : { trigger |
+<triggerSetSignature(trigger, model)>;
+<triggerCancelSignature(trigger, model)>;
+}>
+>>
+
+//==================================================================
+// Signatures of functions declared/implemented by the container
+//==================================================================
+
+//=========================================================
+//@name Signature of the container function for an event sent by the component.
+//@param event OperationEvent
+//@param model Component
+sentEventSignature(event, model) ::=<<
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><event.name>_EVENT_send(<model.package>_context *ctxt<if (event.hasInParameters)>,<endif>
+  <inParameters(event.inParameters, false)>
+)>>
+
+triggerSetSignature (trigger, model) ::=<<
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><trigger.name>_TRIGGER_set (<model.package>_context *ctxt,
+   SARC_int64 trigger_delay)
+>>
+
+triggerCancelSignature (trigger, model) ::=<<
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><trigger.name>_TRIGGER_cancel (<model.package>_context *ctxt)
+>>
+
+//=========================================================
+
+declareUserTracePoints(model) ::=<<
+<if(model.topics)>
+<model.topics : { tp |
+#define TRACE_TOPIC_<tp.name> <i>
+}>
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>trace_topic(<model.package>_context *ctxt, SARC_uint32 id, SARC_TraceLevel level, const char *format, ...);
+SARC_boolean8 <model.package>_<if(!model.isCComponent)><model.implName>_<endif>trace_topic_is_active(<model.package>_context *ctxt, SARC_uint32 id, SARC_TraceLevel level);
+<endif>
+>>

@@ -53,6 +53,13 @@ SARC_error_raise (SARC_ErrorCode code, SARC_int32 i1,
                SARC_table_name_of_task[i2]);
       return;
     }
+  if (code == SARC_ERROR_UNKNOWN_OPERATION_ID)
+    {
+      fprintf (stderr,
+               "ERROR: unknown operation with id %d on port '%s'\n",
+               i1, s1);
+      return;
+    }
   SARC_log_error (s1);
 }
 

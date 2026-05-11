@@ -6,8 +6,9 @@ import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.TreeMap;
 
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
@@ -50,8 +51,8 @@ public class WorkspaceStandard {
     private boolean ignoreRelocations;
 
     protected class NameMaps {
-        HashMap<String, File> libraries = new HashMap<>();
-        HashMap<String, File> componenttypes = new HashMap<>();
+        TreeMap<String, File> libraries = new TreeMap<>();
+        TreeMap<String, File> componenttypes = new TreeMap<>();
     };
 
     public static boolean isPossibleRoot(File root) {
@@ -87,7 +88,9 @@ public class WorkspaceStandard {
         dir02 = new File(root, "02-Assemblies");
         dir03 = new File(root, "03-Deployments");
         dir04 = new File(root, "04-Integration");
-        readWorkspaceConfigurationFile();
+        if (!ignoreRelocations) {
+            readWorkspaceConfigurationFile();
+        }
     }
 
     public File getRootDir() {
@@ -173,7 +176,7 @@ public class WorkspaceStandard {
      * Warning: returns only components, not type libraries!
      */
     public Collection<String> findAllComponentTypes() {
-        HashMap<String, File> map = new HashMap<>();
+        TreeMap<String, File> map = new TreeMap<>();
         try {
             for (File d : dir01.listFiles())
                 if (d.isDirectory()) {
@@ -186,7 +189,7 @@ public class WorkspaceStandard {
     }
 
     public Collection<String> findAllLibraries() {
-        HashMap<String, File> map = new HashMap<>();
+        TreeMap<String, File> map = new TreeMap<>();
         try {
             for (File d : dir00.listFiles()) {
                 String name = d.getName();
@@ -210,6 +213,7 @@ public class WorkspaceStandard {
     public Collection<String> listImplementations(String typeName) {
         ArrayList<String> result = new ArrayList<>();
         File[] listFiles = getComponentTypeDir(typeName).listFiles();
+        Arrays.sort(listFiles);
         if (listFiles != null) {
             for (File dir : listFiles) {
                 if (dir.isDirectory()) {
@@ -260,7 +264,7 @@ public class WorkspaceStandard {
             }
         }
 
-        private void processWorkspaceDefinition(HashMap<String, File> resultMap, File defaultFile, String name,
+        private void processWorkspaceDefinition(TreeMap<String, File> resultMap, File defaultFile, String name,
                 String redefinedPathName) throws IOException, InconsistentModelError {
 
             if (name == null)
@@ -269,8 +273,6 @@ public class WorkspaceStandard {
                 throw new InconsistentModelError(String.format("in '%s': Invalid redefinition for '%s'", wsfile.getPath(), name));
 
             File redefinedFile = expandAndFormatPath(redefinedPathName);
-            if (ignoreRelocations)
-                redefinedFile = defaultFile;
             File oldFile = resultMap.put(name, redefinedFile);
             if (oldFile != null) {
                 throw new InconsistentModelError(
@@ -297,7 +299,9 @@ public class WorkspaceStandard {
     public Collection<String> findAllDeployments() {
         ArrayList<String> result = new ArrayList<>();
         try {
-            for (File d : dir03.listFiles(deploymentFileFilter))
+            File[] listFiles = dir03.listFiles(deploymentFileFilter);
+            Arrays.sort(listFiles);
+            for (File d : listFiles)
                 if (d.isFile()) {
                     result.add(d.getName().replace(EXTENSION_DEPLOYMENT, ""));
                 }
@@ -310,7 +314,9 @@ public class WorkspaceStandard {
     public Collection<String> findAllAssemblies() {
         ArrayList<String> result = new ArrayList<>();
         try {
-            for (File d : dir02.listFiles(assemblyFileFilter))
+            File[] listFiles = dir02.listFiles(assemblyFileFilter);
+            Arrays.sort(listFiles);
+            for (File d : listFiles)
                 if (d.isFile()) {
                     result.add(d.getName().replace(EXTENSION_ASSEMBLY, ""));
                 }

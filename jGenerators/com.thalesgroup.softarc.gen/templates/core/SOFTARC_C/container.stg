@@ -56,9 +56,9 @@ includes(exec, componentType)::=<<
 
 #include "<componentType.fileprefix>_container.h"
 
-<exec.containers: {container | 
-#include "<container.component.typeName>_<container.component.implName>_facade.h"}>
-
+<exec.containers: {container |
+#include "<container.component.typeName>_<container.component.implName>_facade.h"
+}>
 >>
 
 
@@ -277,14 +277,15 @@ sentEvent(exec, event, componentType, linkedInstances, unlinkedInstances) ::=<<
   SARC_Ecode sarc_ecode = SARC_SUCCESS;
   SARC_SerializationContext sarc_serial_ctxt __attribute__ ((unused));
   SARC_uint32 oper_id __attribute__ ((unused));
+  SARC_int32 err __attribute__ ((unused));
 
   <checkInParameters(componentType, event)>
 
   switch (sarc_ctxt->instanceId)
     {<linkedInstances : { linkedInstance | 
     case <linkedInstance.instance.id>:
-      SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<linkedInstance.instance.thread.name>);
 <linkedInstance.links : { link |
+      SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<linkedInstance.instance.thread.name>, SARC_FALSE);
       oper_id = <link.id>;
       SARC_uint32_serialize (&sarc_serial_ctxt, &oper_id);
       <event.inParameters : { parameter | 
@@ -299,7 +300,7 @@ sentEvent(exec, event, componentType, linkedInstances, unlinkedInstances) ::=<<
         {
           {
 <link.destinationThreads : { thread |
-          int err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
+          err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
                             (struct sockaddr*) (&SARC_socket_addr_<thread.name>), sizeof(struct sockaddr_un));
           if (err \<= 0)
             {
@@ -311,6 +312,12 @@ sentEvent(exec, event, componentType, linkedInstances, unlinkedInstances) ::=<<
                 \}
               sarc_ecode = SARC_FAILURE;
             \}
+}>
+
+<link.externalRoutes : { externalRoute |
+          /* External send */
+          SARC_tcp_send_data(SARC_socket_<externalRoute.outChannelName>_EXTERN_OUT, <externalRoute.externalId>,
+                                SARC_routing_buffer_<linkedInstance.instance.thread.name> + 4, sarc_serial_ctxt.pos - 4);
 }>
           \}
         \}
@@ -354,6 +361,7 @@ requiredRequestResponse(exec, service, componentType, linkedInstances, unlinkedI
   SARC_SerializationContext sarc_serial_ctxt __attribute__ ((unused));
   SARC_uint32 sarc_oper_id __attribute__ ((unused));
   SARC_uint32 sarc_request_id = 0;
+
   (void) sarc_request_id;
 
 <service.inParameters : {param | 
@@ -393,8 +401,7 @@ requiredRequestResponse(exec, service, componentType, linkedInstances, unlinkedI
 requiredRequestResponseBody(instance, link, exec, options) ::=<<
 
 <if (link.isDirect)>
-sarc_ecode = instance_direct_<link.server.name>_<link.operationInServer.name>_SERVICE_provide (<if (options.simulation)>sarc_ctxt->tech->simu_instance_id, _activation_id, &_server_instance_id, &_server_activation_id<if(link.requestResponse.inParameters || link.requestResponse.outParameters)>,
-    <endif><endif><operationCallParametersVoid(link.requestResponse)>);
+sarc_ecode = instance_direct_<link.server.name>_<link.operationInServer.name>_SERVICE_provide (<operationCallParametersVoid(link.requestResponse)>);
 <if (service.outParameters)>
 if (sarc_ecode == SARC_SUCCESS)
   {
@@ -402,7 +409,7 @@ if (sarc_ecode == SARC_SUCCESS)
   \}
 <endif>
 <else>
-SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<instance.thread.name>);
+SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<instance.thread.name>, SARC_FALSE);
 sarc_oper_id = <link.id>;
 SARC_uint32_serialize(&sarc_serial_ctxt, &sarc_oper_id);
 /* Serialize request ID */
@@ -433,7 +440,7 @@ SARC_uint32 sarc_oper_id_timed_message = SARC_OP_TIMED_MESSAGE;
 SARC_uint32 sarc_oper_id_timeout = SARC_OP_REQUEST_REPONSE_TIMEOUT;
 SARC_uint32 sarc_oper_id_callback = <link.id> + 1;
 SARC_int32 timeout_buffer[6];
-SARC_serial_start_serialize (&s, timeout_buffer);
+SARC_serial_start_serialize (&s, timeout_buffer, SARC_FALSE);
 SARC_uint32_serialize(&s, &sarc_oper_id_timed_message);
 SARC_int64 timeout = SARC_get_local_time() + (<link.requestResponse.timeout>LL * 100);
 SARC_int64_serialize (&s, (SARC_int64*) &timeout);
@@ -447,7 +454,7 @@ int err = sendto (SARC_socket_out, s.buffer, s.pos, 0,
 if (err \<= 0)
   {
 	  perror ("sendto(TIMEOUT <link.requestResponse.name>)");
-      abort();
+	  abort();
   \}
 \}
 <else>
@@ -460,6 +467,10 @@ timeradd(&timeout, &timeout_absolute, &timeout_absolute);
 <endif>
 
 /* Send request */
+<if (link.server.isExtern)>
+/* External send */
+SARC_tcp_send_data(SARC_socket_<first(link.externalRoutes).outChannelName>_EXTERN_OUT, <first(link.externalRoutes).externalId>, SARC_routing_buffer_<instance.thread.name> + 4, sarc_serial_ctxt.pos - 4);
+<else>
 int err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
                                 (struct sockaddr*) (&SARC_socket_addr_<link.server.thread.name>), sizeof(struct sockaddr_un));
 if (err \<= 0)
@@ -467,11 +478,12 @@ if (err \<= 0)
 	perror ("sendto(REQUEST <link.requestResponse.name>)");
     if (errno == EAGAIN )
       {
-        SARC_error_raise (SARC_ERROR_FIFOSIZE_OVERFLOW, <link.server.id>, <link.server.thread.idNo>, "<link.requestResponse.name>, SARC_socket out buffer full");
+	    SARC_error_raise (SARC_ERROR_FIFOSIZE_OVERFLOW, <link.server.id>, <link.server.thread.idNo>, "<link.requestResponse.name>, SARC_socket out buffer full");
         abort();
       \}
 	  sarc_ecode = SARC_FAILURE;
   \}
+<endif>
 <if(!link.requestResponse.isAsynchronous)>
 char recv_data[16+<instance.thread.outsizemax>];
 SARC_int32 msg_size = 0;
@@ -506,7 +518,7 @@ while (1)
         else
           {
             SARC_DeserializationContext sarc_deserial_ctxt;
-            SARC_serial_start_deserialize (&sarc_deserial_ctxt, recv_data, msg_size);
+            SARC_serial_start_deserialize (&sarc_deserial_ctxt, recv_data, msg_size, SARC_FALSE);
             SARC_uint32_deserialize(&sarc_deserial_ctxt, &sarc_oper_id);
             SARC_uint32_deserialize(&sarc_deserial_ctxt, &sarc_request_id);
             SARC_uint32 sarc_request_id_serv = sarc_request_id & 0xFFFF;
@@ -580,9 +592,9 @@ providedRequestResponse (exec, service, componentType, linkedInstances, unlinked
       else
         {
     <linkedInstance.links : {link |
-      if(sarc_req_info.thread_id == <link.client.thread.idNo> && sarc_req_info.callback_id == <link.callbackId>)
+      if(<if(!link.client.isExtern)>sarc_req_info.thread_id == <link.client.thread.idNo> &&<endif> sarc_req_info.callback_id == <link.callbackId>)
         {
-          SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<linkedInstance.instance.thread.name>);
+          SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<linkedInstance.instance.thread.name>, SARC_FALSE);
           SARC_uint32_serialize(&sarc_serial_ctxt, &sarc_req_info.callback_id);
           SARC_uint32_serialize(&sarc_serial_ctxt, &sarc_req_info.client_req_id);
 <service.outParameters : { parameter | 
@@ -596,6 +608,10 @@ providedRequestResponse (exec, service, componentType, linkedInstances, unlinked
           else
             {
               /* Actually send response */
+<if (link.client.isExtern)>
+              SARC_tcp_send_data(SARC_socket_<first(link.externalRoutes).outChannelName>_EXTERN_OUT,
+                                        <first(link.externalRoutes).externalId>, SARC_routing_buffer_<linkedInstance.instance.thread.name> + 4, sarc_serial_ctxt.pos - 4);
+<else>
               int err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
                               (struct sockaddr*) (&SARC_socket_addr_<if (!link.requestResponseLink.client.port.requestResponse.isAsynchronous)>SYNC_<endif><link.client.thread.name>), sizeof(struct sockaddr_un));
               if (err \<= 0)
@@ -603,11 +619,11 @@ providedRequestResponse (exec, service, componentType, linkedInstances, unlinked
                   perror ("sendto(RESPONSE <service.name>)");
                   if (errno == EAGAIN )
                     {
-                      SARC_error_raise (SARC_ERROR_FIFOSIZE_OVERFLOW, <linkedInstance.instance.idNo>, <link.client.thread.idNo>, "<service.name>, SARC_socket_out full");
                       abort();
                     \}
                   sarc_ecode = SARC_FAILURE;
                 \}
+<endif>
             \}
         \}
       }>
@@ -914,6 +930,7 @@ implementDataPublish(exec, componentType, data, linkedInstances, unlinkedInstanc
   SARC_Ecode sarc_ecode = SARC_SUCCESS;
   SARC_SerializationContext sarc_serial_ctxt __attribute__ ((unused));
   SARC_uint32 oper_id __attribute__ ((unused));
+  SARC_int32 err __attribute__ ((unused));
 
   if (sarc_handle->ptr == NULL)
     {
@@ -936,14 +953,15 @@ implementDataPublish(exec, componentType, data, linkedInstances, unlinkedInstanc
 <endif>
 
   switch (sarc_ctxt->instanceId)
-    {<linkedInstances : {linkedInstance |
-    case <linkedInstance.instance.id>:
-      {
-        <implementDataPublishIntrinsic (componentType, linkedInstance, data)>
-      \}
-      break;
+    {
+<linkedInstances : {linkedInstance |
+      case <linkedInstance.instance.id>:
+        {
+          <implementDataPublishIntrinsic (componentType, linkedInstance, data)>
+        \}
+        break;
 }>
-    <othercases(unlinkedInstances,"SARC_SUCCESS")>
+      <othercases(unlinkedInstances,"SARC_SUCCESS")>
   \}
 
   /* Reset handler anyway */
@@ -975,24 +993,24 @@ if (<common_isLinkActive(linkedInstance.referenceLink)>)
   pthread_mutex_unlock(&sarc_ctxt->tech-><data.name>_mutex);
   <endif>
 \}
+
 <if(linkedInstance.links)>
 <linkedInstance.links : {link |
-  <if(link.destinationThreads)>
-/* Distant publications */
-<link.destinationThreads : {thread |  
-SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<linkedInstance.instance.thread.name>);
+SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<linkedInstance.instance.thread.name>, SARC_FALSE);
 oper_id = <linkedInstance.referenceLink.id>;
 SARC_uint32_serialize(&sarc_serial_ctxt, &oper_id);
 <serializeFunctionName(data.type)> (&sarc_serial_ctxt, (const <data.qType>*) sarc_handle-\>ptr);
 SARC_serial_check_serialize (&sarc_serial_ctxt, "operation <componentType.typeName>.<data.name>");
-
+<if(link.destinationThreads)>
+/* Distant publications */
+<link.destinationThreads : {thread |
 if (sarc_serial_ctxt.error != SARC_FALSE)
 {
   sarc_ecode = SARC_INVALID_IN_PARAMETER;
 \}
 else
 {
-  int err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
+  err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
                     (struct sockaddr*) (&SARC_socket_addr_<thread.name>), sizeof(struct sockaddr_un));
   if (err \<= 0 ) 
     {
@@ -1005,20 +1023,26 @@ else
       sarc_ecode = SARC_FAILURE;
     \}
 \}
-  }>
-  <endif>
+}>
+<endif>
+/* External send */
+<link.externalRoutes : { externalRoute |
+SARC_tcp_send_data(SARC_socket_<externalRoute.outChannelName>_EXTERN_OUT, <externalRoute.externalId>,
+                SARC_routing_buffer_<linkedInstance.instance.thread.name> + 4, sarc_serial_ctxt.pos - 4);
+}>
+
 }>
 <endif>          
 <if(linkedInstance.notificationLinks)>
 <linkedInstance.notificationLinks : { notificationLink |
 /* Notification */
-SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<linkedInstance.instance.thread.name>);
+SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<linkedInstance.instance.thread.name>, SARC_FALSE);
 oper_id = <notificationLink.notificationReqId>;
 SARC_uint32_serialize(&sarc_serial_ctxt, &oper_id);
   
 {
 /* Actually send event */
-  int err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
+  err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
                     (struct sockaddr*) (&SARC_socket_addr_<notificationLink.notifiedThread.name>), sizeof(struct sockaddr_un));
 
   if (err \<= 0)
@@ -1105,14 +1129,14 @@ implementTriggerSet(componentType, instances, trigger, triggerPendingRequestIds,
 <triggerSetSignature(trigger, componentType)>
 {
   switch (sarc_ctxt->instanceId) {
-<instances,triggerPendingRequestIds :{instance,id |
+<instances,triggerPendingRequestIds :{instance,trig |
     case <instance.id>: {
-<if(id)>
+<if(trig.id)>
     {
       SARC_int64 timeout = SARC_get_local_time() + trigger_delay;
-      if (SARC_timed_message_trigger_sendto (<id>, timeout, &SARC_socket_addr_<instance.thread.name>) \<= 0)
+      if (SARC_timed_message_trigger_sendto (<trig.requestId>, timeout, &SARC_socket_addr_<instance.thread.name>) \<= 0)
         {
-          perror ("sendto(TRIGGER_SET <id>)");
+          perror ("sendto(TRIGGER_SET <trig.id>)");
           abort();
         \}
     \}
@@ -1130,12 +1154,12 @@ implementTriggerCancel(componentType, instances, trigger, triggerPendingRequestI
 <triggerCancelSignature(trigger, componentType)>
 {
   switch (sarc_ctxt->instanceId) {
-<instances,triggerPendingRequestIds : {instance,id |
+<instances,triggerPendingRequestIds : {instance,trig |
     case <instance.id>:
-<if(id)>
-      if (SARC_timed_message_trigger_sendto (<id>, 0LL, &SARC_socket_addr_<instance.thread.name>) \<= 0)
+<if(trig.id)>
+      if (SARC_timed_message_trigger_sendto (<trig.requestId>, 0LL, &SARC_socket_addr_<instance.thread.name>) \<= 0)
         {
-          perror ("sendto(TRIGGER_CANCEL <id>)");
+          perror ("sendto(TRIGGER_CANCEL <trig.id>)");
           abort();
         \}
 <endif>

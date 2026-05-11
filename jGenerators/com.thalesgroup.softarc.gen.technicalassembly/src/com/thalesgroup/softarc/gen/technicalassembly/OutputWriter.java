@@ -7,16 +7,18 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
 
 import com.thalesgroup.ecoa.model.ComponentType;
 import com.thalesgroup.ecoa.model.Instance;
 
 import technology.ecoa.model.componenttype.CTReadData;
 import technology.ecoa.model.componenttype.CTTrigger;
+import technology.ecoa.model.componenttype.CTSentEvent;
+import technology.ecoa.model.componenttype.EComponentKind;
 import technology.ecoa.model.assembly.ASAssembly;
 import technology.ecoa.model.assembly.ASDataLink;
 import technology.ecoa.model.assembly.ASEventLink;
@@ -40,7 +42,10 @@ import technology.ecoa.model.assembly.ObjectFactory;
  * the operation links (datalink, eventlink and service) have a unique numeric identifier
  */
 public final class OutputWriter {
-
+	
+	static final String prefixTrigger = "sarc_trigger_";
+	static final String prefixTimer = "";
+	
     private ObjectFactory factory = new ObjectFactory();
 
     private RootInstance rootInstance;
@@ -139,7 +144,7 @@ public final class OutputWriter {
      * 
      * @param e A OperationLink
      */
-    private void createASDataLinks() {
+    private void createASDataLinks(boolean isTechnicalAssembly) {
 
         // build the list of InfoSources
         ArrayList<InfoSource> sources = new ArrayList<InfoSource>();
@@ -174,17 +179,20 @@ public final class OutputWriter {
                 }
                 // add "reader" elements
                 for (Operation op : readers) {
-                    ASOpRefRead element = factory.createASOpRefRead();
-                    element.setInstance(op.instance.fullName);
-                    element.setOperation(op.name);
-                    WhenSet conditions = new WhenSet();
-                    for (Wire w : rootInstance.wires) {
-                        if (w.target == op) {
-                            conditions.addAll(w.targetWhen);
+                    if (isTechnicalAssembly || op.origin instanceof CTReadData) {
+                        // Do not add readers associated to writers if output is not for technical assembly
+                        ASOpRefRead element = factory.createASOpRefRead();
+                        element.setInstance(op.instance.fullName);
+                        element.setOperation(op.name);
+                        WhenSet conditions = new WhenSet();
+                        for (Wire w : rootInstance.wires) {
+                            if (w.target == op) {
+                                conditions.addAll(w.targetWhen);
+                            }
                         }
+                        addConditions(conditions, element);
+                        datalink.getReader().add(element);
                     }
-                    addConditions(conditions, element);
-                    datalink.getReader().add(element);
                 }
                 // add "writer" elements
                 for (Wire w : sd.producers) {
@@ -210,9 +218,9 @@ public final class OutputWriter {
                         }
                     }
                 }
-
+   
                 // REQ-007
-                allocateId(datalink);
+                idServer.allocateId(datalink);
 
                 // System.out.printf("new datalink: %s -> %d readers\n", sd.signature, readers.size());
                 // System.out.printf("new datalink: %s -> %s, id=%s\n", sd.signature, readers, datalink.getId().toString());
@@ -252,14 +260,16 @@ public final class OutputWriter {
                 w.setReference(false);
             } else {
                 w.setReference(true);
-                ASOpRefRead r = factory.createASOpRefRead();
-                r.setInstance(op.instance.fullName);
-                r.setOperation(op.name);
-                datalink.getReader().add(r);
+                if (isTechnicalAssembly) {
+                    ASOpRefRead r = factory.createASOpRefRead();
+                    r.setInstance(op.instance.fullName);
+                    r.setOperation(op.name);
+                    datalink.getReader().add(r);
+                }
             }
             datalink.getWriter().add(w);
             // REQ-007
-            allocateId(datalink);
+            idServer.allocateId(datalink);
             technicalAssembly.getLinks().getDataLinkOrEventLinkOrRequestLink().add(datalink);
         }
     }
@@ -270,11 +280,11 @@ public final class OutputWriter {
      * @param e A OperationLink
      * @return A ASRequestResponseLink
      */
-    private void createASRequestResponseLinks() {
+    private void createASRequestResponseLinks(boolean isTechnicalAssembly) {
         for (ComponentInstance i : allInstancesWithExtern) {
             for (Operation op : i.operations.values()) {
                 if (op.type == EDR.RequestResponse) {
-                    if (i != rootInstance) {
+                    if (i != rootInstance || !isTechnicalAssembly) {
                         // Non-external operations: create 1 servicelink per client
                         ASRequestResponseLink servicelink = null;
                         for (Wire w : rootInstance.wires) {
@@ -298,7 +308,7 @@ public final class OutputWriter {
                             }
                         }
                         if (servicelink != null) {
-                            allocateId(servicelink);
+                            idServer.allocateId(servicelink);
                             technicalAssembly.getLinks().getDataLinkOrEventLinkOrRequestLink().add(servicelink);
                         }
                     } else {
@@ -323,7 +333,7 @@ public final class OutputWriter {
                                     element.setFifoSize(w.targetFifoSize);
                                     servicelink.getServer().add(element);
                                 }
-                                allocateId(servicelink);
+                                idServer.allocateId(servicelink);
                                 technicalAssembly.getLinks().getDataLinkOrEventLinkOrRequestLink().add(servicelink);
                             }
                         }
@@ -334,94 +344,70 @@ public final class OutputWriter {
     }
 
     /**
-     * Create a ASEventLink from a OperationLink.
-     * 
-     * @param e A OperationLink
-     * @return A ASEventLink
+     * Create a ASEventLink from a OperationLink. Wires are grouped according to their originLinkId (allocated by
+     * CompositeInstance.buildEventLinks). One eventlink is created for each group of wires. This is necessary to preserve the
+     * original receivers and their original fifoSize values. In the end, this eventlink may have several senders sand several
+     * receivers, but they are all originating from the same eventlinl in the output (at this level of composite).
      */
-    private void createASEventLinks() {
+    private void createASEventLinks(boolean isTechnicalAssembly) {
 
-        ArrayList<InfoSource> sources = new ArrayList<InfoSource>();
-        for (ComponentInstance i : allInstancesWithExtern) {
-            for (Operation op : i.operations.values()) {
-                if (op.type == EDR.Event) {
-
-                    ArrayList<Wire> senders = new ArrayList<Wire>();
-                    for (Wire w : rootInstance.wires) {
-                        if (w.target == op) {
-                            senders.add(w);
-                        }
+        LinkedHashMap<Long,ASEventLink> map = new LinkedHashMap<>();
+        for (Wire w : rootInstance.wires) {
+            if (w.kind == EDR.Event) {
+                // use the existing link with same ID if possible, or else create a new link
+                ASEventLink link = map.get(w.originLinkId);
+                if (link == null) {
+                    link = factory.createASEventLink();
+                    if (w.originLinkId != null) {
+                        link.setId(w.originLinkId);
+                        idServer.reserve(w.originLinkId.intValue());
                     }
-
-                    if (!senders.isEmpty()) {
-                        InfoSource sd = new InfoSource();
-                        sd.consumer = op;
-                        sd.producers = senders;
-                        sources.add(sd);
-                        sd.computeSignature();
-                        // System.out.printf("new event for receiver %s: %s\n", op, sd.signature);
+                    else {
+                        idServer.allocateId(link);
                     }
+                    map.put(link.getId(), link);
+                    technicalAssembly.getLinks().getDataLinkOrEventLinkOrRequestLink().add(link);
                 }
-            }
-        }
-        // for each different SET found
-        for (InfoSource sd : sources) {
-            if (!sd.done) {
-                ASEventLink link = factory.createASEventLink();
-
-                LinkedHashSet<Operation> receivers = new LinkedHashSet<Operation>();
-                LinkedHashSet<Wire> senders = new LinkedHashSet<Wire>();
-                for (InfoSource sd2 : sources) {
-                    if (sd2.signature.equals(sd.signature)) {
-                        receivers.add(sd2.consumer);
-                        senders.addAll(sd2.producers);
-                        sd2.done = true;
+                {
+                    ASOpRefSend element = (ASOpRefSend) findOperation(w.source, link.getSender());
+                    if (element == null) {
+                        element = factory.createASOpRefSend();
+                        element.setInstance(w.source.instance.fullName);
+                        element.setOperation(w.source.name);
+                        link.getSender().add(element);
                     }
-                }
-                for (Operation op : receivers) {
-                    ASOpRefReceive element = factory.createASOpRefReceive();
-                    element.setInstance(op.instance.fullName);
-                    element.setOperation(op.name);
-                    element.setActivating(sd.producers.get(0).activating);
-                    long fifoSize = 0;
-                    for (Wire sender : senders) {
-                        if (sender.target.equals(op)) {
-                            fifoSize = Math.max(fifoSize, sender.targetFifoSize);
-                        }
-                    }
-
-                    element.setFifoSize(fifoSize);
-                    WhenSet conditions = new WhenSet();
-                    for (Wire w : senders) {
-                        if (w.target == op) {
-                            conditions.addAll(w.targetWhen);
-                        }
-                    }
-                    addConditions(conditions, element);
-                    link.getReceiver().add(element);
-                }
-                for (Wire w : sd.producers) {
-                    Operation op = (Operation) w.source;
-                    ASOpRefSend element = factory.createASOpRefSend();
-                    element.setInstance(op.instance.fullName);
-                    element.setOperation(op.name);
-                    // add when elements on sender elements
                     addConditions(w.sourceWhen, element);
-                    link.getSender().add(element);
                 }
-                // System.out.printf("new eventlink : %s -> %d receivers\n", sd.signature, readers.size());
-                // REQ-007
-                allocateId(link);
-                technicalAssembly.getLinks().getDataLinkOrEventLinkOrRequestLink().add(link);
+                {
+                    ASOpRefReceive element = (ASOpRefReceive) findOperation(w.target, link.getReceiver());
+                    if (element == null) {
+                        element = factory.createASOpRefReceive();
+                        element.setInstance(w.target.instance.fullName);
+                        element.setOperation(w.target.name);
+                        link.getReceiver().add(element);
+                    }
+                    element.setActivating(w.activating);
+                    element.setFifoSize(w.targetFifoSize);
+                    addConditions(w.targetWhen, element);
+                }
             }
         }
+    }
+
+    private ASOpRef findOperation(Operation op, List<? extends ASOpRef> elements) {
+        for (ASOpRef element : elements) {
+            if (op.instance.fullName.equals(element.getInstance()) 
+                    && op.name.equals(element.getOperation())) {
+                return element;
+            }
+        }
+        return null;
     }
 
     /**
      * Create virtual link for each trigger
      */
     private void triggerLink(InstanceAdapter i, Collection<ASOperationLink> virtualLinks) {
-        String prefix = "sarc_trigger";
         Map<String, CTTrigger> triggerList = i.componentType.getTriggers();
 
         if (triggerList != null) {
@@ -433,7 +419,7 @@ public final class OutputWriter {
 
                 ASOpRefSend sender = new ASOpRefSend();
                 sender.setInstance(i.fullName);
-                sender.setOperation(prefix + '_' + trig.getName());
+                sender.setOperation(prefixTrigger + trig.getName());
 
                 // Verification of the existence of a corresponding received event has already
                 // been done in Check_CTCI (gentype target)
@@ -445,7 +431,43 @@ public final class OutputWriter {
 
                 newEventLink.getSender().add(sender);
                 newEventLink.getReceiver().add(receiver);
-                allocateId(newEventLink);
+                idServer.allocateId(newEventLink);
+                virtualLinks.add(newEventLink);
+            }
+        }
+    }
+    
+    /**
+     * Create virtual link for each timer
+     */
+    private void timerLink(InstanceAdapter i, Collection<ASOperationLink> virtualLinks) {
+    	if (i.componentType.getKind() != EComponentKind.PERIODIC_TRIGGER_MANAGER) {
+    		// Not a timer: nothing to do
+    		return;
+    	}
+    	
+        Map<String, CTSentEvent> triggerList = i.componentType.getEventSent();
+        
+        if (triggerList != null) {
+            for (Map.Entry<String, CTSentEvent> entry : triggerList.entrySet()) {
+            	CTSentEvent event = entry.getValue();
+
+                // Creation of a specific event link
+                ASEventLink newEventLink = new ASEventLink();
+
+                ASOpRefSend sender = new ASOpRefSend();
+                sender.setInstance(i.fullName);
+                sender.setOperation(prefixTrigger + event.getName());
+
+                ASOpRefReceive receiver = new ASOpRefReceive();
+                receiver.setInstance(i.fullName);
+                receiver.setOperation(prefixTimer + event.getName());
+                receiver.setActivating(true);
+                receiver.setFifoSize(1L);
+
+                newEventLink.getSender().add(sender);
+                newEventLink.getReceiver().add(receiver);
+                idServer.allocateId(newEventLink);
                 virtualLinks.add(newEventLink);
             }
         }
@@ -492,7 +514,7 @@ public final class OutputWriter {
                         newEventLink.setNotifiedData(dataLink.getId());
                         newEventLink.getSender().addAll(senders); // senders = all writers
                         newEventLink.getReceiver().add(receiver); // 1 receiver only
-                        allocateId(newEventLink);
+                        idServer.allocateId(newEventLink);
                         virtualLinks.add(newEventLink);
                     }
                 }
@@ -507,6 +529,11 @@ public final class OutputWriter {
         // Creation of virtual links for Triggers
         for (InstanceAdapter i : rootInstance._instances) {
             triggerLink(i, virtualLinks);
+        }
+	        
+	     // Creation of virtual links for Timers
+        for (InstanceAdapter i : rootInstance._instances) {
+            timerLink(i, virtualLinks);
         }
 
         // add event links for notification
@@ -526,40 +553,19 @@ public final class OutputWriter {
      * @param technicalAssembly The technical assembly.
      * @param assembly The original assembly.
      */
-    private void createLinks() {
+    private void createLinks(boolean isTechnicalAssembly) {
 
         technicalAssembly.setLinks(factory.createASLinks());
 
-        createASDataLinks();
-        createASEventLinks();
-        createASRequestResponseLinks();
+        createASEventLinks(isTechnicalAssembly); // must be first because link IDs are pre-allocated
+        createASDataLinks(isTechnicalAssembly);
+        createASRequestResponseLinks(isTechnicalAssembly);
 
-        addVirtualLinks();
+        if (isTechnicalAssembly)
+            addVirtualLinks();
     }
-
-    private void allocateId(ASOperationLink link) {
-        ArrayList<ASOpRef> linkElements = new ArrayList<ASOpRef>();
-        if (link instanceof ASEventLink) {
-            linkElements.addAll(((ASEventLink) link).getSender());
-            linkElements.addAll(((ASEventLink) link).getReceiver());
-        }
-        if (link instanceof ASDataLink) {
-            linkElements.addAll(((ASDataLink) link).getWriter());
-            linkElements.addAll(((ASDataLink) link).getReader());
-        }
-        if (link instanceof ASRequestResponseLink) {
-            linkElements.add(((ASRequestResponseLink) link).getClient());
-            linkElements.addAll(((ASRequestResponseLink) link).getServer());
-        }
-        TreeSet<String> set = new TreeSet<String>();
-        for (ASOpRef le : linkElements) {
-            set.add(le.getInstance());
-            set.add(le.getOperation());
-        }
-        link.setId((idServer.getLinkId(set.hashCode())));
-    }
-
-    public ASAssembly createTechnicalAssembly(RootInstance rootInstance) throws IOException {
+    
+    public ASAssembly createTechnicalAssembly(RootInstance rootInstance, boolean isTechnicalAssembly) throws IOException {
 
         technicalAssembly = factory.createASAssembly();
         this.rootInstance = rootInstance;
@@ -572,7 +578,19 @@ public final class OutputWriter {
         }
 
         createInstances();
-        createLinks();
+        createLinks(isTechnicalAssembly);
+        
+        if (!isTechnicalAssembly) {
+            // Clean ids
+            for (ASOperationLink l : technicalAssembly.getLinks().getDataLinkOrEventLinkOrRequestLink()) {
+                l.setId(null);
+            }
+            for (ASInstance i : technicalAssembly.getInstance()) {
+                for (ASIdentifiedMemberValue v : i.getVariableInit()) {
+                    v.setId(null);
+                }
+            }
+        }
 
         return technicalAssembly;
     }

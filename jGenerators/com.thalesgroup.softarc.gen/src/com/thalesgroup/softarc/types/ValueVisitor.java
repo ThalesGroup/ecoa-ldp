@@ -2,6 +2,8 @@
 
 package com.thalesgroup.softarc.types;
 
+import java.math.BigInteger;
+
 public interface ValueVisitor {
 
     // terminals
@@ -9,6 +11,8 @@ public interface ValueVisitor {
     void visitBoolean(boolean value) throws Exception;
 
     void visitInteger(long value) throws Exception;
+
+    void visitUnsignedInt64(BigInteger value) throws Exception;
 
     void visitFloat(float value) throws Exception;
     

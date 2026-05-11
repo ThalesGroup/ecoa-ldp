@@ -9,7 +9,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -95,7 +95,7 @@ public class LoadedFileList<E extends Object> {
     /**
      * Set of canonical file paths
      */
-    private final Map<String, LoadedModel> _loadedFiles = new HashMap<String, LoadedModel>();
+    private final Map<String, LoadedModel> _loadedFiles = new LinkedHashMap<String, LoadedModel>();
 
     private static ArrayList<LoadedFileList<?>> instances = new ArrayList<LoadedFileList<?>>();
 

@@ -1,0 +1,379 @@
+//@description Dispatch thread body
+
+import "../serialize/common.stg"
+
+//====================================================
+//@name Executable dispatch body global structure
+//@param exec Executable
+//@param dispatch Dispatch
+//@param osProperties NON-CERT
+//@param options NON-CERT
+execDispatchBody(exec, dispatch, osProperties, options) ::=<<
+<includes(exec, dispatch)>
+<declarations(exec, dispatch)>
+<dispatchRoutine(exec, dispatch, osProperties)>
+/*=============================================================================
+ * Implementation of request management functions
+ *=============================================================================*/
+<dispatch.operationsMapByExternalId : { entry | 
+<implementOperationRequestFunction(exec, osProperties, dispatch, entry, options)>
+
+}>
+
+>>
+
+operationDispatchFunctionName(dispatch, external_id) ::=<<
+SARC_<dispatch.name>_EXTERNAL_<external_id>_dispatch
+>>
+
+//#############################################################################
+//@name Executable dispatch body include directives
+//@param exec Executable
+//@param dispatch Dispatch
+includes(exec, dispatch) ::=<<
+#include \<sarc_ldp.h\>
+#include \<arpa/inet.h\>
+#include \<netinet/in.h\>
+
+<exec.dispatcherRequiredComponentTypes : { componentType |
+#include "<componentType.fileprefix>_serialize.h"
+}>
+<exec.componentTypes : { componentType |
+<componentType.usedLibraries: { component |
+#include "<component.cComponent.fileprefix>_serialize.h"
+}>}>
+<exec.dispatches : { dispatch_thread |
+#include "<exec.name>_<dispatch_thread.name>_routine.h"
+}>
+>>
+
+//#############################################################################
+//@name Executable dispatch body declarations
+//@param exec Executable
+//@param dispatch Dispatch
+declarations(exec, dispatch) ::=<<
+/*============================================================================
+ * Declarations
+ *============================================================================*/
+
+/*===================== Constants ===================*/
+
+#define SARC_<dispatch.id>_NB_HANDLED_REQUESTS <length(dispatch.operationsMapByExternalId)>
+
+/*===================== Types =======================*/
+
+/* Function pointer to handle a request */
+typedef void (SARC_<dispatch.id>_RequestHandleFunction)(char *requestBuffer, SARC_uint32 size);
+
+/* Structure to group all handle functions for a specific request ID. */
+typedef struct {
+  SARC_MwSize reqId;
+  SARC_<dispatch.id>_RequestHandleFunction *function;
+} SARC_<dispatch.id>_RequestFunctionInfo;
+
+/*===================== Functions ==================*/
+
+<dispatch.operationsMapByExternalId : { entry | 
+void <operationDispatchFunctionName(dispatch, entry.externalId)>(char *request, SARC_uint32 requestSize);}>
+
+/*===================== Global variables ===========*/
+
+static const SARC_<dispatch.id>_RequestFunctionInfo SARC_<dispatch.id>_RequestHandleFunctions[SARC_<dispatch.id>_NB_HANDLED_REQUESTS] =
+{<dispatch.operationsMapByExternalId : { entry | 
+  { <entry.externalId>, <operationDispatchFunctionName(dispatch, entry.externalId)> \},}>
+\};
+
+// buffer where the last received message is stored
+static SARC_char8 recv_data[16 + SARC_LDP_MAX_OPERATION_SIZE];
+
+>>
+
+//#############################################################################
+//@name Dispatch routine implementation
+//@param exec Executable
+//@param dispatch Dispatch
+//@param osProperties NON-CERT
+dispatchRoutine(exec, dispatch, osProperties) ::=<<
+/*=============================================================================
+ * Dispatch routine implementation
+ *=============================================================================*/
+
+void SARC_<dispatch.id>_FUNCTION(void *sarc_parameter)
+{
+  SARC_int32                      sarc_min       = 0;
+  SARC_int32                      sarc_max       = 0;
+  SARC_int32                      sarc_mid       = 0;
+  ssize_t                         msg_size       = 0;
+  SARC_DeserializationContext     sarc_deserial_ctxt;
+  SARC_uint16                     external_id    = 0;
+  SARC_uint32                     length_payload = 0;
+  SARC_uint32                     length_message = 0;
+  SARC_uint16                     dummy = 0;
+  struct sockaddr_in              cli_addr;
+
+  socklen_t cli_len = sizeof(cli_addr);
+
+  int rb = bind (SARC_socket_<dispatch.channelName>_EXTERN, (struct sockaddr*) (&SARC_socket_addr_<dispatch.channelName>_EXTERN ), sizeof(struct sockaddr_in));
+  if (rb \< 0)
+  {
+    perror ("bind(\"SARC_socket_<dispatch.channelName>_EXTERN\")");
+    abort();
+  \}
+
+  /* One client is available by dispatch routine ! */
+  listen(SARC_socket_<dispatch.channelName>_EXTERN, 1);
+  while (1)
+    {
+  int client_fd = accept(SARC_socket_<dispatch.channelName>_EXTERN, (struct sockaddr*) &cli_addr, &cli_len);
+  SARC_log_info ("Connection opened on port <dispatch.channelName>");
+
+  while (1)
+    {
+      msg_size = recv (client_fd, recv_data, 4, 0);
+      if (msg_size  \< 0)
+        {
+          if (errno != EAGAIN && errno != EWOULDBLOCK)
+            {
+              perror ("recv(<dispatch.channelName>)");
+            \}
+        \}
+
+      if (msg_size == 0)
+        {
+          SARC_log_info ("Connection closed on port <dispatch.channelName>");
+          break;
+        \}
+
+      if (msg_size > 0)
+        {
+          if (msg_size \< 4)
+            {
+              SARC_log_error ("received message by channel <dispatch.channelName> is too small, size=%d", msg_size);
+            \}
+          else
+            {
+              SARC_serial_start_deserialize (&sarc_deserial_ctxt, recv_data, msg_size, SARC_FALSE);
+              SARC_uint32_deserialize(&sarc_deserial_ctxt, &length_message);
+              length_message = ntohl(length_message);
+              if (length_message \>= sizeof(recv_data))
+                {
+                  SARC_log_error ("received message by channel <dispatch.channelName> is too big, size=%d", length_message);
+                \}
+              SARC_uint32 recv_data_size = 0;
+              while(recv_data_size \< length_message)
+                {
+                  msg_size = recv (client_fd, recv_data + recv_data_size, length_message - recv_data_size, 0);
+                  recv_data_size += msg_size;
+                \}
+
+              //Enough data to treat the message
+              SARC_serial_start_deserialize (&sarc_deserial_ctxt, recv_data, length_message, SARC_FALSE);
+              SARC_uint16_deserialize(&sarc_deserial_ctxt, &dummy);
+              SARC_uint16_deserialize(&sarc_deserial_ctxt, &external_id);
+              external_id = ntohs(external_id);
+              SARC_uint32_deserialize(&sarc_deserial_ctxt, &length_payload);
+              length_payload = ntohl(length_payload);
+
+              /* Use dichotomy to search for request handle */
+              sarc_min = 0;
+              sarc_mid = 0;
+              sarc_max = (SARC_<dispatch.id>_NB_HANDLED_REQUESTS - 1);
+              for (;;)
+                {
+                  sarc_mid = (sarc_min + sarc_max) / 2;
+                  if (external_id ==
+                      SARC_<dispatch.id>_RequestHandleFunctions[sarc_mid].
+                      reqId)
+                    {
+                      /* Found! Call associated function. */
+                      (*SARC_<dispatch.id>_RequestHandleFunctions
+                       [sarc_mid].function) (recv_data + 4,
+                                             length_payload + 4);
+                      break;
+                    \}
+                  else if (external_id \<
+                           SARC_<dispatch.id>_RequestHandleFunctions[sarc_mid].reqId)
+                    {
+                      sarc_max = sarc_mid - 1;
+                    \}
+                  else
+                    {
+                      sarc_min = sarc_mid + 1;
+
+                      if (sarc_min > sarc_max)
+                        {
+                          SARC_error_raise (SARC_ERROR_UNKNOWN_OPERATION_ID, external_id, 0, "<dispatch.channelName>");
+                          break;
+                        }
+                    \}
+                \}
+            \}
+        \}
+    \}
+\}
+
+  SARC_trace_error (SARC_TRACE_ERROR, 0,
+             "Dispatching on <dispatch.channelName> is broken");
+\}
+
+>>
+
+//#############################################################################
+//@name Operation request function implementation
+//@param exec Executable
+//@param dispatch Dispatch
+//@param dispatchedOperation DispatchedOperation
+implementOperationRequestFunction(exec, osProperties, dispatch, entry, options) ::=<<
+
+void <operationDispatchFunctionName(dispatch, entry.externalId)>
+  (char *sarc_buffin,
+   SARC_uint32 sarc_reqSize)
+{
+<if(entry.isReceivedEvent)>
+  <dispatchEvent(dispatch, osProperties, entry)>
+<endif>
+<if(entry.isReadData)>
+  <dispatchData(dispatch, osProperties, entry, exec)>
+<endif>
+<if(entry.isProvidedRequestResponse)>
+  <dispatchProvidedRequestResponse(dispatch, osProperties, entry)>
+<endif>
+<if(entry.isRequiredRequestResponse)>
+  <dispatchRequiredRequestResponseCallback(dispatch, osProperties, entry)>
+<endif>
+}
+>>
+
+//#############################################################################
+ //@name Operation dispatch for events
+//@param dispatch Dispatch
+//@param dispatchedOperation DispatchedOperation
+dispatchEvent(dispatch, osProperties, entry) ::=<<
+int err = -1;
+SARC_SerializationContext sarc_serial_ctxt;
+<entry.operations : { dispatchedOperation |
+SARC_serial_start_serialize(&sarc_serial_ctxt, sarc_buffin, SARC_FALSE);
+// Put the internal reqId in place of the external id in the message.
+SARC_uint32 oper_id_<dispatchedOperation.reqId> = <dispatchedOperation.reqId>;
+SARC_uint32_serialize(&sarc_serial_ctxt, &oper_id_<dispatchedOperation.reqId>);
+
+<dispatchedOperation.link.destinationThreads : { thread |
+err  = sendto (SARC_socket_out, sarc_buffin, sarc_reqSize, 0,
+                (struct sockaddr*) (&SARC_socket_addr_<thread.name>), sizeof(struct sockaddr_un));
+if (err \<= 0)
+{
+  perror ("sendto(EVENT <dispatchedOperation.operationName>)");
+  if (errno == EAGAIN )
+    {
+      abort();
+    \}
+\}
+}>
+}>
+
+>>
+
+//#############################################################################
+ //@name Operation dispatch for events
+//@param dispatch Dispatch
+//@param dispatchedOperation DispatchedOperation
+dispatchProvidedRequestResponse(dispatch, osProperties, entry) ::=<<
+int err = -1;
+SARC_SerializationContext sarc_serial_ctxt;
+<entry.operations : { dispatchedOperation |
+SARC_serial_start_serialize(&sarc_serial_ctxt, sarc_buffin, SARC_FALSE);
+// Put the internal reqId in place of the external id in the message.
+SARC_uint32 oper_id_<dispatchedOperation.reqId> = <dispatchedOperation.reqId>;
+SARC_uint32_serialize(&sarc_serial_ctxt, &oper_id_<dispatchedOperation.reqId>);
+
+<dispatchedOperation.link.destinationThreads : { thread |
+err = sendto (SARC_socket_out, sarc_buffin, sarc_reqSize, 0,
+                (struct sockaddr*) (&SARC_socket_addr_<thread.name>), sizeof(struct sockaddr_un));
+if (err \<= 0)
+{
+  perror ("sendto(EVENT <dispatchedOperation.operationName>)");
+  if (errno == EAGAIN )
+    {
+      abort();
+    \}
+\}
+}>
+}>
+>>
+
+
+//#############################################################################
+
+dispatchRequiredRequestResponseCallback(dispatch, osProperties, entry) ::=<<
+int err = -1 ;
+<entry.operations : { dispatchedOperation |
+SARC_SerializationContext sarc_serial_ctxt;
+SARC_serial_start_serialize(&sarc_serial_ctxt, sarc_buffin, SARC_FALSE);
+// Put the internal reqId in place of the external id in the message.
+SARC_uint32 oper_id_<dispatchedOperation.reqId> = <dispatchedOperation.reqId>;
+SARC_uint32_serialize(&sarc_serial_ctxt, &oper_id_<dispatchedOperation.reqId>);
+<dispatchedOperation.link.destinationThreads : { thread |
+err = sendto (SARC_socket_out, sarc_buffin, sarc_reqSize , 0,
+                (struct sockaddr*) (&SARC_socket_addr_<thread.name><if(!dispatchedOperation.link.requestResponse.isAsynchronous)>_SYNC<endif>), sizeof(struct sockaddr_un));
+if (err \<= 0)
+{
+  perror ("sendto(EVENT <dispatchedOperation.operationName>)");
+  if (errno == EAGAIN )
+    {
+      abort();
+    \}
+\}
+}>
+}>
+>>
+
+
+//#############################################################################
+//@name Operation dispatch for data
+//@param dispatch Dispatch
+//@param dispatchedOperation DispatchedOperation
+//@param exec Executable
+dispatchData(dispatch, osProperties, entry, exec) ::=<<
+int err = -1;
+<entry.operations : { dispatchedOperation |
+SARC_SerializationContext sarc_serial_ctxt;
+SARC_serial_start_serialize(&sarc_serial_ctxt, sarc_buffin, SARC_FALSE);
+// Put the internal reqId in place of the external id in the message.
+SARC_uint32 oper_id_<dispatchedOperation.reqId> = <dispatchedOperation.reqId>;
+SARC_uint32_serialize(&sarc_serial_ctxt, &oper_id_<dispatchedOperation.reqId>);
+<dispatchedOperation.link.destinationThreads : { thread |
+/* Distant publications */
+err = sendto (SARC_socket_out, sarc_buffin, sarc_reqSize, 0,
+                (struct sockaddr*) (&SARC_socket_addr_<thread.name>), sizeof(struct sockaddr_un));
+if (err \<= 0 )
+{
+  perror("sendto(DATA <dispatchedOperation.operationName>");
+  if (errno == EAGAIN)
+    {
+      abort();
+    \}
+\}}>
+
+<dispatchedOperation.notificationReqIds : { id |
+/* Notification */
+SARC_char8 SARC_routing_buffer_<id>[32];
+SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<id>, SARC_FALSE);
+SARC_uint32 notification_req_id_<id> = <id>;
+SARC_uint32_serialize(&sarc_serial_ctxt, &notification_req_id_<id>);
+
+<dispatchedOperation.link.destinationThreads : { thread |
+/* Actually send event */
+err = sendto (SARC_socket_out, sarc_serial_ctxt.buffer, sarc_serial_ctxt.pos, 0,
+                (struct sockaddr*) (&SARC_socket_addr_<thread.name>), sizeof(struct sockaddr_un));
+
+if (err \<= 0)
+{
+  perror ("sendto(Error notification)");
+  if (errno == EAGAIN)
+    {
+      abort();
+    \}
+\}
+
+}>}>}>
+>>

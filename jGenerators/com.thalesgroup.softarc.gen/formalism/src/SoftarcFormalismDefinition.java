@@ -21,7 +21,8 @@ public class SoftarcFormalismDefinition {
         String implName; // for a component: name of the implementation (local to the component type); for a lib: language
         String fullName; // is equal to '{typeName}/{implName}'
 
-        @contains TypeDefinition[] types;
+        @contains
+        TypeDefinition[] types;
         @contains Parameter[] attributes;
         @contains PInfo[] pinfos;
         @contains Parameter[] variables;
@@ -39,9 +40,11 @@ public class SoftarcFormalismDefinition {
         @contains Trigger[] triggers;
         @contains Topic[] topics;
 
-        String $package; // in C: prefix for all identifiers related to this component (excluding '_'), as defined as 'fullname'
-                         // in CI model
-        String[] splittedPackage;
+        String $package; // prefix for all identifiers used in C language related to this component:
+                         // * as defined as 'fullname' in CI model for C components,
+                         // * or computed from 'bindingPackage' for other languages.
+        String bindingPackage; // 'namespace' (in CPP)
+        String[] splittedBindingPackage;
         String fileprefix; // the base of filenames related to this component
         String headerextension; // the extension for header files
         String[] sourceextension; // the list of possible extensions for source files; the first one is used for
@@ -61,7 +64,7 @@ public class SoftarcFormalismDefinition {
 
         String language; // C ADA CPP JAVA PYTHON
         // warning: the following language flags are not computed before pass XRef:
-        boolean isCComponent; // true iff language=C
+        boolean isCComponent; // true iff language=C; includes SOFTARC and ECOA variants
         boolean isCppComponent; // true iff language=CPP
         boolean isAdaComponent; // true iff language=ADA
         boolean isJavaComponent; // true iff language=JAVA
@@ -260,7 +263,6 @@ public class SoftarcFormalismDefinition {
     abstract class Operation {
         String xmlID; // unique identifier in the form 'op:{Component.fullName}/{name}'
         String name;
-
         boolean hasInParameters; // input parameters of the operation
         @contains Parameter[] inParameters;
         boolean hasOutParameters; // output parameters of the operation
@@ -269,8 +271,6 @@ public class SoftarcFormalismDefinition {
         boolean hasDocumentedInParameters; // true iff at least one parameter has a non-empty doc
         boolean hasDocumentedOutParameters;
         boolean hasDocumentedParameters;
-
-        @contains DataAccess[] accesses;
         boolean virtual; // virtual events are generated for data notification and triggers
         long size; // size of (input) serialized parameters, including requestID (for requestResponse) and republishFlag (for data)
         boolean isDocumented;
@@ -381,7 +381,6 @@ public class SoftarcFormalismDefinition {
         ExternChannel channel;
         ExternChannel responseChannel;
         long externalId;
-        OperationLink link;
         boolean isData;
         boolean isEvent;
         boolean isRequestResponse;
@@ -393,6 +392,8 @@ public class SoftarcFormalismDefinition {
     }
 
     class ExternChannel extends Channel {
+        Dispatch dispatch; 
+        RouteExtern[] routes; 
         @contains ExternOperation[] operations;
         ExternOperation[] sortedOperations;
         ExternOperation[] sentEvents;
@@ -405,6 +406,7 @@ public class SoftarcFormalismDefinition {
         long channelPoolBlockSize;
         long channelPoolSize;
         long udpPort;
+        boolean isSwapNecessary; //used to limited generated code
     }
 
     class Instance {
@@ -414,6 +416,8 @@ public class SoftarcFormalismDefinition {
         long deadline; // deadline associated to this component, in nanoseconds
         ThreadBase externalThread; // additional thread, if type.isExternal=true
         long bufferSize; // size of buffer used for serialisation of operation parameters
+        long maxRoutingStepsNumber; // maximal number of routing steps
+        long maxRoutedLocalElementsNumber; // maximal number of local routed elements 
         @contains InstanceAttribute[] attributes;
         @contains InstancePInfo[] pinfos;
         @contains OperationLink[] allLinks;
@@ -430,9 +434,12 @@ public class SoftarcFormalismDefinition {
         Thread thread;
         Port[] ports;
         @contains PortEvent[] portsEvent;
+        @contains PortEvent[] portsSentEvent;
+        @contains PortEvent[] portsReceivedEvent;
         @contains PortData[] portsData;
         @contains PortRequestResponse[] portsRequestResponse;
-        // LinkedDataAccess[] accesses; // pas utilisé?
+        @contains PortRequestResponse[] portsRequiredRequestResponse;
+        @contains PortRequestResponse[] portsProvidedRequestResponse;
 
         @contains EntryPoint[] entryPoints;
         EntryPoint initialize;
@@ -452,13 +459,13 @@ public class SoftarcFormalismDefinition {
         String packedName;
         boolean hasTrigger;
         @contains TriggerInstance[] triggers;
-        @contains Request[] requests;
-        long queueSize; // size, in bytes, of the request queue of current instance
-        long nbHandledRequests;
+        InstanceConstraint requestsConstraint;
+        InstanceConstraint repliesConstraint; // buffer for parameters of requestResponse callbacks
         boolean hasAsyncTimeout;
         long instanceVerbosityLevel;
         long topicsVerbosityLevel;
         long observabilityLevel;
+        ObservationLevel[] observabilityLevelPerObservation; //list used to set specific value of an observation point
         TracePoint tracePoint;
 
         boolean handleRepublishRequests; // true iff a data written by this instance is read by another
@@ -484,6 +491,11 @@ public class SoftarcFormalismDefinition {
         String identifier; // identifier defined in CO model
         long id; // defined in CO model
     }
+    
+    class ObservationLevel {
+        String name;
+        long level;
+    }
 
     class Variable {
         String name;
@@ -500,7 +512,6 @@ public class SoftarcFormalismDefinition {
         OperationEvent event;
         OperationRequestResponse requestResponse;
         OperationData data;
-        // LinkedDataAccess[] accesses;
         TracePoint observationBegin;
         TracePoint observationEnd;
         boolean checkWCET;
@@ -529,6 +540,7 @@ public class SoftarcFormalismDefinition {
         Instance instance;
         Operation operation;
         TracePoint observation;
+        boolean isLinked;
     }
 
     class PortData extends Port {
@@ -547,13 +559,11 @@ public class SoftarcFormalismDefinition {
 
     class DataLinkElement {
         PortData port;
-        Instance[] whenkos;
         @contains WhenCondition[] whenconditions;
     }
 
     class EventLinkSender {
         PortEvent port;
-        Instance[] whenkos;
         @contains WhenCondition[] whenconditions;
     }
 
@@ -568,7 +578,6 @@ public class SoftarcFormalismDefinition {
         boolean activating;
         String inChannelName;
         String outChannelName;
-        Instance[] whenkos;
         @contains WhenCondition[] whenconditions;
     }
 
@@ -601,13 +610,12 @@ public class SoftarcFormalismDefinition {
 
     class Mapping {
         String deploymentName;
-        boolean isLittleEndian;
+        boolean isNetworkEndiannessLittleEndian;
         boolean isSupervisedSystem;
         boolean autoStart;
         boolean fastStart;
         boolean safeReaders;
         boolean initializeOutput;
-        boolean simulation;
         boolean generateObservability;
         boolean checkWCET;
         boolean checkRate;
@@ -621,7 +629,7 @@ public class SoftarcFormalismDefinition {
         long nbPlatforms; // size of list 'platforms'
         long nbExecutables; // size of list 'executables'
         long nbInstances; // size of list 'instances'
-        long nbOffer;
+        System system;
         @contains Platform[] platforms;
         ExternChannel[] inChannels;
         ExternChannel[] outChannels;
@@ -629,12 +637,14 @@ public class SoftarcFormalismDefinition {
         @contains Executable[] executables;
         @contains Executable globalExecutable; // LDP only
         @contains TracePoint[] tracePoints;
+        @contains TracePoint[] observabilityPoints;
         TracePoint softarcRuntimeTracePoint;
     }
 
     class Registry {
         long observationIdOffset; // offset between Variables and TracePoints identifiers: <Variable.id> = observationIdOffset +
                                  // <TracePoint.id>
+        String[] associatedNames;
         Long[] initialValues;
     }
 
@@ -650,6 +660,7 @@ public class SoftarcFormalismDefinition {
         long panelCommand;
         long panelAnswer;
         long trace;
+        long observation;
         long display;
         boolean traceOnStderr;
         boolean displayOnStdout;
@@ -664,23 +675,54 @@ public class SoftarcFormalismDefinition {
         boolean needsByteSwapping; // true if bytes need to be swapped between machine representation and error representation
         Executable[] executables;
         @contains DataVersion[] dataVersions;
+    	@contains ParamContainer paramContainersForReceivedEvents[];
+    	@contains ParamContainer paramContainersForProvidedRequestResponses[];
+    	@contains ParamContainer paramContainersForRequiredRequestResponses[];   
         @contains Initialization initialization;
         boolean hasDefaultValues; // true if at least one DataVersion in dataVersions has a default value
         Long[] capacities; // allowed priority levels, as defined by capacities/priority/@value or @priomin and
                               // @priomax in DE model
         Instance[] pfCompInstances;
         Executable dispatcher;
-        Executable[] executablesButDispatchers;
         long parameterSize; // size, in bytes, of the shared memory dedicated to storage of incoming requests parameters
+        
+        @contains MaskInfos maskInfos;
+    }
+    
+    class MaskInfos {
+    	MaskInfo[] maskForData;
+    	MaskInfo[] maskForEvent;
+    	MaskInfo[] maskForRequests;
+    	MaskInfo[] maskForResponses;
+    }
+    
+    class MaskInfo {
+    	long shiftCount;
+    	Link link;
+    	MaskInternalElement[] internalEmitters;
+    	MaskInternalElement[] internalReceivers;
+    	MaskExternalElement[] externalEmitters;
+    }
+    
+    abstract class MaskElement {
+    	long shift;
+    	String operation;
+    }
+    
+    class MaskInternalElement extends MaskElement {
+    	Instance instance;
+    }
+    
+    class MaskExternalElement extends MaskElement {
+    	Dispatch dispatch;
+    	Long externalId;
     }
 
     class Executable {
         String name; // name, as defined in DE model
         String id; // identifier usable in C language
         long idNo; // identifier in [0..N-1], where N is the number of executables in the platform
-        long nbOffer; // count of routes associated to written data operations and sent event operations
         long nbDispatchedOperations; // number of operations which may be dispatched
-        boolean isTimerManagerContainer; // true if it contains at least a timer manager component
         boolean isExternalComponentContainer;
         boolean isSupervisorComponentContainer;
         @contains Container[] containers;
@@ -689,22 +731,18 @@ public class SoftarcFormalismDefinition {
         DataVersion[] dataVersions;
         @contains Dispatch[] dispatches;
         ThreadBase[] allThreads; // threads+mwThreads+dispatches (computed by GenConfig)
-        @contains Route[] routesForData;
-        @contains Route[] routesForEvents;
-        @contains Route[] routesForRequests;
-        @contains Route[] routesForResponses;
+        @contains RoutingLink[] routesForData;
+        @contains RoutingLink[] routesForEvents;
+        @contains RoutingLink[] routesForRequests;
+        @contains RoutingLink[] routesForResponses;
         Platform parent;
-        EventLink[] sentEventsLinks;
-        // OperationLink[] receivedEventLinks;
-        RequestResponseLink[] requiredRequestResponsesLinks;
-        RequestResponseLink[] providedRequestResponsesLinks;
-        DataLink[] writtenDataLinks;
-        // OperationLink[] readDataLinks;
         Component[] componentTypes;
         Component[] pythonComponents;
         Instance[] instances;
         @contains Channel[] channels;
+        boolean hasChannels;
         boolean isDispatcher;
+        Component[] applicationComponentTypes;
         Component[] dispatcherRequiredComponentTypes; // TODO: rename to ...Libraries
         boolean hasAdaInstance;
         boolean hasCInstance;
@@ -716,10 +754,7 @@ public class SoftarcFormalismDefinition {
         long numberOfTriggers;
         Instance[] triggersInstances;
         String sourceDirectory;
-        boolean hasAlarms;
-        long numberOfAlarms;
         String packedName;
-        String command; // command to launch an executable from the dispatcher
         String basedir; // base directory for building the executable
         boolean buildWithMake;
         boolean buildWithNinja;
@@ -741,7 +776,6 @@ public class SoftarcFormalismDefinition {
         boolean unsupported;
         String mainsrcfile;
         String mainobjfile;
-        boolean tryMemoryLock;
         long maxBufferOut; // sum of each MaxBufferIn of each task in the exec.
     }
 
@@ -785,11 +819,12 @@ public class SoftarcFormalismDefinition {
         long relativePriority; // relative priority of the thread
         boolean isPrompt; // auto start
         boolean isExternalThread;
-        InitObj[] events;
+        Fifo[] fifos;
     }
 
     class Thread extends ThreadBase {
         long bufferSize; // size of buffer used for serialisation of operation parameters (sending events and RRs)
+        long shmglobalsize; // size of the shared memory area it uses
         long outsizemax; // size of the buffer for receiving out parameters of synchronous RR responses
         long maxBufferOutSize; // size of the buffer for sending out parameters of RR responses
         long shmoutglobalsize;
@@ -804,10 +839,12 @@ public class SoftarcFormalismDefinition {
         boolean hasAsyncRequireRequestResponses; // used to know if a task has instance that need to manage timeout.
         boolean hasSyncRequiredRequestResponses; // used to determine if a SYNC socket has to be open in the task.
         boolean hasBufferOut;
-        @contains Request[] requests;
-        @contains Request[] replies; // buffer for parameters of requestResponse callbacks
-        long nbHandledRequests;
-
+        boolean hasInstanceWithExternalThread;
+        boolean hasDelayedOperations; //i.e trigger and AsyncRequestResponses (timed or no timed).
+        boolean hasTimeoutOperations; //i.e trigger + AsyncRequestReponses (only timed).
+        long fifoSize; // Size of the Glaive Fifo for this thread
+        long replyFifoSize; // Size of the Glaive Reply Fifo for this thread
+        
         boolean handleRepublishRequests; // true iff a data written by an instance on this thread is read by anyone
     }
 
@@ -815,21 +852,57 @@ public class SoftarcFormalismDefinition {
         String channelName;
         String destPlatformName;
         long channelPoolBlockSize;
-        long channelPoolSize;
-        boolean isExternal;
         @contains DispatchOperationsMapEntry[] operationsMapByExternalId;
-        @contains DispatchedOperation[] sortedOperations;
         @contains DispatchedLink[] dispatchedLinks;
         @contains DispatchedLink[] requestResponseOuts;
-        Channel inChannel; // if isExternal
+        Channel inChannel;
+        boolean hasParameterIn;
+        TypeDefinition biggestParameterIn; //Size of the biggest variable receive by the channel
+        long maxRoutingStepsNumber; // maximal number of routing steps
+        long maxRoutedLocalElementsNumber; // maximal number of local routed elements
     }
-
-    class Request {
-        long id;
-        long capacity;
-        long parameterSize;
+    
+    class LinkConstraint {
+    	long id;
+    	boolean hasParameters;
+    	WhenCondition[] whenconditions;
+    	long dataInVr;
+    	long timeoutSet;
+    	long timeoutCancel;
     }
-
+      
+    class OperationConstraint {
+    	Operation operation;
+    	@contains LinkConstraint links[];
+    }
+        
+    class InstanceConstraint {
+    	long componentCommand;
+    	long componentState;
+    	@contains OperationConstraint receivedEvents[];
+    	@contains OperationConstraint providedRequestResponses[];
+    	@contains OperationConstraint requiredRequestResponses[];    	
+    }
+    
+    class ParamContainer {
+        String xmlID; // unique identifier in the form 'paramcontainer:{parent.name}/{id}/kind'
+        long id; // shortcut for operation.id'
+        long shmglobalsize; // total shared memory size occupied by the data versions
+        long numberofversions; // total number of version that must be allocated, deducted from the operation 'maxversions'
+                              // attribute
+        long sizeof;
+        long size;
+    }
+    
+    class DataVersionSizingInfo {
+        long maxVersions;
+        boolean isWriter;
+        boolean hasAssociatedData; // true iff writer has a reader (not write only) or is the reader associated to that writer
+        boolean isDispatch;
+        MaskInternalElement instance;
+        MaskExternalElement dispatch;
+    }
+    
     class DataVersion {
         String xmlID; // unique identifier in the form 'dataversion:{parent.name}/{id}'
         DataLink dataLink;
@@ -837,6 +910,7 @@ public class SoftarcFormalismDefinition {
         long shmglobalsize; // total shared memory size occupied by the data versions
         long numberofversions; // total number of version that must be allocated, deducted from the operation 'maxversions'
                               // attribute
+        @contains DataVersionSizingInfo[] sizingInfo;
         long sizeof;
         long size;
         long requestsize; // size of the request for data publication
@@ -845,27 +919,34 @@ public class SoftarcFormalismDefinition {
         TypeDefinition type; // type if the data, in the language of the dispatcher
     }
 
+    class RoutingLink {
+    	long linkId;
+    	@contains RouteLocal[] routesLocal;
+    	@contains RouteExtern[] routesExtern;
+    }
+    
     class Route {
         String xmlID; // unique identifier in the form
                       // 'route:{exec.name}/{data|event|request|response}/{operationId}[/{channelName}/{externalId}]'
-        long operationId; // of operation link this route relates to
+        RoutingLink parent;
+    }
+    
+    class RouteLocal extends Route {
         Instance instance;
-        Executable exec; // where the consumer is deployed
-        String thread; // name of the thread where the consumer is deployed
-        boolean isLocal; // true if the consumer is on the same platform as the producer
+        String instanceOperationName;
         boolean isActivating;
         boolean isSynchronous;
-        boolean hasExternalId;
+    }
+    
+    class RouteExtern extends Route {
         long externalId;
-        String outChannelName; // if isLocal=false, the name of the communication channel taken by the operation
-        OperationLink operationLink; // if hasExternalId=true only
+        String outChannelName; // the name of the communication channel taken by the operation
     }
 
     class TracePoint {
         long id;
         String name; // alphanum characters + '.'
         long initialState;
-        boolean isBinary; // true only for observation trace points
         @contains Parameter[] parameters;
     }
 
@@ -878,7 +959,6 @@ public class SoftarcFormalismDefinition {
         boolean isListCompliant;
         boolean isStp;
         boolean supervision;
-        boolean simulation;
     }
 
     // ---------- GENMAIN (avant refactoring) ------------
@@ -914,6 +994,7 @@ public class SoftarcFormalismDefinition {
         Instance[] instances; // idem linkedInstances, mais pointe directement sur la classe Instance
         Instance[] unlinkedInstances;
         Operation operation;
+        boolean hasNotOnlyDirectLink;
         // boolean oneInSamePeriodicalTask; // logical OR of corresponding attributes on linkedInstances
         // boolean allInSamePeriodicalTask; // logical AND of corresponding attributes on linkedInstances
     }
@@ -955,7 +1036,6 @@ public class SoftarcFormalismDefinition {
         boolean isDataRead;
         boolean isOnSameTask; // true if reader/writer on the same task.
         // boolean inSamePeriodicalTask; // true if parent and receivers are in the same periodical task
-        Instance[] whenkos;
         @contains WhenCondition[] whenconditions;
         OperationRequestResponse requestResponse;
         RequestResponseLink requestResponseLink;
@@ -971,7 +1051,9 @@ public class SoftarcFormalismDefinition {
         Instance client;
         Instance server;
         OperationLink[] failoverLinks;
-        ThreadBase[] destinationThreads;
+        ThreadBase[] destinationThreads; //used by LDP to identify thread to send
+        String[] outChannelNames; //used by LDP to identify out socket.
+        RouteExtern[] externalRoutes;
     }
 
     class WhenCondition {
@@ -982,20 +1064,27 @@ public class SoftarcFormalismDefinition {
 
     class DispatchedLink { // from Mapping.xml
         long id; // of associated link
-        boolean isExternal;
-        long externalId; // only used when operation is external
+        String operationName;
+        @contains Link link;
+        long externalId; 
         long nbProducers; // from other sites than dispatching one
     }
 
     class DispatchOperationsMapEntry {
-        long key;
-        DispatchedOperation value;
+        long externalId;
+        boolean isReceivedEvent;
+        boolean isProvidedRequestResponse;
+        boolean isRequiredRequestResponse;
+        boolean isReadData;
+        long nbProducers;
+        long sizeMax;
+        DispatchedOperation operations[];
     }
 
     class DispatchedOperation {
         String xmlID; // unique identifier in the form 'dispatchedoperation:dispatch.name/dispatch.id/reqId'
         long reqId;
-        long externalId;
+        String operationName;
         long size;
         Long[] notificationReqIds; // pour une DATA reçue, liste des IDs d'evenenements à lever pour notification
                                    // locale
@@ -1005,15 +1094,7 @@ public class SoftarcFormalismDefinition {
         boolean isReadData;
         long nbProducers;
         long sizeMax;
-        @contains OperationConsumerThread[] consumers;
-    }
-
-    class OperationConsumerThread {
         OperationLink link;
-        Thread thread;
-        Instance[] instances; // list of instances hosted by 'thread' and involved in 'link'
-        Executable executable; // shortcut for: thread.executable
-        OperationLink[] links;
     }
 
     class OperationGroup {
@@ -1046,9 +1127,9 @@ public class SoftarcFormalismDefinition {
     // ---------- CONFIG ------------
 
     class Initialization {
-        @contains InitObj[] events;
-        @contains InitObj[] periodicEvents;
+        @contains Fifo[] fifos;
         @contains Pool[] pools;
+        @contains Pool[] paramContainers;
         @contains InstancePInfo[] pinfos;
         long globalPoolSize; // size, in bytes, of a single buffer able to store all memory pools, each one being aligned on a
                             // 8-byte boundary.
@@ -1058,6 +1139,12 @@ public class SoftarcFormalismDefinition {
         String name; // name (unique in the system). Max length = 44 characters (rationale: IMA channel name limits)
         long id;
         ThreadBase owner;
+    }
+    
+    class Fifo extends InitObj{
+        long size; // size, in Fifo slots, of the FIFO
+        String kind; // kind of slot
+        String associatedPool; // associated pool
     }
 
     class Pool {
@@ -1079,8 +1166,7 @@ public class SoftarcFormalismDefinition {
         long maxMessageSize; // size, in bytes, of the largest network message managed by the channel
         long portSize; // size, in bytes, of a port single message buffer
         long slotCount; // number of messages that can be stored in the IMA reception queue
-        Dispatch dispatch; // for external/in only
-        Route[] routes; // for external/out only
+        boolean isLittleEndian;
     }
 
     // class LinkedDataAccess {
@@ -1096,6 +1182,7 @@ public class SoftarcFormalismDefinition {
         String[] CFLAGS;
         String[] LDFLAGS;
         String[] CFLAGS_DEBUG;
+        String[] CFLAGS_GEN;
         String CC;
         String CLD;
         String CPPLD;

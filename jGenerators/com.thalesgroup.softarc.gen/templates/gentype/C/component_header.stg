@@ -10,31 +10,31 @@ import "common.stg"
 //@name Main body of the component header file.
 //@param model Component
 component_header(model) ::=<<
-#ifndef _<model.fileprefix>_H
-#define _<model.fileprefix>_H
+#ifndef _<model.fileprefix>_<if(!model.isCComponent)><model.implName>_<endif>H
+#define _<model.fileprefix>_<if(!model.isCComponent)><model.implName>_<endif>H
 
-#include "<model.fileprefix>_container.h"
+#include "<model.fileprefix>_<if(!model.isCComponent)><model.implName>_<endif>container.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void <model.package>_initialize(<model.package>_context *ctxt);
-void <model.package>_start(<model.package>_context *ctxt);
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>initialize(<model.package>_context *ctxt);
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>start(<model.package>_context *ctxt);
 <! The stop method exists in SOFTARC-CERT for SOFTARC product-line compatibility purpose !>
-void <model.package>_stop(<model.package>_context *ctxt);
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>stop(<model.package>_context *ctxt);
 <! The reset method exists in SOFTARC-CERT for SOFTARC product-line compatibility purpose !>
-void <model.package>_reset(<model.package>_context *ctxt);
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>reset(<model.package>_context *ctxt);
 <! The shutdown method exists in SOFTARC-CERT for SOFTARC product-line compatibility purpose !>
-void <model.package>_shutdown(<model.package>_context *ctxt);
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>shutdown(<model.package>_context *ctxt);
 
 <if (model.isExternal)>
 <externalInitSignature(model)>;
 <externalRoutineSignature(model)>;
 <endif>
 
-<if (model.isSupervisor)>void <model.package>_startSequence(<model.package>_context *ctxt);
-void <model.package>_onStateChange(<model.package>_context *ctxt, SARC_int32 componentId, SARC_int32 state, SARC_int32 oldState);
+<if (model.isSupervisor)>
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>onStateChange(<model.package>_context *ctxt, SARC_int32 componentId, SARC_int32 state, SARC_int32 oldState);
 <endif>
 <declareReceivedEvents(model)>
 <declareProvidedRequestResponses(model)>
@@ -43,7 +43,7 @@ void <model.package>_onStateChange(<model.package>_context *ctxt, SARC_int32 com
 #ifdef __cplusplus
 }
 #endif
-#endif /* _<model.fileprefix>_H */
+#endif /* _<model.fileprefix>_<if(!model.isCComponent)><model.implName>_<endif>H */
 
 >>
 

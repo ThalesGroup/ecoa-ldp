@@ -77,8 +77,6 @@ public class ContainersCore extends AbstractPass {
 
                 computeExecLanguages(exec);
                 
-                computeCommand(exec);
-
                 createDataVersions(exec);
 
                 createOperationMaps(exec);
@@ -288,10 +286,6 @@ public class ContainersCore extends AbstractPass {
         }
     }
 
-    private void computeCommand(Executable exec) {
-    	exec.setCommand("./Exec" + exec.getName());
-    }
-
     private boolean checkCompatibleLanguages(Executable exec) {
         boolean _incompatibility = true;
 
@@ -488,6 +482,8 @@ public class ContainersCore extends AbstractPass {
 
                 // Get the Action
                 OperationsMapEntry entry = map.get(link.getPort().getOperation().getName());
+                if (entry == null)
+                    continue;
 
                 // Get the Actor corresponding to the given Instance
                 LinkedInstance linkedInstance = findLinkedInstance(instance, entry);
@@ -518,6 +514,10 @@ public class ContainersCore extends AbstractPass {
                                 && existingLink.getServer() == link.getServer()) {
                             found = true;
                         }
+                    }
+
+                    if(!link.getIsDirect()) {
+                        entry.setHasNotOnlyDirectLink(true);
                     }
                 }
                 if (!found) {
@@ -568,7 +568,7 @@ public class ContainersCore extends AbstractPass {
         return null;
     }
 
-    private LinkedInstanceData findLinkedInstanceData(Instance instance, DataConnection entry) {
+    protected LinkedInstanceData findLinkedInstanceData(Instance instance, DataConnection entry) {
         assert entry != null;
         for (LinkedInstanceData i : entry.getLinkedInstances()) {
             if (i.getPort().getInstance() == instance) {

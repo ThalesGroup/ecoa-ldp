@@ -2,7 +2,7 @@
 
 package com.thalesgroup.softarc.gen.s27.ctypes;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Iterator;
 
 import com.thalesgroup.softarc.gen.common.AbstractPass;
@@ -46,7 +46,7 @@ public class CTypes extends AbstractPass {
 
         if (c.getCComponent() != c) {
 
-            HashMap<String, TypeDefinition> map = new HashMap<>();
+            LinkedHashMap<String, TypeDefinition> map = new LinkedHashMap<>();
             for (TypeDefinition td : c.getCComponent().getTypes()) {
                 map.put(td.getName(), td);
             }

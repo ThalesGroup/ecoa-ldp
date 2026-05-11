@@ -47,19 +47,6 @@ struct <container.component.package>__platform_hook
 <endif>
   \} r_access_<data.name>;}>
   char errorMessage[SARC_TRACE_MAX_LENGTH]; /* used to store additional info about the lastest check failure */
-<if (options.simulation)>
-  SARC_Counter simu_activation_counter;
-  SARC_int32 simu_activation_id;
-  SARC_int32 simu_instance_id;
-<[container.component.receivedEvents, container.component.providedRequestResponses] : { op | 
-  SARC_int32 simu_activity_id_<op.name>;}>
-<container.component.requiredRequestResponses : { op | 
-<if(op.isAsynchronous)>
-  SARC_int32 simu_activity_id_<op.name>_Callback;
-<if(op.isTimed)>
-  SARC_int32 simu_activity_id_<op.name>_Timeout;
-<endif><endif>}>
-<endif>
 <if (container.component.Pinfos)>
   struct {
 <container.component.Pinfos : { pinfo | 

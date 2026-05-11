@@ -6,12 +6,16 @@ import "common.stg"
 //@name Main body of the component_container.h file.
 //@param model Component
 component_container(model) ::=<<
-#ifndef _<model.fileprefix>_CONTAINER_H
-#define _<model.fileprefix>_CONTAINER_H
+#ifndef _<model.fileprefix>_<if(!model.isCComponent)><model.implName>_<endif>CONTAINER_H
+#define _<model.fileprefix>_<if(!model.isCComponent)><model.implName>_<endif>CONTAINER_H
 
+<if(!model.isTimer)>
+<if(model.isCComponent)>
 #include "<model.fileprefix>_user_context.h"
+<endif>
 #include "<model.fileprefix>_types.h"
 #include "<model.fileprefix>_data.h"
+<endif>
 <if(model.isSupervisor && model.isCComponent)>
 #include "<model.fileprefix>_constants.h"
 <endif>
@@ -24,23 +28,31 @@ struct <model.package>_tech_context;
 
 typedef struct
 {
+  <if(!model.isCComponent)>
+  /* Instance ID for one language */
+  SARC_uint16 languageInstanceIndex;
+  <endif>
   SARC_int32 instanceId;
+  <if(!model.isTimer)>
+  <if(model.isCComponent)>
   /* User context */
   <model.package>_user_context user;
+  <endif>
+  <endif>
   /* Pointer to technical context */
   struct <model.package>_tech_context *tech;
 } <model.package>_context;
 
-SARC_int64 <model.package>_get_local_time(); /* Access to Local Platform Time (in nanoseconds) */
-SARC_int64 <model.package>_get_time(<model.package>_context *ctxt); /* Access to Synchronized Time (in nanoseconds) */
+SARC_int64 <model.package>_<if(!model.isCComponent)><model.implName>_<endif>get_local_time(); /* Access to Local Platform Time (in nanoseconds) */
+SARC_int64 <model.package>_<if(!model.isCComponent)><model.implName>_<endif>get_time(<model.package>_context *ctxt); /* Access to Synchronized Time (in nanoseconds) */
 <! The display method is stubbed SOFTARC-CERT for SOFTARC product-line compatibility purpose !>
-void <model.package>_display(<model.package>_context *ctxt, const char *format, ...); /* Print information on the 'DISPLAY' channel */
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>display(<model.package>_context *ctxt, const char *format, ...) SARC_FORMAT_STRING(2, 3); /* Print information on the 'DISPLAY' channel */
 <! The trace method is stubbed SOFTARC-CERT for SOFTARC product-line compatibility purpose !>
-void <model.package>_trace(<model.package>_context *ctxt, SARC_TraceLevel level, const char *format, ...); /* Print information on the 'TRACE' channel */
-SARC_boolean8 <model.package>_trace_is_active(<model.package>_context *ctxt, SARC_TraceLevel level);
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>trace(<model.package>_context *ctxt, SARC_TraceLevel level, const char *format, ...) SARC_FORMAT_STRING(3, 4); /* Print information on the 'TRACE' channel */
+SARC_boolean8 <model.package>_<if(!model.isCComponent)><model.implName>_<endif>trace_is_active(<model.package>_context *ctxt, SARC_TraceLevel level);
 <declareUserTracePoints(model)>
-void <model.package>_raise_fatal_error(<model.package>_context *ctxt, const char *format, ...); /* Component auto-shutdown and error message log */
-void <model.package>_sleep(SARC_uint32 useconds); /* Component time delay (in microseconds) */
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>raise_fatal_error(<model.package>_context *ctxt, const char *format, ...) SARC_FORMAT_STRING(2, 3); /* Component auto-shutdown and error message log */
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>sleep(SARC_uint32 useconds); /* Component time delay (in microseconds) */
 
 <declareSentEvents(model)>
 <declareRequiredRequestResponsesCalls(model)>
@@ -70,13 +82,13 @@ void <model.package>_sleep(SARC_uint32 useconds); /* Component time delay (in mi
 <endif>
 
 <if(model.data)>
-extern void <model.package>_release_all_data_handles (<model.package>_context *sarc_ctxt);
+extern void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>release_all_data_handles (<model.package>_context *sarc_ctxt);
 <endif>
 
 #ifdef __cplusplus
 }
 #endif
-#endif /* _<model.fileprefix>_CONTAINER_H */
+#endif /* _<model.fileprefix>_<if(!model.isCComponent)><model.implName>_<endif>CONTAINER_H */
 
 >>
 
@@ -132,13 +144,13 @@ declareReadData(models) ::=<<
  *   SARC_Ecode status = SARC_SUCCESS;
  *   t_<data.name>_handle handler = {\};
  *
- *   status = <model.package>_<data.name>_DATA_get_reader (ctxt, &handler);
+ *   status = <model.package>_<if(!model.isCComponent)><model.implName>_<endif><data.name>_DATA_get_reader (ctxt, &handler);
  *   if (status == SARC_SUCCESS)
  *     {
  *       ... handler.ref     gives version key
  *       ... *handler.ptr    is the value of the latest version
  *
- *       <model.package>_<data.name>_DATA_release (ctxt, &handler);
+ *       <model.package>_<if(!model.isCComponent)><model.implName>_<endif><data.name>_DATA_release (ctxt, &handler);
  *     \}
  */
 
@@ -167,14 +179,14 @@ declareWrittenData(model) ::=<<
  *   SARC_Ecode status = SARC_SUCCESS;
  *   t_<data.name>_handle handler = {\};
  *
- *   status = <model.package>_<data.name>_DATA_get_writer
+ *   status = <model.package>_<if(!model.isCComponent)><model.implName>_<endif><data.name>_DATA_get_writer
  *     (ctxt, &handler, SARC_DATA_NO_VALUE);
  *   if (status == SARC_SUCCESS)
  *     {
  *       ... handler.ref     gives version key
  *       ... *handler.ptr    is the value of the next version to work on
  *
- *       <model.package>_<data.name>_DATA_publish (ctxt, &handler);
+ *       <model.package>_<if(!model.isCComponent)><model.implName>_<endif><data.name>_DATA_publish (ctxt, &handler);
  *     \}
  */
 
@@ -227,9 +239,12 @@ declarePInfos (model) ::=<<
 //=========================================================
 declareTriggers(model) ::=<<
 <model.triggers : { trigger | 
+<if(model.isTimer)>
+<timerSetSignature(trigger, model)>;
+<else>
 <triggerSetSignature(trigger, model)>;
-
 <triggerCancelSignature(trigger, model)>;
+<endif>
 }>
 >>
 
@@ -247,14 +262,14 @@ sentEventSignature(event, model) ::=<<
  *! \param[in] <param.name> A pointer to the '<param.name>' parameter}>
  *! \return Status of the operation. Either OK, or KO iff the event has not been sent
  */
-SARC_Ecode <model.package>_<event.name>_EVENT_send(<model.package>_context *ctxt<if (event.hasInParameters)>,<endif>
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><event.name>_EVENT_send(<model.package>_context *ctxt<if (event.hasInParameters)>,<endif>
   <inParameters(event.inParameters, false)>
 )>>
 
 //=========================================================
 //
 requiredRequestResponseCallSignature(svc, model) ::=<<
-SARC_Ecode <model.package>_<svc.name>_SERVICE_call(<model.package>_context *ctxt<if (svc.hasParameters)>,<endif>
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><svc.name>_SERVICE_call(<model.package>_context *ctxt<if (svc.hasParameters)>,<endif>
   <inParameters(svc.inParameters, svc.hasOutParameters)>
   <outParameters(svc.outParameters, false)>
 )>>
@@ -262,7 +277,7 @@ SARC_Ecode <model.package>_<svc.name>_SERVICE_call(<model.package>_context *ctxt
 //=========================================================
 //
 asyncRequestResponseCallSignature(svc, model) ::=<<
-SARC_Ecode <model.package>_<svc.name>_ASYNC_SERVICE_call(<model.package>_context *ctxt,
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><svc.name>_ASYNC_SERVICE_call(<model.package>_context *ctxt,
   SARC_uint32 *request_id<if (svc.hasInParameters)>,<endif>
   <inParameters(svc.inParameters, false)>
   )
@@ -270,24 +285,29 @@ SARC_Ecode <model.package>_<svc.name>_ASYNC_SERVICE_call(<model.package>_context
 
 
 deferredRequestResponseResponseSignature (svc, model) ::=<<
-SARC_Ecode <model.package>_<svc.name>_SERVICE_reply (<model.package>_context *ctxt,
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><svc.name>_SERVICE_reply (<model.package>_context *ctxt,
    SARC_uint32 sarc_request_id<if(svc.outParameters)>,<endif>
    <outParameters(svc.outParameters, false)>
    )
 >>
 
 deferredRequestResponseCancelSignature (svc, model) ::=<<
-void <model.package>_<svc.name>_SERVICE_cancel (<model.package>_context *ctxt,
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif><svc.name>_SERVICE_cancel (<model.package>_context *ctxt,
    SARC_uint32 sarc_request_id)
 >>
 
 triggerSetSignature (trigger, model) ::=<<
-SARC_Ecode <model.package>_<trigger.name>_TRIGGER_set (<model.package>_context *ctxt,
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><trigger.name>_TRIGGER_set (<model.package>_context *ctxt,
    SARC_int64 trigger_delay)
 >>
 
+timerSetSignature (event, model) ::=<<
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><event.name>_TIMER_set (<model.package>_context *ctxt,
+   SARC_int64 repeat_delay, SARC_int64 deadline)
+>>
+
 triggerCancelSignature (trigger, model) ::=<<
-SARC_Ecode <model.package>_<trigger.name>_TRIGGER_cancel (<model.package>_context *ctxt)
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><trigger.name>_TRIGGER_cancel (<model.package>_context *ctxt)
 >>
 
 //======================================================================================
@@ -301,7 +321,7 @@ dataReaderSignature(data, model) ::=<<
  *! \return Status of the operation. Either OK, or KO iff no value have yet
  *! been published
  */
-SARC_Ecode <model.package>_<data.name>_DATA_get_reader
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><data.name>_DATA_get_reader
   (<model.package>_context * ctxt,
    t_<data.name>_handle * sarc_handle)>>
 
@@ -318,7 +338,7 @@ dataReleaseSignature(data, model) ::=<<
  *! corrupted
  */
 
-SARC_Ecode <model.package>_<data.name>_DATA_release
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><data.name>_DATA_release
   (<model.package>_context * ctxt,
    t_<data.name>_handle * sarc_handle)>>
 
@@ -331,7 +351,7 @@ dataIsInitializedSignature(data, model) ::=<<
  *! \param[in] sarc_ctxt Instance context
  *! \return true if the data has ever been initialized or published
  */
-SARC_boolean8 <model.package>_<data.name>_DATA_is_initialized
+SARC_boolean8 <model.package>_<if(!model.isCComponent)><model.implName>_<endif><data.name>_DATA_is_initialized
   (<model.package>_context * ctxt)>>
 
 //=======================================================================================
@@ -348,7 +368,7 @@ dataWriterSignature(data, model) ::=<<
  *!   - or no value have yet been published and initialization is requested
  */
 
-SARC_Ecode <model.package>_<data.name>_DATA_get_writer
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><data.name>_DATA_get_writer
   (<model.package>_context * ctxt,
    t_<data.name>_handle * sarc_handle,
    SARC_DataValue init)>>
@@ -366,7 +386,7 @@ dataPublishSignature(data, model) ::=<<
  *! corrupted
  */
 
-SARC_Ecode <model.package>_<data.name>_DATA_publish
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><data.name>_DATA_publish
   (<model.package>_context * ctxt,
   t_<data.name>_handle * sarc_handle)>>
 
@@ -383,7 +403,7 @@ dataCancelSignature(data, model) ::=<<
  *! corrupted
  */
 
-SARC_Ecode <model.package>_<data.name>_DATA_cancel
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><data.name>_DATA_cancel
   (<model.package>_context * ctxt,
   t_<data.name>_handle * sarc_handle)>>
 
@@ -397,7 +417,7 @@ getAttributeSignature(attr, model) ::=<<
  *! \param[out] <attr.name> accessor to the '<attr.name>' attribute
  *! \return Status of the operation. Either OK, or KO if ctxt is corrupted
  */
-SARC_Ecode <model.package>_get_attribute_<attr.name> (
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif>get_attribute_<attr.name> (
   <model.package>_context *ctxt,
   <parameter(attr, false)>)>>
 
@@ -414,7 +434,7 @@ pinfoReadSignature(pinfo, model) ::=<<
  *! \param[out] size number of bytes read
  *! \return Status of the operation.
  */
-SARC_Ecode <model.package>_<pinfo.name>_PINFO_read (
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><pinfo.name>_PINFO_read (
   <model.package>_context *ctxt,
   void *data, SARC_MwSize capacity, SARC_MwSize * size)>>
 
@@ -431,7 +451,7 @@ pinfoWriteSignature(pinfo, model) ::=<<
  *! \param[out] size number of bytes written
  *! \return Status of the operation.
  */
-SARC_Ecode <model.package>_<pinfo.name>_PINFO_write (
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><pinfo.name>_PINFO_write (
   <model.package>_context *ctxt,
   void *data, SARC_MwSize count, SARC_MwSize * size)>>
 
@@ -448,7 +468,7 @@ pinfoSeekSignature(pinfo, model) ::=<<
  *! \param[out] position new position of the reading head (offset from the start of the PINFO)
  *! \return Status of the operation.
  */
-SARC_Ecode <model.package>_<pinfo.name>_PINFO_seek (
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif><pinfo.name>_PINFO_seek (
   <model.package>_context *ctxt,
   SARC_int32 offset, SARC_PInfoOrigin origin, SARC_MwSize * position)>>
 
@@ -461,7 +481,7 @@ externalStopSignature(model) ::=<<
  *! \param[in] ctxt Instance context
  *! \return Status of the operation. Either OK, or KO if the task cannot be stopped
  */
-SARC_Ecode <model.package>_stop_external_thread (<model.package>_context *ctxt);>>
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif>stop_external_thread (<model.package>_context *ctxt);>>
 
 //====================================================================================================
 //@name Signature of the container function for starting the external thread of an EXTERNAL component.
@@ -471,58 +491,58 @@ externalStartSignature(model) ::=<<
  *! \param[in] ctxt Instance context
  *! \return Status of the operation. Either OK, or KO if the task cannot be started
  */
-SARC_Ecode <model.package>_start_external_thread (<model.package>_context *ctxt);>>
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif>start_external_thread (<model.package>_context *ctxt);>>
 
 //=========================================================
 //
 
 lifeCycleCommandSignature(model) ::=<<
-void <model.package>_component_state_command (<model.package>_context * ctxt, SARC_int32 instance, SARC_LifeCycleShift shift);
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>component_state_command (<model.package>_context * ctxt, SARC_int32 instance, SARC_LifeCycleShift shift);
 >>
 
 
 componentStateRequestSignature(model) ::=<<
-SARC_LifeCycleState <model.package>_component_status (<model.package>_context * ctxt, SARC_int32 p_instance);
+SARC_LifeCycleState <model.package>_<if(!model.isCComponent)><model.implName>_<endif>component_status (<model.package>_context * ctxt, SARC_int32 p_instance);
 >>
 
 
 componentByIdSignature(model) ::=<<
-const SARC_char8* <model.package>_component_name (<model.package>_context * ctxt, SARC_int32 p_instance);
+const SARC_char8* <model.package>_<if(!model.isCComponent)><model.implName>_<endif>component_name (<model.package>_context * ctxt, SARC_int32 p_instance);
 >>
 
 
 componentByNameSignature(model) ::=<<
-SARC_int32 <model.package>_component_id (<model.package>_context * ctxt, const SARC_char8 * p_instance_name);
+SARC_int32 <model.package>_<if(!model.isCComponent)><model.implName>_<endif>component_id (<model.package>_context * ctxt, const SARC_char8 * p_instance_name);
 >>
 
 
 componentExecSignature(model) ::=<<
-SARC_int32 <model.package>_component_executable_id (<model.package>_context * ctxt, SARC_int32 p_instance);
+SARC_int32 <model.package>_<if(!model.isCComponent)><model.implName>_<endif>component_executable_id (<model.package>_context * ctxt, SARC_int32 p_instance);
 >>
 
 
 executableStateSignature(model) ::=<<
-SARC_ExecutableStates <model.package>_executable_status (<model.package>_context * ctxt, SARC_int32 p_binary);
+SARC_ExecutableStates <model.package>_<if(!model.isCComponent)><model.implName>_<endif>executable_status (<model.package>_context * ctxt, SARC_int32 p_binary);
 >>
 
 
 executableStateCommandSignature(model) ::=<<
-void <model.package>_executable_command (<model.package>_context * ctxt, SARC_int32 p_binary, SARC_ExecutablesCommands p_command);
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>executable_command (<model.package>_context * ctxt, SARC_int32 p_binary, SARC_ExecutablesCommands p_command);
 >>
 
 
 execByIdSignature(model) ::=<<
-const SARC_char8* <model.package>_executable_name (<model.package>_context * ctxt, SARC_int32 p_binary);
+const SARC_char8* <model.package>_<if(!model.isCComponent)><model.implName>_<endif>executable_name (<model.package>_context * ctxt, SARC_int32 p_binary);
 >>
 
 
 execPlatformSignature(model) ::=<<
-SARC_int32 <model.package>_executable_platform_id (<model.package>_context * ctxt, SARC_int32 p_binary);
+SARC_int32 <model.package>_<if(!model.isCComponent)><model.implName>_<endif>executable_platform_id (<model.package>_context * ctxt, SARC_int32 p_binary);
 >>
 
 
 platformByIdSignature(model) ::=<<
-const SARC_char8* <model.package>_platform_name (<model.package>_context * ctxt, SARC_int32 p_site);
+const SARC_char8* <model.package>_<if(!model.isCComponent)><model.implName>_<endif>platform_name (<model.package>_context * ctxt, SARC_int32 p_site);
 >>
 
 //=========================================================
@@ -543,13 +563,13 @@ declareVariables(model) ::=<<
 
 
 getVariableSignature(var, model) ::=<<
-SARC_Ecode <model.package>_get_variable_<var.name>
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif>get_variable_<var.name>
   (<model.package>_context *sarc_ctxt,
    <parameter(var, false)>)>>
 
 
 setVariableSignature(var, model) ::=<<
-SARC_Ecode <model.package>_set_variable_<var.name>
+SARC_Ecode <model.package>_<if(!model.isCComponent)><model.implName>_<endif>set_variable_<var.name>
   (<model.package>_context *sarc_ctxt,
    <parameter(var, true)>)>>
 
@@ -561,7 +581,7 @@ declareUserTracePoints(model) ::=<<
 <model.topics : { tp | 
 #define TRACE_TOPIC_<tp.name> <i>
 }>
-void <model.package>_trace_topic(<model.package>_context *ctxt, SARC_uint32 id, SARC_TraceLevel level, const char *format, ...);
-SARC_boolean8 <model.package>_trace_topic_is_active(<model.package>_context *ctxt, SARC_uint32 id, SARC_TraceLevel level);
+void <model.package>_<if(!model.isCComponent)><model.implName>_<endif>trace_topic(<model.package>_context *ctxt, SARC_uint32 id, SARC_TraceLevel level, const char *format, ...) SARC_FORMAT_STRING(4, 5);
+SARC_boolean8 <model.package>_<if(!model.isCComponent)><model.implName>_<endif>trace_topic_is_active(<model.package>_context *ctxt, SARC_uint32 id, SARC_TraceLevel level);
 <endif>
 >>

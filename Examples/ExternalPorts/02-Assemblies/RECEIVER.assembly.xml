@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assembly xmlns="http://www.ecoa.technology/Assembly/3.0" componentType="RECEIVER">
+
+  <instance name="RECEIVER" componentType="RECEIVER" implementation="C">
+  </instance>
+
+  <links>
+    <eventLink>
+      <sender instance="extern" operation="msg"/>
+      <receiver instance="RECEIVER" operation="msg"/>
+    </eventLink>
+  </links>
+
+</assembly>

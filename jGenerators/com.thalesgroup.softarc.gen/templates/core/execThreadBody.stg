@@ -51,7 +51,7 @@ declarations(exec, thread) ::=<<
 /*===================== Global variables, private to this task ===========*/
 
 // state of all components, seen from this task
-static SARC_LifeCycleState component_state[SARC_MAX_NB_COMPONENT] =
+static SARC_LifeCycleState component_state_<thread.name>[SARC_MAX_NB_COMPONENT] =
   { 
   <thread.instances : { instance |
     [<instance.idNo>] = SARC_LIFE_CYCLE_STATE_UNAVAILABLE, }>
@@ -82,13 +82,13 @@ SARC_deactivate_timeout_<thread.name>(const SARC_char8*bufin, SARC_uint32 size)
   SARC_uint32 request_id_message;
   SARC_DeserializationContext s_request;
   SARC_DeserializationContext s_message;
-  SARC_serial_start_deserialize (&s_request, bufin, size);
+  SARC_serial_start_deserialize (&s_request, bufin, size, SARC_FALSE);
 
   SARC_uint32_deserialize(&s_request, &oper_id);
   SARC_uint32_deserialize(&s_request, &request_id);
   for(SARC_timed_message* m = timed_messages_list_head; m != NULL; m = m-\>next)
   {
-    SARC_serial_start_deserialize (&s_message, m-\>message, m-\>size);
+    SARC_serial_start_deserialize (&s_message, m-\>message, m-\>size, SARC_FALSE);
     SARC_uint32_deserialize(&s_message, &oper_id_timeout_message);
     SARC_uint32_deserialize(&s_message, &oper_id_message);
     SARC_uint32_deserialize(&s_message, &request_id_message);
@@ -114,7 +114,7 @@ SARC_handle_timeout_<thread.name>(const SARC_char8 *bufin, SARC_uint32 size)
   SARC_int32 oper_id;
   SARC_uint32 request_id;
   SARC_DeserializationContext sarc_deserial_ctxt;
-  SARC_serial_start_deserialize (&sarc_deserial_ctxt, bufin, size);
+  SARC_serial_start_deserialize (&sarc_deserial_ctxt, bufin, size, SARC_FALSE);
 
   SARC_int32_deserialize(&sarc_deserial_ctxt, &oper_id);
   SARC_uint32_deserialize(&sarc_deserial_ctxt, &request_id);
@@ -128,7 +128,7 @@ SARC_handle_timeout_<thread.name>(const SARC_char8 *bufin, SARC_uint32 size)
 <operationsGroup.operations : { operationLink | 
 <if (operationLink.requestResponse.isTimed)>
       /* SERVICE CALLBACK <operationLink.requestResponse.name> (required by <instance.name> / link <operationLink.id>) */
-      case <operationLink.id>:
+      case (<operationLink.id> + 1):
         instance_<instance.name>_<operationLink.requestResponse.name>_OUT_EVENT_timeout (request_id);
         break;
 <endif>}><endif>}><endif>}>
@@ -152,13 +152,13 @@ void SARC_handle_message_<thread.name>(const void * bufin, SARC_uint32 size){
   SARC_DeserializationContext sarc_deserial_ctxt;
   SARC_int32 oper_id = 0;
   SARC_int32 instance, state, command;
-  SARC_serial_start_deserialize (&sarc_deserial_ctxt, bufin, size);
+  SARC_serial_start_deserialize (&sarc_deserial_ctxt, bufin, size, SARC_FALSE);
 
   SARC_int32_deserialize(&sarc_deserial_ctxt, &oper_id);
 #ifdef SARC_VERBOSE
-  printf("SARC_handle_message_<thread.name> %d ", oper_id);
-  for (int i=0; i\<size; i++)
-    printf(" %02.2X", bufin[i]);
+  printf("SARC_handle_message_TESTED %d ", oper_id);
+  for (SARC_uint32 i=0; i\<size; i++)
+    printf(" %02.2X", ((char*)bufin)[i]);
   printf("\n");
 #endif
   SARC_boolean8 operation_found = SARC_FALSE;
@@ -178,11 +178,13 @@ void SARC_handle_message_<thread.name>(const void * bufin, SARC_uint32 size){
 	            \}
 	          else
 	            {
-                <thread.instances : { instance |
-                <if(instance.type.isSupervisor)>
-<instance.name>_SUPERVISOR_routine(instance, state, <instance.name>_global_tech.componentStableState[instance]);
-                 <endif>}>
-	              component_state[instance] = state;
+<thread.instances : { instance |
+<if(instance.type.isSupervisor)>
+                  <instance.name>_SUPERVISOR_routine(instance, state, <instance.name>_global_tech.componentStableState[instance]);
+<endif>
+}>
+                  if (SARC_table_task_of_instance[instance] != <thread.idNo>)
+                    component_state_<thread.name>[instance] = state;
 	            \}
 	        \}
 	      operation_found = SARC_TRUE;
@@ -206,7 +208,7 @@ void SARC_handle_message_<thread.name>(const void * bufin, SARC_uint32 size){
 <thread.instances : { instance | 
 	                
 	                  case <instance.id>:
-	                    SARC_gen_handle_lifecycle_command (<instance.id>, &component_state[<instance.id>], command,
+	                    SARC_gen_handle_lifecycle_command (<instance.id>, &component_state_<thread.name>[<instance.id>], command,
 	                                                      <instance.name>_global_tech.lifecycle_entrypoints);
 	                    break;
 }>
@@ -236,7 +238,7 @@ void SARC_handle_message_<thread.name>(const void * bufin, SARC_uint32 size){
             {
               SARC_DeserializationContext s;
               SARC_int32 oper_id;
-              SARC_serial_start_deserialize (&s, m->message, m->size);
+              SARC_serial_start_deserialize (&s, m->message, m->size, SARC_FALSE);
               SARC_int32_deserialize(&s, &oper_id);
               if(oper_id == oper_id_to_cancel)
                 m = SARC_timed_message_delete(&timed_messages_list_head, m);
@@ -282,7 +284,7 @@ broadcast_lifecycle_command(SARC_LifeCycleShift shift)
 {
   // for each instance of this task:
 <thread.instances : { instance |
-  SARC_gen_handle_lifecycle_command (<instance.id>, &component_state[<instance.id>], shift,
+  SARC_gen_handle_lifecycle_command (<instance.id>, &component_state_<thread.name>[<instance.id>], shift,
                                      <instance.name>_global_tech.lifecycle_entrypoints);
   usleep (100000); // wait 100ms for command effect
 }>
@@ -345,7 +347,7 @@ SARC_routine_<thread.name> (void *sarc_parameter __attribute__ ((unused)))
         \}
 
       if (msg_size > 0)
-      {
+        {
           if (msg_size \< 4)
             {
               SARC_log_error ("received message by <thread.name> is too small, size=%d", msg_size);
@@ -422,32 +424,22 @@ SARC_<thread.name>_COMPONENTSTATECHANGE_FUNCTION (SARC_char8 *request, SARC_uint
 >>
 
 
-//========================================================
-//@name Received event function implementation
-//@param exec Executable
-//@param thread Thread
-//@param operationsGroup OperationsGroup
-implementReceivedEventFunction (exec, thread, operationsGroup) ::=<<
-
-<operationsGroup.operations : { operationLink | 
-/* EVENT <operationLink.event.name> (received by <operationLink.parent.name> / link <operationLink.id>) */
-if (component_state[<operationLink.parent.id>] == SARC_LIFE_CYCLE_STATE_RUNNING
-    && <common_isLinkActive(operationLink)>)
+implementInstanceReceivedEventFunction (exec, instance, operationsGroup) ::=<<
+if (component_state_<instance.thread.name>[<instance.id>] == SARC_LIFE_CYCLE_STATE_RUNNING)
   {
-    instance_<operationLink.parent.name>_<operationLink.event.name>_EVENT_receive (sarc_deserial_ctxt.buffer + sarc_deserial_ctxt.pos, sarc_deserial_ctxt.raw_size - sarc_deserial_ctxt.pos);
-  \}}>
+<operationsGroup.operations : { operationLink |
+/* EVENT <operationLink.event.name> (received by <operationLink.parent.name> / link <operationLink.id>) */
+    if(<common_isLinkActive(operationLink)>)
+    {
+      instance_<instance.name>_<operationLink.event.name>_EVENT_receive (sarc_deserial_ctxt.buffer + sarc_deserial_ctxt.pos, sarc_deserial_ctxt.raw_size - sarc_deserial_ctxt.pos);
+    \}}>
+  \}
+else
+  SARC_log_info("event <first(operationsGroup.operations).event.name> (link <first(operationsGroup.operations).id>) is ignored by (received by instance <instance.name> because it is not running");
 >>
 
 
 implementInstanceOperationRequestFunctions(exec, thread, instance) ::=<<
-<if (instance.type.isTimer)>
-<instance.sentEventLinks : { eventLink |
-case <eventLink.callbackId>:
-  <implementReceivedEventFunctionForTimer(exec, instance, eventLink)>
-  operation_found = SARC_TRUE;
-  break;
-}>
-<else>
 <if (instance.sortedOperations)>
 <instance.sortedOperations : { operationsGroup |
 case <operationsGroup.reqId>:
@@ -469,30 +461,11 @@ case <operationsGroup.reqId>:
 \}
 }>
 <endif>
-<endif>
 >>
 
-implementReceivedEventFunctionForTimer(exec, instance, eventLink) ::=<<
-if (component_state[<instance.id>] == SARC_LIFE_CYCLE_STATE_RUNNING)
-  {
-    instance_<instance.name>_<eventLink.event.name>_EVENT_receive (NULL, 0);
-  \}
->>
-
-
-implementInstanceReceivedEventFunction (exec, instance, operationsGroup) ::=<<
-if (component_state[<instance.id>] == SARC_LIFE_CYCLE_STATE_RUNNING)
-  {
-<operationsGroup.operations : { operationLink |
-    if(<common_isLinkActive(operationLink)>)
-    {
-      instance_<instance.name>_<operationLink.event.name>_EVENT_receive (sarc_deserial_ctxt.buffer + sarc_deserial_ctxt.pos, sarc_deserial_ctxt.raw_size - sarc_deserial_ctxt.pos);
-    \}}>
-  \}
->>
 
 implementInstanceRequiredRequestResponseCallbackFunction (exec, thread, instance, operationsGroup) ::=<<
-if (component_state[<instance.id>] == SARC_LIFE_CYCLE_STATE_RUNNING)
+if (component_state_<thread.name>[<instance.id>] == SARC_LIFE_CYCLE_STATE_RUNNING)
   {
 <operationsGroup.operations : { operationLink |
 <if (operationLink.requestResponse.isTimed)> 
@@ -506,6 +479,8 @@ if (component_state[<instance.id>] == SARC_LIFE_CYCLE_STATE_RUNNING)
     
 }>
   \}
+else
+  SARC_log_info("response <first(operationsGroup.operations).requestResponse.name> ignored because instance <instance.name> is not running");
 >>
 
 implementInstanceUpdataData (exec, instance, operationsGroup) ::=<<
@@ -534,7 +509,7 @@ if( !operation_found )
 
 
 implementInstanceProvidedRequestResponseFunction (exec, instance, operationsGroup) ::=<<
-if (component_state[<instance.id>] == SARC_LIFE_CYCLE_STATE_RUNNING)
+if (component_state_<thread.name>[<instance.id>] == SARC_LIFE_CYCLE_STATE_RUNNING)
 {
 <operationsGroup.operations : { operationLink | 
 if(<common_isLinkActive(operationLink)>)
@@ -548,14 +523,14 @@ if(<common_isLinkActive(operationLink)>)
       SARC_uint32 sarc_sizeout = 4;
       oper_id = <operationLink.callbackId>;
 	  
-      SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<instance.thread.name>);
+      SARC_serial_start_serialize (&sarc_serial_ctxt, SARC_routing_buffer_<instance.thread.name>, SARC_FALSE);
       SARC_uint32_serialize (&sarc_serial_ctxt, &oper_id);
       
       sarc_sizeout += instance_<instance.name>_<operationLink.requestResponse.name>_SERVICE_provide
         (sarc_deserial_ctxt.buffer + sarc_deserial_ctxt.pos, sarc_deserial_ctxt.raw_size - sarc_deserial_ctxt.pos, SARC_routing_buffer_<instance.thread.name> + 4);
       
       SARC_uint32 sarc_request_id = 0;
-      SARC_serial_start_deserialize(&sarc_deserial_ctxt, SARC_routing_buffer_<instance.thread.name>, sarc_sizeout);
+      SARC_serial_start_deserialize(&sarc_deserial_ctxt, SARC_routing_buffer_<instance.thread.name>, sarc_sizeout, SARC_FALSE);
       sarc_deserial_ctxt.pos = 4;
       SARC_uint32_deserialize(&sarc_deserial_ctxt, &sarc_request_id);
   
@@ -577,6 +552,8 @@ if(<common_isLinkActive(operationLink)>)
   \}
 }>
 \}
+else
+  SARC_log_info("response <first(operationsGroup.operations).requestResponse.name> ignored because instance <instance.name> is not running");
 >>
 
 common_isLinkActive(link) ::=<<

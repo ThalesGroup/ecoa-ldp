@@ -2,7 +2,7 @@
 
 package com.thalesgroup.softarc.types;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import com.thalesgroup.softarc.sf.EnumValue;
@@ -23,8 +23,8 @@ public class EnumWrapper {
     /**
      * A map from symbol (converted to *lowercase*) to EnumValue
      */
-    private final Map<String, EnumerationValue> mapSymbolKey = new HashMap<String, EnumerationValue>();
-    public final Map<Long, EnumerationValue> mapNumberKey = new HashMap<Long, EnumerationValue>();
+    private final Map<String, EnumerationValue> mapSymbolKey = new LinkedHashMap<String, EnumerationValue>();
+    public final Map<Long, EnumerationValue> mapNumberKey = new LinkedHashMap<Long, EnumerationValue>();
 
     public EnumerationValue getValue(String symbolOrNumber) {
         try {

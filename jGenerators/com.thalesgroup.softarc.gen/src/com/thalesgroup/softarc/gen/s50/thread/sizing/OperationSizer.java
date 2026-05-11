@@ -14,14 +14,7 @@ import com.thalesgroup.softarc.sf.Parameter;
 
 public class OperationSizer {
 
-    private final boolean simulation;
-
     public OperationSizer() {
-        this(false);
-    }
-
-    public OperationSizer(boolean isSimulation) {
-        this.simulation = isSimulation;
     }
 
     // Analyze parameters'list field-by-field and compute its various sizes
@@ -32,7 +25,7 @@ public class OperationSizer {
             TypeSizeContext typeSizeCtxt = new TypeSizeContext();
             TypeSizer.computeTypeSize(parameter.getType(), typeSizeCtxt);
 
-            sizeCtxt.add_field(typeSizeCtxt);
+            sizeCtxt.addField(typeSizeCtxt);
         }
     }
 
@@ -50,24 +43,16 @@ public class OperationSizer {
         TypeSizer.computePredefTypeSize("int32", id_size);
 
         // Input parameters
-        operationCtxt.in.add_field(id_size);
-        if (this.simulation) {
-            operationCtxt.in.add_field(id_size); // client instance
-            operationCtxt.in.add_field(id_size); // client activation
-        }
+        operationCtxt.in.addField(id_size);
         computeParametersSize(componentTypeModel, inList, operationCtxt.in);
         operationCtxt.in.finalize();
-        operationDefinition.setSize(operationCtxt.in.raw_size);
+        operationDefinition.setSize(operationCtxt.in.rawSize);
 
         // Output parameters
-        operationCtxt.out.add_field(id_size);
-        if (this.simulation) {
-            operationCtxt.out.add_field(id_size); // server instance
-            operationCtxt.out.add_field(id_size); // server activation
-        }
+        operationCtxt.out.addField(id_size);
         computeParametersSize(componentTypeModel, outList, operationCtxt.out);
         operationCtxt.out.finalize();
-        operationDefinition.setSizeOut(operationCtxt.out.raw_size);
+        operationDefinition.setSizeOut(operationCtxt.out.rawSize);
     }
 
     // Dimensionne les ressources nécessaires à la circulation d'un événement
@@ -76,16 +61,10 @@ public class OperationSizer {
         Component componentTypeModel = operationCtxt.instance.getType();
         Collection<Parameter> parameterList;
 
-        if (this.simulation) {
-            TypeSizeContext id_size = new TypeSizeContext();
-            TypeSizer.computePredefTypeSize("int32", id_size);
-            operationCtxt.in.add_field(id_size); // sender instance
-            operationCtxt.in.add_field(id_size); // sender activation
-        }
         parameterList = operationDefinition.getInParameters();
         computeParametersSize(componentTypeModel, parameterList, operationCtxt.in);
         operationCtxt.in.finalize();
-        operationDefinition.setSize(operationCtxt.in.raw_size);
+        operationDefinition.setSize(operationCtxt.in.rawSize);
     }
 
     // Dimensionne les ressources nécessaires à la circulation d'une donnée
@@ -96,18 +75,18 @@ public class OperationSizer {
         TypeSizeContext flag_size = new TypeSizeContext();
 
         TypeSizer.computePredefTypeSize("boolean8", flag_size);
-        operationCtxt.in.add_field(flag_size);
+        operationCtxt.in.addField(flag_size);
 
         // Data itself
         TypeSizeContext data_size = new TypeSizeContext();
 
         TypeSizer.computeTypeSize(operationDefinition.getType(), data_size);
-        operationCtxt.in.add_field(data_size);
-        operationCtxt.data.add_field(data_size);
+        operationCtxt.in.addField(data_size);
+        operationCtxt.data.addField(data_size);
 
         // Finalize
         operationCtxt.in.finalize();
         operationCtxt.data.finalize();
-        operationDefinition.setSize(operationCtxt.in.raw_size);
+        operationDefinition.setSize(operationCtxt.in.rawSize);
     }
 }

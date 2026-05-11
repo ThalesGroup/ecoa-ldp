@@ -184,9 +184,9 @@ In case of abnormal termination, it may be necessary to remove them manually wit
 
 ### Integrated console; scripting
 
-When an application is executed, it has an integrated console that can be used to command and control the execution.
+When an application is executed, it has an integrated console, called the _launcher_, that can be used to command and control the execution.
 
-At startup, a text similar to the following is printed:
+At startup, if the standard input is an interactive terminal, a text similar to the following is printed:
 
 ```
 List of available commands:
@@ -213,6 +213,20 @@ model (from 0 to N-1, N being the total number of instances).
 This built-in shell available for every application allows to initialize and start components, and many other things.
 
 The application can be terminated by the command `Quit` or entering Ctrl-C.
+
+If the standard output of the application (`stdin`) is not an interactive terminal, the help text and the prompts are
+_not_ printed, and the commands are printed on `stdout` when they are executed.
+This allows to script an execution scenario, and follow the script execution. Example:
+
+```
+./a.out < my_script.txt
+```
+
+If you dont't need any script and don't want the help text and the `>>` prompt, just run:
+
+```
+./a.out < /dev/null
+```
 
 
 ### Running though Ant
@@ -273,6 +287,41 @@ The format is one line per log, formatted as follows:
 Note: Presently, the level is not displayed.
 
 Note: When several components produce logs simultaneously from several tasks or executables, the logs may be mixed up on the standard output.
+
+
+### Communication Ports
+
+The management of external ports is done in 03-Deployments/ via a .deployment.xml file for the declaration of the different "inPort", "outPort" and "inOutPort".
+The declaration of addresses and ports related to those described in the deployment is done through a configuration file named "external_conf.txt" 
+that must be present in the current working directory at execution time. By default, a file is generated with a configuration in "localhost" mode.
+After the first generation, the default configuration is never overwritten. This default configuration can be changed according to the need of the user. 
+
+Each line of the file represents the configuration of one of the ports described inside the deployment.xml file, with the following semantics:
+
+```
+PORT_NAME PORT_ADDRESS PORT_NUMBER
+```
+
+Example: 
+
+```
+CH1_IN 127.0.0.1 55555
+```
+
+A TCP socket for the port CH1_IN will be created with the adress 0.0.0.0 and a port of 55555. 
+
+Use the special address 0.0.0.0 to receive from anywhere.
+
+/!\ In the case of inOutPort, the chosen name of the port will be suffixed by 'OUT' (as all outPort). DO NOT USE 'OUT' at the end of an outPort or inOutPort port name.
+
+/!\ In the case of inOutPort, 2 port names will be added in the external\_conf.txt file, with one named : "portName_OUT" as the port used to send messages outside of the application.
+
+For Example, the creation of an inOutPort CH3 will create the following lines: 
+
+```
+CH3 0.0.0.0 55555
+CH3_OUT 127.0.0.1 55555
+```
 
 
 ## Ant extension points

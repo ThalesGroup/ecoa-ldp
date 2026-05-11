@@ -2,13 +2,13 @@
 
 package com.thalesgroup.softarc.gen.common.languageHandler;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 import com.thalesgroup.softarc.tools.InconsistentModelError;
 
 public final class LanguagesHandler {
 
-    private final static HashMap<String, LanguageHandler> supportedLanguages = new HashMap<>();
+    private final static LinkedHashMap<String, LanguageHandler> supportedLanguages = new LinkedHashMap<>();
 
     public static String defaultBinding = "SOFTARC_C";
 

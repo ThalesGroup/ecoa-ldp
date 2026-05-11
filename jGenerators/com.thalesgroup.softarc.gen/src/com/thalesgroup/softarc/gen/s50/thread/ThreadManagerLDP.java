@@ -4,15 +4,11 @@ package com.thalesgroup.softarc.gen.s50.thread;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
 import com.thalesgroup.softarc.gen.common.AbstractPass;
 import com.thalesgroup.softarc.gen.common.IdAllocator;
-import com.thalesgroup.softarc.gen.s50.thread.sizing.RequestQueueSizer;
-import com.thalesgroup.softarc.gen.s50.thread.sizing.VrSetSizer;
 import com.thalesgroup.softarc.sf.Assembly;
 import com.thalesgroup.softarc.sf.DataLink;
 import com.thalesgroup.softarc.sf.DataLinkElement;
@@ -25,7 +21,6 @@ import com.thalesgroup.softarc.sf.Instance;
 import com.thalesgroup.softarc.sf.Mapping;
 import com.thalesgroup.softarc.sf.OperationRequestResponse;
 import com.thalesgroup.softarc.sf.Platform;
-import com.thalesgroup.softarc.sf.Request;
 import com.thalesgroup.softarc.sf.RequestResponseLink;
 import com.thalesgroup.softarc.sf.RequestResponseLinkReceiver;
 import com.thalesgroup.softarc.sf.Thread;
@@ -40,6 +35,7 @@ import com.thalesgroup.softarc.sf.impl.QThread;
 import com.thalesgroup.softarc.sf.impl.QThreadBase;
 import com.thalesgroup.softarc.sf.impl.QTriggerInstance;
 
+import com.thalesgroup.softarc.tools.InconsistentModelError;
 import technology.ecoa.model.deployment.DEApplication;
 import technology.ecoa.model.deployment.DEDeployedInstance;
 import technology.ecoa.model.deployment.DEExecutable;
@@ -99,9 +95,6 @@ public class ThreadManagerLDP {
     }
 
     void initializeMapping() throws IOException {
-
-        checkExternalOperations();
-
         // Création de la structure du Mapping par un parcours en profondeur
         // du Deployment
 
@@ -118,7 +111,7 @@ public class ThreadManagerLDP {
         operationManager.computeInstancesBufferSizes(assembly);
 
         // Add Endianness fed to DE
-        mapping.setIsLittleEndian(deployment.getEndianness() == Endianness.LITTLE);
+        mapping.setIsNetworkEndiannessLittleEndian(deployment.getEndianness() == Endianness.LITTLE);
     }
 
     private void standardThreadAnalysis(DEApplication platform)
@@ -271,7 +264,6 @@ public class ThreadManagerLDP {
         osp.setIsListCompliant(false);
         osp.setIsStp(false);
         osp.setSupervision(true);
-        osp.setSimulation(false);
         platform.setOsProperties(osp);
     }
 
@@ -295,128 +287,11 @@ public class ThreadManagerLDP {
         return null;
     }
 
-    /**
-     * Context of the operation identified by link id, only if one of the link elements in the list
-     * refer to an instance called instanceName
-     *
-     * @param linkId identifier of the operation which context is returned
-     * @param collection list of link elements
-     * @param instanceName name of the instance
-     * @return linkedInstanceOperation context of the operation identified by linkId, or null
-     */
-    private OperationContext getLinkedInstanceOperationRequestResponse(long linkId, Collection<RequestResponseLinkReceiver> collection,
-            Instance instance) {
-
-        for (RequestResponseLinkReceiver linkElement : collection) {
-            if (linkElement.getPort().getInstance() == instance) {
-                return operationsContexts.get(linkId);
-            }
-        }
-        return null;
-    }
-
-    private OperationContext getLinkedInstanceOperationData(
-            long linkId, Collection<DataLinkElement> collection, Instance instance) {
-
-        for (DataLinkElement linkElement : collection) {
-            if (linkElement.getPort().getInstance() == instance) {
-                return operationsContexts.get(linkId);
-            }
-        }
-        return null;
-    }
-
-    private void computeActiveOnThread(
-            Instance instance, RequestQueueSizer request_sizer, RequestQueueSizer reply_sizer)
-            throws IOException {
-        OperationContext oper;
-        Long fifosize = null;
-        long nb_republish = 0;
-
-        // RequestResponses
-
-        for (RequestResponseLink serviceLink : assembly.getRequestResponseLinks()) {
-
-            LinkedList<RequestResponseLinkReceiver> serviceLinkClientsList = new LinkedList<RequestResponseLinkReceiver>();
-            serviceLinkClientsList.add(serviceLink.getClient());
-
-            // Called services
-
-            oper = getLinkedInstanceOperationRequestResponse(serviceLink.getId(), serviceLinkClientsList, instance);
-            if (oper != null) {
-                fifosize = serviceLink.getClient().getFifoSize();
-
-                if (oper.async) {
-                    request_sizer.add_request(
-                            serviceLink.getId() + 1, oper.out.raw_size, (long) fifosize);
-                } else {
-                    if (reply_sizer != null)
-                        reply_sizer.add_request(
-                                serviceLink.getId() + 1, oper.out.raw_size, (long) fifosize);
-                }
-            }
-
-            // Provided services
-
-            for (RequestResponseLinkReceiver server : serviceLink.getServers()) {
-                if (server.getPort().getInstance() == instance) {
-                    oper = operationsContexts.get(serviceLink.getId());
-                    if (oper != null) {
-                        fifosize = server.getFifoSize();
-                        request_sizer.add_request(
-                                serviceLink.getId(), oper.in.raw_size, (long) fifosize);
-                    }
-                }
-            }
-        }
-
-        // Events
-
-        for (EventLink eventLink : assembly.getEventLinks()) {
-
-            for (EventLinkReceiver receiver : eventLink.getReceivers()) {
-                if (receiver.getPort().getInstance() == instance) {
-                    oper = operationsContexts.get(eventLink.getId());
-                    if (oper != null) {
-                        fifosize = receiver.getFifoSize();
-                        request_sizer.add_request(
-                                eventLink.getId(), oper.in.raw_size, (long) fifosize);
-                    }
-                }
-            }
-        }
-
-        // Republished data
-
-        for (DataLink dataLink : assembly.getDataLinks()) {
-
-            oper =
-                    getLinkedInstanceOperationData(
-                            dataLink.getId(), dataLink.getWriters(), instance);
-            if (oper != null) {
-                nb_republish += dataLink.getReaders().size();
-            }
-        }
-
-        if (nb_republish > 0) {
-            instance.setHandleRepublishRequests(true);
-            instance.getThread().setHandleRepublishRequests(true);
-            request_sizer.add_request(15, 4, nb_republish);
-        }
-    }
-
     // Complète le Mapping sur la base de sa propre description du système
 
     void finalizeMapping() throws IOException {
 
         for (Platform platform : mapping.getPlatforms()) {
-
-            VrSetSizer request_vrs_sizer =
-                    new VrSetSizer(
-                            "VRs for parameters of requests of platform " + platform.getName());
-
-            RequestQueueSizer request_sizer = new RequestQueueSizer(request_vrs_sizer);
-            RequestQueueSizer reply_sizer = new RequestQueueSizer(request_vrs_sizer);
 
             /*
              * do for every executable of the platform of the mapping
@@ -431,20 +306,10 @@ public class ThreadManagerLDP {
                     long nbRequestResponseOut = 0;
                     long maxBufferOutSize = 0;
 
-                    request_sizer.init();
-                    reply_sizer.init();
-
                     /*
                      * do for every deployed instance of the thread of the executable of the platform of the mapping
                      */
                     for (Instance instance : thread.getInstances()) {
-                        RequestQueueSizer instance_queue_sizer = new RequestQueueSizer(null);
-
-                        /*
-                         * Update task and instance queue sizes
-                         */
-                        computeActiveOnThread(instance, request_sizer, reply_sizer);
-                        computeActiveOnThread(instance, instance_queue_sizer, null);
 
                         /*
                          * Compute thread Consume service Out
@@ -456,7 +321,7 @@ public class ThreadManagerLDP {
                                             operationsContexts.get(serviceLink.getId());
 
                                     maxBufferOutSize =
-                                            Math.max(maxBufferOutSize, oper.out.raw_size);
+                                            Math.max(maxBufferOutSize, oper.out.rawSize);
                                 }
                             }
 
@@ -464,7 +329,7 @@ public class ThreadManagerLDP {
                                 OperationContext oper = operationsContexts.get(serviceLink.getId());
 
                                 if (oper == null) {
-                                    generator.errorModel(
+                                    generator.errorInternal(
                                             "operation %s not found in operationsContexts !!",
                                             serviceLink.getId());
                                 } else {
@@ -476,19 +341,13 @@ public class ThreadManagerLDP {
                                         /*
                                          * look for the max size among all operations output parameters sizes
                                          */
-                                        maxRequestResponseOut = Math.max(maxRequestResponseOut, oper.out.raw_size);
+                                        maxRequestResponseOut = Math.max(maxRequestResponseOut, oper.out.rawSize);
                                     }
                                 }
                             }
                         }
 
-                        // Check global sizing
-
-                        instance.setQueueSize(instance_queue_sizer.get_size());
-                        instance.getRequests().addAll(instance_queue_sizer.get_constraints());
                     }
-
-                    thread.getReplies().addAll(reply_sizer.get_constraints());
 
                     if (maxBufferOutSize > 0) {
                         thread.setMaxBufferOutSize(maxBufferOutSize);
@@ -497,31 +356,10 @@ public class ThreadManagerLDP {
 
                     if (nbRequestResponseOut != 0) {
                         thread.setOutsizemax(maxRequestResponseOut);
-
-                        long shmout = reply_sizer.get_size();
-                        if (shmout > 0) {
-                            thread.setShmoutglobalsize(shmout);
-                            thread.setHasShmout(true);
-                        }
                     }
                 }
 
                 computeSocketOutBuffer(executable);
-            }
-
-            // generate DataVersions for requests (events and services)
-            for (Request request : request_vrs_sizer.getRepositories()) {
-
-                DataVersion dataversion = new QDataVersion();
-                platform.getDataVersions().add(dataversion);
-
-                dataversion.setId(request.getId());
-                dataversion.setXmlID("dataversion:" + platform.getName() + '/' + request.getId());
-                dataversion.setNumberofversions(request.getCapacity());
-                dataversion.setSizeof(request.getParameterSize());
-                dataversion.setSize(request.getParameterSize());
-                dataversion.setRequestsize(request.getParameterSize());
-                dataversion.setDataLink(null); // this DataVersion has no DataLink
             }
 
             // generate Data Sharing Parameters for every data link
@@ -556,7 +394,7 @@ public class ThreadManagerLDP {
                     OperationContext oper = operationsContexts.get(dataLink.getId());
 
                     if (oper == null) {
-                        generator.errorModel("operation %s not found in operationsContexts !!", dataLink.getId());
+                        generator.errorInternal("operation %s not found in operationsContexts !!", dataLink.getId());
                         return; // to avoid Java warning
                     }
                     if (dataLink.getDirect()) {
@@ -573,20 +411,13 @@ public class ThreadManagerLDP {
                     dataversion.setNumberofversions(count);
 
                     dataversion.setSizeof(oper.data.sizeof);
-                    dataversion.setSize(oper.data.raw_size);
-                    dataversion.setRequestsize(oper.in.raw_size);
+                    dataversion.setSize(oper.data.rawSize);
+                    dataversion.setRequestsize(oper.in.rawSize);
                     dataversion.setDataLink(dataLink);
 
                 }
             }
         }
-    }
-
-    boolean checkSizingOverflow() {
-
-        boolean sizingOverflow = false;
-
-        return sizingOverflow;
     }
 
     // Ensemble des binaires (exécutables et aiguilleurs) d'une plateforme
@@ -637,6 +468,9 @@ public class ThreadManagerLDP {
                 if (found) break;
             }
             // Attache a l'instance
+            if (!found) {
+                throw new InconsistentModelError("Trigger '" + trig.getName() + "' not found in links associated to instance '" + instance.getName() + "'");
+            }
             instance.getTriggers().add(maTrig);
         }
 
@@ -680,23 +514,23 @@ public class ThreadManagerLDP {
     	for (EventLink eventLink : assembly.getEventLinks()) {
 			OperationContext oper = operationsContexts.get(eventLink.getId());
     		for(EventLinkReceiver receiver : eventLink.getReceivers()) {
-    			bufferSize += oper.in.raw_size * receiver.getFifoSize();
+    			bufferSize += oper.in.rawSize * receiver.getFifoSize();
     		}
     	}
     	
     	for (DataLink dataLink : assembly.getDataLinks()) {
     		for(DataLinkElement receiver : dataLink.getReaders()) {
     			OperationContext oper = operationsContexts.get(dataLink.getId());
-    			bufferSize += oper.data.raw_size * dataLink.getThreadsLinked().size();
+    			bufferSize += oper.data.rawSize * dataLink.getThreadsLinked().size();
     		}
     	}
 
     	for (RequestResponseLink requestResponse : assembly.getRequestResponseLinks()) {
     		OperationContext oper = operationsContexts.get(requestResponse.getId());
     		for(RequestResponseLinkReceiver server : requestResponse.getServers()) {
-    			bufferSize += oper.in.raw_size * server.getFifoSize();
+    			bufferSize += oper.in.rawSize * server.getFifoSize();
     		}
-    		bufferSize += oper.out.raw_size * requestResponse.getClient().getFifoSize();
+    		bufferSize += oper.out.rawSize * requestResponse.getClient().getFifoSize();
     	}
 
     	exec.setMaxBufferOut(bufferSize);
@@ -707,12 +541,4 @@ public class ThreadManagerLDP {
         return name;
     }
 
-    //
-
-
-    private void checkExternalOperations() throws IOException {
-        if (deployment.getExternalIo() != null) {
-            generator.errorModel("External operations are not supported; section <external_io> in deployment will be ignored");
-        }
-    }
 }

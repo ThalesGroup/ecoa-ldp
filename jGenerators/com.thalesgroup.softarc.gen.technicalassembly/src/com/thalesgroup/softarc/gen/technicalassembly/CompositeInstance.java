@@ -10,6 +10,7 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import com.thalesgroup.ecoa.model.Assembly;
 import com.thalesgroup.ecoa.model.Instance;
@@ -57,6 +58,7 @@ public class CompositeInstance extends InstanceAdapter {
     final Map<String, VariableReference> _variableAliases = new LinkedHashMap<String, VariableReference>();
 
     protected final GenTechnicalAssembly _gen;
+    private LinkIdServer idServer = new LinkIdServer();
 
     /**
      * Creation of a composite.
@@ -69,7 +71,12 @@ public class CompositeInstance extends InstanceAdapter {
      * @throws IOException
      */
     public CompositeInstance(Instance instance, CompositeInstance parent, Assembly internalAssembly, GenTechnicalAssembly gen,
-            File assemblyFile) throws Exception {
+            File assemblyFile) throws IOException {
+        this(instance, parent, internalAssembly, gen, assemblyFile, true);
+    }
+    
+    public CompositeInstance(Instance instance, CompositeInstance parent, Assembly internalAssembly, GenTechnicalAssembly gen,
+            File assemblyFile, boolean isTechnicalAssembly) throws IOException {
         super(instance, parent);
 
         if (instance == null && internalAssembly.getToplevelComponentType() != null) {
@@ -99,7 +106,7 @@ public class CompositeInstance extends InstanceAdapter {
      * 
      * @throws IOException
      */
-    private void buildInstances() throws Exception {
+    private void buildInstances() throws IOException {
         for (String iName : _internalAssembly.instances.keySet()) {
             Instance i = _internalAssembly.instances.get(iName);
 
@@ -193,20 +200,26 @@ public class CompositeInstance extends InstanceAdapter {
      * Construction of the data links from the original assembly.
      */
     private void buildDataLinks() {
+        Map<String, List<ASOpRefWrite>> instanceOperationWritingLinkMap = new LinkedHashMap<>();
         ArrayList<ASOpRef> consumers = new ArrayList<ASOpRef>();
+                
         for (ASDataLink datalink : _internalAssembly.dataLinks) {
             // build list of all consumers for this datalink
             // first, pure readers
             consumers.clear();
             consumers.addAll(datalink.getReader());
+            
             // then, add writers which are also readers (i.e, if reference="true", and not writeOnly, and not external)
             for (ASOpRefWrite consumer : datalink.getWriter()) {
-                if (consumer.isReference()) {
-                    Operation op = resolveOperation(consumer);
-                    // do not add writers tagged 'writeonly', which are not really consumers
-                    // (except for external operations which are seen reversed)
-                    if (!op.writeOnly && !op.isExternalOperationOf(this))
+                Operation op = resolveOperation(consumer);
+                if (!op.writeOnly && !op.isExternalOperationOf(this)) {
+                    final String instanceOperationKey = consumer.getInstance() + "." + consumer.getOperation();
+                    instanceOperationWritingLinkMap.putIfAbsent(instanceOperationKey, new ArrayList<>());
+                    instanceOperationWritingLinkMap.get(instanceOperationKey).add(consumer);
+                    
+                    if (consumer.isReference()) {
                         consumers.add(consumer);
+                    }
                 }
             }
 
@@ -227,7 +240,7 @@ public class CompositeInstance extends InstanceAdapter {
                         // Check that a <reader> element is connected to a <data_read> operation.
                         // For composites, the operation (seen from the outside) must be a data_written operation.
                         checkTypeOfOperation(readerOp, "a <reader> in a <datalink>", CTReadData.class, CTWrittenData.class);
-                    Wire w = new Wire(writerOp, readerOp, Wire.Kind.DATA);
+                    Wire w = new Wire(writerOp, readerOp, EDR.Data);
                     addSourceConditions(producer, w);
                     if (!isWrite) {
                         addTargetConditions(consumer, w);
@@ -243,6 +256,19 @@ public class CompositeInstance extends InstanceAdapter {
                     readerOp.defaultvalue = datalink.getDefaultValue();
                 }
             }
+        }
+        
+        // Check references attributes
+        for (Entry<String, List<ASOpRefWrite>> writingLinksForInstance : instanceOperationWritingLinkMap.entrySet()) {
+            int referenceCount = 0;
+            for (ASOpRefWrite writer : writingLinksForInstance.getValue()) {
+                if (writer.isReference()) {
+                    referenceCount +=  1;
+                }
+            }
+            if (referenceCount != 1)
+                throw new InconsistentModelError(String.format("Operation '%s' has %d references but should have stricly one", 
+                        writingLinksForInstance.getKey(), referenceCount));
         }
     }
 
@@ -263,12 +289,17 @@ public class CompositeInstance extends InstanceAdapter {
      */
     private void buildRequestResponseLinks() {
         for (ASRequestResponseLink link : _internalAssembly.serviceLinks) {
-            Operation source = resolveOperation(link.getClient());
+            ASOpRefClient client = link.getClient();
+            Operation source = resolveOperation(client);
             checkTypeOfOperation(source, "a <client> in a <servicelink>", CTRequestSent.class, CTRequestReceived.class);
+            if (!client.getWhen().isEmpty()) {
+                _gen.warning("Found a <when> element on <client instance='%s' operation='%s'>; it has been ignored", client.getInstance(),
+                        client.getOperation());
+            }
             for (ASOpRef server : link.getServer()) {
                 Operation dest = resolveOperation(server);
                 checkTypeOfOperation(dest, "a <server> in a <servicelink>", CTRequestReceived.class, CTRequestSent.class);
-                Wire w = new Wire(source, dest, Wire.Kind.SERVICE);
+                Wire w = new Wire(source, dest, EDR.RequestResponse);
                 w.sourceFifoSize = computeFifoSize(link, link.getClient());
                 w.targetFifoSize = computeFifoSize(link, server);
                 // REQ
@@ -285,13 +316,15 @@ public class CompositeInstance extends InstanceAdapter {
      */
     private void buildEventLinks() {
         for (ASEventLink link : _internalAssembly.eventLinks) {
-            for (ASOpRef producer : link.getSender()) {
-                for (ASOpRef consumer : link.getReceiver()) {
+            idServer.allocateId(link); // pre-allocate an Id that keeps track of different FIFOs
+            for (ASOpRef consumer : link.getReceiver()) {
+                for (ASOpRef producer : link.getSender()) {
                     Operation dest = resolveOperation(consumer);
                     checkTypeOfOperation(dest, "a <receiver> in an <eventlink>", CTReceivedEvent.class, CTSentEvent.class);
                     Operation source = resolveOperation(producer);
                     checkTypeOfOperation(source, "a <sender> in an <eventlink>", CTSentEvent.class, CTReceivedEvent.class);
-                    Wire w = new Wire(source, dest, Wire.Kind.EVENT);
+                    Wire w = new Wire(source, dest, EDR.Event);
+                    w.originLinkId = link.getId();
                     w.targetFifoSize += computeFifoSize(link, consumer);
                     // REQ
                     w.activating = computeActivating(link, consumer);

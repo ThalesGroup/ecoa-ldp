@@ -16,7 +16,7 @@ package com.thalesgroup.softarc.gen.s50.thread.sizing;
 
 public class TypeSizeContext {
     // Taille du type sérialisé (en nombre d'octets)
-    public long raw_size;
+    public long rawSize;
 
     // Alignement du type : toute instance doit être alignée en mémoire sur un
     // multiple de cette valeur
@@ -26,22 +26,16 @@ public class TypeSizeContext {
     public long sizeof;
 
     public TypeSizeContext() {
-        raw_size = 0;
+        rawSize = 0;
         alignment = 1;
         sizeof = 0;
-    }
-
-    public TypeSizeContext(TypeSizeContext other) {
-        raw_size = other.raw_size;
-        alignment = other.alignment;
-        sizeof = other.sizeof;
     }
 
     // Introduit dans la structure dont on élabore le contexte un champ de
     // contexte correspondant
 
-    public void add_field(TypeSizeContext field) {
-        raw_size += field.raw_size;
+    public void addField(TypeSizeContext field) {
+        rawSize += field.rawSize;
         align(field.alignment);
         alignment = Math.max(alignment, field.alignment);
         sizeof += field.sizeof;
@@ -50,11 +44,11 @@ public class TypeSizeContext {
     // Introduit dans la structure dont on élabore le contexte un tableau
     // de caractéristiques correspondantes
 
-    public void add_array(long nb_elements, TypeSizeContext element) {
-        raw_size += nb_elements * element.raw_size;
+    public void addArray(long nbElements, TypeSizeContext element) {
+        rawSize += nbElements * element.rawSize;
         align(element.alignment);
         alignment = Math.max(alignment, element.alignment);
-        sizeof += nb_elements * element.sizeof;
+        sizeof += nbElements * element.sizeof;
     }
 
     // Assure que la taille en mémoire est bien un multiple de l'alignement

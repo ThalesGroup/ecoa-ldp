@@ -70,7 +70,7 @@ SARC_timed_message_trigger_sendto (SARC_int32 oper_id, SARC_int64 timeout,
   SARC_int32 buffer[4];
   SARC_uint32 sarc_oper_id_timed_message = SARC_OP_TIMED_MESSAGE;
 
-  SARC_serial_start_serialize (&s, &buffer);
+  SARC_serial_start_serialize (&s, &buffer, SARC_FALSE);
   SARC_uint32_serialize (&s, &sarc_oper_id_timed_message);
   SARC_int64_serialize (&s, &timeout);
   SARC_uint32_serialize (&s, &oper_id);

@@ -136,12 +136,18 @@ CUSTOMISATION:
     <echo level="verbose">Deployment file is: ${basedir}/03-Deployments/${deploymentname}.deployment.xml</echo>
   </target>
 
-  <target name="gen" description="Generate all technical code (gentechnicalassembly,gensoftarc)"
-    depends="ready-to-generate,validate_all,gentechnicalassembly,gensoftarc">
+  <target name="gen" description="Generate all technical code"
+    depends="ready-to-generate,gentechnicalassembly,gensoftarc">
   </target>
 
   <target name="gensoftarc" depends="gendir" description="Run the SOFTARC generator">
     <echo message="Running GenSoftarc..."/>
+    <delete>
+      <fileset dir="${gendir}">
+        <include name="src-gen/**"/>
+        <include name="inc-gen/**"/>
+      </fileset>
+    </delete>
     <GenSoftarc deployment="03-Deployments/${deploymentname}.deployment.xml"
              createnew="${createnew}"
              verbose="${verbose}"
@@ -167,6 +173,9 @@ CUSTOMISATION:
       <arg value="-B"/>
     </exec>
     <copy file="${gendir}/a.out" todir="." />
+    <copy todir=".">
+      <fileset file="${gendir}/external_conf.txt"/>
+    </copy>
     <chmod file="a.out" perm="+x" />
     <echo message="========="/>
   </target>

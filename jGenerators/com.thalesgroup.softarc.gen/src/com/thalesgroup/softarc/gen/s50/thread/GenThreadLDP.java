@@ -18,19 +18,16 @@ public class GenThreadLDP extends AbstractPass {
     @Override
     public void execute() throws IOException {
 
+        (new DeploymentChecker(context.DEFILE)).checkAll();;
+        
         // Calcul du contexte opérationnel
-        OperationManager operationManager = new OperationManager(false, false);
+        OperationManager operationManager = new OperationManager(false);
         Map<Long, OperationContext> operationsContexts = operationManager.generateOperationContext(context.system.getAssembly());
 
         //
         ThreadManagerLDP threadManager = new ThreadManagerLDP(this, operationsContexts, operationManager);
         threadManager.initializeMapping();
         threadManager.finalizeMapping();
-
-        // in case of sizing overflow, then generate the mapping file, and stop generation
-        if (threadManager.checkSizingOverflow()) {
-            errorModel("Memory usage overflow; generation stopped");
-        }
         
         checkOperationSize();
     }

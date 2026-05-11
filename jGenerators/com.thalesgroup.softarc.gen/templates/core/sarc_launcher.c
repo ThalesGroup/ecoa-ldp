@@ -29,7 +29,7 @@ SARC_launcher ()
     }
   while (1)
     {
-      char optype[12] = "";
+      char optype[128] = "";
       char secondattr[128] = "";
       int duration;
       char durationunit[4] = "";
@@ -46,7 +46,7 @@ SARC_launcher ()
       if (!tty)
         puts (linec);
       linenumber += 1;
-      int argc = sscanf (linec, "%12s", optype);
+      int argc = sscanf (linec, "%127s", optype);
       if (argc == 0 || optype[0] == '\0' || optype[0] == '#')
         {
           continue;
@@ -58,7 +58,7 @@ SARC_launcher ()
       else if (strcasecmp (optype, "Wait") == 0)
         {
           argc =
-            sscanf (linec, "%12s %i %3s", optype, &duration, durationunit);
+            sscanf (linec, "%127s %i %3s", optype, &duration, durationunit);
           if (argc >= 2)
             {
               if (argc == 3)
@@ -83,7 +83,7 @@ SARC_launcher ()
         }
       else
         {
-          argc = sscanf (linec, "%12s %128s", optype, secondattr);
+          argc = sscanf (linec, "%127s %127s", optype, secondattr);
           if (strcasecmp (optype, "Init") == 0)
             transition = SARC_LIFE_CYCLE_SHIFT_INITIALIZE;
           else if (strcasecmp (optype, "Start") == 0)
@@ -117,7 +117,7 @@ SARC_launcher ()
             }
           else
             {
-              printf ("Unknown command: %s\n", linec);
+              printf ("Unknown command for launcher: \"%s\"\n", linec);
             }
         }
     }

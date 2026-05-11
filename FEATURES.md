@@ -46,6 +46,7 @@ The LDP supports the following elements of the **[ECOA Architecture Specificatio
     * OPTION WARM START CONTEXT (the API is implemented, but no information is kept beween application restarts)
     * OPTION AUTO START EXTERNAL TASK
     * OPTION UTC TIME
+    * OPTION COMM PORTS: application communication ports, external operations
 
   * Standard Extensions
     * None
@@ -73,9 +74,6 @@ The LDP supports only the C programming language, with the following language bi
   * To use it, set `APIType="SOFTARC_C"` in the implementation file of the component.
 
 The attribute _APIVersion_ in implementation files is ignored, as only one version of each binding is supported.
-
-Note that technical components, such as _Periodic trigger managers_, are always assumed to have APIType='SOFTARC_C'.
-Since these components have no manual code, this does not matter for the user of the LDP.
 
 ### Interoperability between different bindings
 
@@ -168,7 +166,6 @@ scripting commands (e.g. `Init *` and `Start *`).
 The value `FAST` starts all components in no particular order.
 
 The value `SYNCHRONIZED` is not supported by the LDP and is considered equivalent to `FAST`.
-
 
 ## Checks performed by the LDP
 

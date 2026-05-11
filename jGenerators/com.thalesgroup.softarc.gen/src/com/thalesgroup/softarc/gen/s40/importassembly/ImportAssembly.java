@@ -3,7 +3,6 @@
 package com.thalesgroup.softarc.gen.s40.importassembly;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map.Entry;
@@ -11,6 +10,7 @@ import java.util.Map.Entry;
 import com.thalesgroup.softarc.gen.common.AbstractPass;
 import com.thalesgroup.softarc.gen.common.languageHandler.LanguageHandler;
 import com.thalesgroup.softarc.gen.common.languageHandler.LanguagesHandler;
+import technology.ecoa.model.datatype.EPredef;
 
 import java.io.IOException;
 import technology.ecoa.model.assembly.ASDataLink;
@@ -58,6 +58,7 @@ import com.thalesgroup.softarc.sf.impl.QPortEvent;
 import com.thalesgroup.softarc.sf.impl.QPortRequestResponse;
 import com.thalesgroup.softarc.sf.impl.QRequestResponseLink;
 import com.thalesgroup.softarc.sf.impl.QRequestResponseLinkReceiver;
+import com.thalesgroup.softarc.sf.impl.QTrigger;
 import com.thalesgroup.softarc.sf.impl.QWhenCondition;
 
 public class ImportAssembly extends AbstractPass {
@@ -88,22 +89,37 @@ public class ImportAssembly extends AbstractPass {
     void addVirtualEvents() {
         for (Component component : context.system.getComponentsIncludingInterface()) {
             if (!component.getIsLibrary() && !component.getIsTimer()) {
-                QOperationEvent notify = createVirtualEvent("sarc_notify", component);
+                QOperationEvent notify = createVirtualEvent("sarc_notify", component, true);
                 component.getSentEvents().add(notify);
                 component.getOperations().add(notify);
             }
+            if (component.getIsTimer()) {
+            	for (OperationEvent event : component.getSentEvents()) {
+            		QOperationEvent notify = createVirtualEvent(event.getName(), component, false);
+            		notify.setRepeatTime(event.getRepeatTime());
+                    component.getReceivedEvents().add(notify);
+                    component.getOperations().add(notify);
+            		
+            		QTrigger trigger = new QTrigger();
+            		trigger.setName(event.getName());
+            		trigger.setEvent(notify);
+            		component.getTriggers().add(trigger);
+            	}
+            }
             for (Trigger t : component.getTriggers()) {
-                QOperationEvent notify = createVirtualEvent("sarc_trigger_" + t.getName(), component);
+                QOperationEvent notify = createVirtualEvent("sarc_trigger_" + t.getName(), component, true);
                 component.getSentEvents().add(notify);
                 component.getOperations().add(notify);
             }
         }
     }
 
-    QOperationEvent createVirtualEvent(String name, Component component) {
+    QOperationEvent createVirtualEvent(String name, Component component, boolean isSent) {
         QOperationEvent op = new QOperationEvent();
         op.setName(name);
         op.setVirtual(true);
+        op.setIsSent(isSent);
+        op.setIsReceived(!isSent);        
         op.setXmlID("op:" + component.getFullName() + "/" + name);
         return op;
     }
@@ -129,10 +145,12 @@ public class ImportAssembly extends AbstractPass {
         // TR-SARC-GEN-REQ-124
         for (Instance i : assembly.getInstancesIncludingExtern()) {
             for (OperationEvent o : i.getType().getSentEvents()) {
-                createPortEvent(i, o);
+                PortEvent p = createPortEvent(i, o);
+                i.getPortsSentEvent().add(p);
             }
             for (OperationEvent o : i.getType().getReceivedEvents()) {
-                createPortEvent(i, o);
+                PortEvent p = createPortEvent(i, o);
+                i.getPortsReceivedEvent().add(p);
             }
         }
 
@@ -145,10 +163,12 @@ public class ImportAssembly extends AbstractPass {
 
         for (Instance i : assembly.getInstancesIncludingExtern()) {
             for (OperationRequestResponse o : i.getType().getRequiredRequestResponses()) {
-                createPortRequestResponse(i, o);
+                PortRequestResponse p = createPortRequestResponse(i, o);
+                i.getPortsRequiredRequestResponse().add(p);
             }
             for (OperationRequestResponse o : i.getType().getProvidedRequestResponses()) {
-                createPortRequestResponse(i, o);
+                PortRequestResponse p = createPortRequestResponse(i, o);
+                i.getPortsProvidedRequestResponse().add(p);
             }
         }
 
@@ -166,10 +186,14 @@ public class ImportAssembly extends AbstractPass {
                 EventLink el = new QEventLink();
                 el.setId(link.getId());
                 for (ASOpRefSend ls : link.getSender()) {
-                    for (PortEvent portEvent : findInstance(ls.getInstance()).getPortsEvent()) {
-                        if (portEvent.getOperation().getName().equals(ls.getOperation())) {
+                    Instance instance = findInstance(ls.getInstance());
+                    for (PortEvent portEvent : instance.getPortsEvent()) {
+                    	if (portEvent.getOperation().getName().equals(ls.getOperation())
+                        		&& ((!instance.getIsExtern() && portEvent.getEvent().getIsSent())
+                        		        ||(instance.getIsExtern() && (portEvent.getEvent().getIsReceived() || link.getNotifiedData() != null)))) {
                             QEventLinkSender sender = new QEventLinkSender();
                             sender.setPort(portEvent);
+                            portEvent.setIsLinked(true);
                             addWhenConditions(ls.getWhen(), sender.getWhenconditions());
                             el.getSenders().add(sender);
                             if (portEvent.getInstance() == assembly.getExternInstance()) {
@@ -181,12 +205,16 @@ public class ImportAssembly extends AbstractPass {
                 }
                 for (ASOpRefReceive lr : link.getReceiver()) {
                     // TR-SARC-GEN-REQ-127
-                    for (PortEvent port : findInstance(lr.getInstance()).getPortsEvent()) {
-                        if (port.getOperation().getName().equals(lr.getOperation())) {
+                    Instance instance = findInstance(lr.getInstance());
+                    for (PortEvent port : instance.getPortsEvent()) {
+                        if (port.getOperation().getName().equals(lr.getOperation())
+                        		&& ((!instance.getIsExtern() && port.getEvent().getIsReceived())
+                        		        ||(instance.getIsExtern() && port.getEvent().getIsSent()))) {
                             QEventLinkReceiver receiver = new QEventLinkReceiver();
                             receiver.setFifoSize(lr.getFifoSize());
                             receiver.setActivating(lr.isActivating());
                             receiver.setPort(port);
+                            port.setIsLinked(true);
                             addWhenConditions(lr.getWhen(), receiver.getWhenconditions());
                             el.getReceivers().add(receiver);
                             if (port.getInstance() == assembly.getExternInstance()) {
@@ -213,6 +241,7 @@ public class ImportAssembly extends AbstractPass {
                         if (portData.getOperation().getName().equals(lr.getOperation())) {
                             QDataLinkElement el = new QDataLinkElement();
                             el.setPort(portData);
+                            portData.setIsLinked(true);
                             addWhenConditions(lr.getWhen(), el.getWhenconditions());
                             dl.getReaders().add(el);
                             if (portData.getInstance() == assembly.getExternInstance()) {
@@ -227,6 +256,7 @@ public class ImportAssembly extends AbstractPass {
                         if (portData.getOperation().getName().equals(lr.getOperation())) {
                             QDataLinkElement el = new QDataLinkElement();
                             el.setPort(portData);
+                            portData.setIsLinked(true);
                             addWhenConditions(lr.getWhen(), el.getWhenconditions());
                             dl.getWriters().add(el);
                             if (portData.getInstance() == assembly.getExternInstance()) {
@@ -274,6 +304,7 @@ public class ImportAssembly extends AbstractPass {
                             receiver.setFifoSize(lc.getFifoSize());
                             receiver.setActivating(lc.isCallbackActivating());
                             receiver.setPort(port);
+                            port.setIsLinked(true);
                             receiver.setInChannelName(lc.getInChannel());
                             receiver.setOutChannelName(lc.getOutChannel());
                             addWhenConditions(lc.getWhen(), receiver.getWhenconditions());
@@ -297,6 +328,7 @@ public class ImportAssembly extends AbstractPass {
                             receiver.setFifoSize(ls.getFifoSize());
                             receiver.setActivating(ls.isActivating());
                             receiver.setPort(port);
+                            port.setIsLinked(true);
                             addWhenConditions(ls.getWhen(), receiver.getWhenconditions());
                             sl.getServers().add(receiver);
                             if (port.getInstance() == assembly.getExternInstance()) {
@@ -337,7 +369,7 @@ public class ImportAssembly extends AbstractPass {
     }
 
     // TR-SARC-GEN-REQ-124
-    void createPortEvent(Instance i, OperationEvent o) {
+    PortEvent createPortEvent(Instance i, OperationEvent o) {
         PortEvent port = new QPortEvent();
         port.setInstance(i);
         port.setOperation(o);
@@ -345,6 +377,7 @@ public class ImportAssembly extends AbstractPass {
         port.setXmlID("port:" + i.getName() + "/" + o.getName());
         i.getPortsEvent().add(port);
         i.getPorts().add(port);
+        return port;
     }
 
     // TR-SARC-GEN-REQ-125
@@ -359,7 +392,7 @@ public class ImportAssembly extends AbstractPass {
         i.getPorts().add(port);
     }
 
-    void createPortRequestResponse(Instance i, OperationRequestResponse o) {
+    PortRequestResponse createPortRequestResponse(Instance i, OperationRequestResponse o) {
         QPortRequestResponse port = new QPortRequestResponse();
         port.setInstance(i);
         port.setOperation(o);
@@ -367,6 +400,7 @@ public class ImportAssembly extends AbstractPass {
         port.setXmlID("port:" + i.getName() + "/" + o.getName());
         i.getPortsRequestResponse().add(port);
         i.getPorts().add(port);
+        return port;
     }
 
     private LinkedHashMap<String, Instance> allInstancesMap = new LinkedHashMap<>();
@@ -397,8 +431,27 @@ public class ImportAssembly extends AbstractPass {
 
                         if (d.getDefaultValueType() == null) {
                             errorModel("cannot determine the type of default value for datalink %s", d.getId());
-
                         }
+                    }
+                }
+                else {
+                    boolean isFound = false;
+                    TypeDefinition typeDef = d.getDefaultValueType();
+                    for (DataLinkElement p : d.getWriters()) {
+                        if (p.getPort().getData().getType().getCType() == typeDef.getCType()) {
+                            isFound = true;
+                            break;
+                        }
+                    }
+                    for (DataLinkElement p : d.getReaders()) {
+                        if (p.getPort().getData().getType().getCType() == typeDef.getCType()) {
+                            isFound = true;
+                            break;
+                        }
+                    }
+                    if (!isFound) {
+                        errorModel("type '%s' of '%s' default value from datalink %d does not match the operations' type of the link", 
+                                d.getDefaultValueType().getName(), d.getDefaultValue(), d.getId());
                     }
                 }
             }
@@ -416,6 +469,14 @@ public class ImportAssembly extends AbstractPass {
     }
 
     private TypeDefinition lookupTypeName(String reference) {
+        try {
+            EPredef v = EPredef.fromValue(reference);
+            return LanguagesHandler.get(LanguagesHandler.defaultBinding).predefTypes.get(v);
+        }
+        catch(IllegalArgumentException e) {
+            // Not a predef
+        }
+        
         for (Component c : context.system.getComponentsIncludingInterface()) {
             for (TypeDefinition td : c.getTypes()) {
                 if (reference.equals(c.getTypeName() + '.' + td.getName())) {
@@ -423,6 +484,7 @@ public class ImportAssembly extends AbstractPass {
                 }
             }
         }
+        
         return null;
     }
 
@@ -430,7 +492,7 @@ public class ImportAssembly extends AbstractPass {
         for (Instance i : context.system.getAssembly().getInstances()) {
             if (i.getAttributes().isEmpty())
                 continue;
-            HashMap<String, InstanceAttribute> instanceAttributesMap = new HashMap<>();
+            LinkedHashMap<String, InstanceAttribute> instanceAttributesMap = new LinkedHashMap<>();
             LanguageHandler lh = LanguagesHandler.get(i.getType().getApiVariant());
             for (InstanceAttribute a : i.getAttributes()) {
                 instanceAttributesMap.put(lh.avoidKeywords(a.getName()), a);
@@ -463,7 +525,7 @@ public class ImportAssembly extends AbstractPass {
         context.system.setMapping(m);
 
         m.setDeploymentName(context.workspace.currentDeploymentName);
-
+        m.setSystem(context.system);
         m.setAutoStart(context.DEFILE.getStartMode() != EStartMode.NONE);
         m.setFastStart(context.DEFILE.getStartMode() == EStartMode.FAST);
     }

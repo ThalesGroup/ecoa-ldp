@@ -2,7 +2,7 @@
 
 package com.thalesgroup.softarc.gen.s20.xref;
 
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.regex.Pattern;
 
 import com.thalesgroup.softarc.gen.common.languageHandler.LanguageHandler;
@@ -18,7 +18,7 @@ public class Dictionnary<T> {
      * 
      * Pour les types predef, library="", sinon library est le nom de la lib.
      */
-    private final HashMap<String, T> map = new HashMap<String, T>();
+    private final LinkedHashMap<String, T> map = new LinkedHashMap<String, T>();
 
     private final Pattern patternDot = Pattern.compile(".", Pattern.LITERAL);
 

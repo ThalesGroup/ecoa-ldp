@@ -4,10 +4,11 @@ package com.thalesgroup.softarc.gen.technicalassembly;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -63,7 +64,7 @@ public class ImplicitLinks {
 
         // manual_ops := the list of all instanciated operations in normal Operation Links (EventLink, DataLink, RequestLink
         // elements)
-        HashSet<Operation> manualOps = findAllOperationsUsedInExplicitLinks();
+        Set<Operation> manualOps = findAllOperationsUsedInExplicitLinks();
 
         ArrayList<InstanceAdapter> instancesIncludingExtern = new ArrayList<>(composite._instances.size() + 1);
         instancesIncludingExtern.addAll(composite._instances);
@@ -73,7 +74,7 @@ public class ImplicitLinks {
         for (ASImplicitLinks il : implicitLinksDefinitions) {
 
             // auto_ops := Empty list
-            HashMap<String, HashSet<Operation>> autoOps = new HashMap<>();
+            LinkedHashMap<String, Collection<Operation>> autoOps = new LinkedHashMap<>();
 
             // For each element OS of type OperationSet in IL:
             for (ASImplicitLinksOperations implicitOp : il.getOperations()) {
@@ -86,9 +87,9 @@ public class ImplicitLinks {
                             // If this operation is not in manual_ops, add it to auto_ops
                             if (!manualOps.contains(op)) {
                                 String commonName = op.name.substring(implicitOp.getPrefix().length());
-                                HashSet<Operation> operationsOfThisName = autoOps.get(commonName);
+                                Collection<Operation> operationsOfThisName = autoOps.get(commonName);
                                 if (operationsOfThisName == null) {
-                                    operationsOfThisName = new HashSet<>();
+                                    operationsOfThisName = new ArrayList<>();
                                     autoOps.put(commonName, operationsOfThisName);
                                 }
                                 operationsOfThisName.add(op);
@@ -98,13 +99,13 @@ public class ImplicitLinks {
                 }
             }
 
-            for (HashSet<Operation> set : autoOps.values()) {
+            for (Collection<Operation> set : autoOps.values()) {
                 createNewOperationLink(set, il.isActivating());
             }
         }
     }
 
-    private void createNewOperationLink(HashSet<Operation> set, boolean isActivating) {
+    private void createNewOperationLink(Collection<Operation> set, boolean isActivating) {
         if (set.size() > 1) {
 
             // If all operations are not compatible, raise an error
@@ -217,7 +218,7 @@ public class ImplicitLinks {
         return result;
     }
 
-    private HashSet<Operation> findAllOperationsUsedInExplicitLinks() {
+    private Set<Operation> findAllOperationsUsedInExplicitLinks() {
 
         ArrayList<ASOpRef> opRefs = new ArrayList<>(256);
         for (ASDataLink link : composite._internalAssembly.dataLinks) {
@@ -233,7 +234,8 @@ public class ImplicitLinks {
             opRefs.addAll(link.getReceiver());
         }
 
-        HashSet<Operation> result = new HashSet<>(opRefs.size()); // result will be no larger than opRefs
+        Set<Operation> result = new HashSet<>(opRefs.size()); // Result will be no larger than opRefs.
+        // Using a HashSet because order is not significant.
         for (var opRef : opRefs) {
             result.add(composite.resolveOperation(opRef));
         }

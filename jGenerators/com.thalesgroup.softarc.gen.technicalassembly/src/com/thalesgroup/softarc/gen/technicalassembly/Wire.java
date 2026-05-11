@@ -4,24 +4,21 @@ package com.thalesgroup.softarc.gen.technicalassembly;
 
 public class Wire {
 
-    public enum Kind {
-        DATA, EVENT, SERVICE
-    };
-
     public Operation source;
     public Operation target;
     public boolean activating = true;
     public boolean callbackActivating;
     public boolean direct;
-    public Kind kind;
+    public EDR kind;
     public WhenSet sourceWhen;
     public WhenSet targetWhen;
     public long sourceFifoSize = 0;
     public long targetFifoSize = 0;
     public String inChannel;
     public String outChannel;
+    public Long originLinkId;
 
-    public Wire(Operation source, Operation target, Kind kind) {
+    public Wire(Operation source, Operation target, EDR kind) {
         super();
         assert source != null;
         assert target != null;
@@ -48,6 +45,7 @@ public class Wire {
         targetWhen.addAll(second.targetWhen);
         this.sourceFifoSize = Math.max(first.sourceFifoSize, second.sourceFifoSize);
         this.targetFifoSize = Math.max(first.targetFifoSize, second.targetFifoSize);
+        this.originLinkId = second.originLinkId;
     }
 
     public Wire(Wire old) {
@@ -62,6 +60,7 @@ public class Wire {
         targetWhen = new WhenSet(old.targetWhen);
         this.sourceFifoSize = old.sourceFifoSize;
         this.targetFifoSize = old.targetFifoSize;
+        this.originLinkId = old.originLinkId;
     }
 
     @Override

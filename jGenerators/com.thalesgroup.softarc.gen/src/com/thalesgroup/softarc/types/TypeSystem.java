@@ -33,6 +33,7 @@ public class TypeSystem {
         registerPredef("int32");
         registerPredef("uint32");
         registerPredef("int64");
+        registerPredef("uint64");
         registerPredef("int8");
         registerPredef("char8");
         registerPredef("uint8");

@@ -34,6 +34,6 @@ declareDataAccessType(data) ::=<<
 typedef struct
 {
   <data.type.cType.qName> * ptr;
-  SARC_Counter ref;
+  SARC_uint64 ref;
 } t_<data.name>_handle;
 >>

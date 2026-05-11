@@ -27,32 +27,32 @@ serializeSource(componentType, noByteSwap, osProperties) ::=<<
 
 <componentType.types : { type | 
 <if (type.isRecord)>
-<serializeRecord(type, noByteSwap)>
-<deserializeRecord(type, noByteSwap)>
+<serializeRecord(type)>
+<deserializeRecord(type)>
 <elseif (type.isVariantRecord)>
-<serializeVariantRecord(type, noByteSwap)>
-<deserializeVariantRecord(type, noByteSwap)>
+<serializeVariantRecord(type)>
+<deserializeVariantRecord(type)>
 <elseif (type.isArray)>
-<serializeArray(type, noByteSwap)>
-<deserializeArray(type, noByteSwap)>
+<serializeArray(type)>
+<deserializeArray(type)>
 <elseif (type.isFixedArray)>
-<serializeFixedArray(type, noByteSwap)>
-<deserializeFixedArray(type, noByteSwap)>
+<serializeFixedArray(type)>
+<deserializeFixedArray(type)>
 <elseif (type.isSimple)>
 /* no serialisation functions for Simple type <type.name> (using base type) */
 <elseif (type.isEnum)>
 /* no serialisation functions for Enum type <type.name> (using base type) */
 <elseif (type.isList)>
 <declareList(type)>
-<serializeList(type, noByteSwap)>
-<deserializeList(type, noByteSwap)>
+<serializeList(type)>
+<deserializeList(type)>
 <elseif (type.isMap)>
 <declareMap(type)>
-<serializeMap(type, noByteSwap)>
-<deserializeMap(type, noByteSwap)>
+<serializeMap(type)>
+<deserializeMap(type)>
 <elseif (type.isString)>
-<serializeString(type, noByteSwap)>
-<deserializeString(type, noByteSwap)>
+<serializeString(type)>
+<deserializeString(type)>
 <endif>
 }>
 

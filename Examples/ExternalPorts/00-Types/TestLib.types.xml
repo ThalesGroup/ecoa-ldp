@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<library xmlns="http://www.ecoa.technology/DataTypes/3.0">
+
+  <array name="tab" maxNumber="256000" type="uint8"/> <!-- up to 100 Mb -->
+
+  <record name="msg">
+    <field name="N" type="uint32"/>
+    <field name="tab" type="tab"/>
+  </record>
+
+</library>

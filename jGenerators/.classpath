@@ -17,6 +17,7 @@
 	<classpathentry kind="lib" path="lib/jaxb-ri-4.0.1/jaxb-impl.jar"/>
 	<classpathentry kind="lib" path="lib/StringTemplate/antlr-3.3-runtime.jar"/>
 	<classpathentry kind="lib" path="lib/StringTemplate/stringtemplate-4.0.1.jar"/>
+	<classpathentry kind="lib" path="lib/antlr3/antlr-3.3-runtime.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER">
 		<attributes>
 			<attribute name="module" value="true"/>

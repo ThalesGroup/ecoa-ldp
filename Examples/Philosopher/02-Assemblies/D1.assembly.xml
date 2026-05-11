@@ -25,25 +25,9 @@
     <dataLink>
       <writer instance="Table" operation="ready"></writer>
       <reader instance="Philosopher1" operation="ready"></reader>
-    </dataLink>
-
-    <dataLink>
-      <writer instance="Table" operation="ready"></writer>
       <reader instance="Philosopher2" operation="ready"></reader>
-    </dataLink>
-
-    <dataLink>
-      <writer instance="Table" operation="ready"></writer>
       <reader instance="Philosopher3" operation="ready"></reader>
-    </dataLink>
-
-    <dataLink>
-      <writer instance="Table" operation="ready"></writer>
       <reader instance="Philosopher4" operation="ready"></reader>
-    </dataLink>
-
-    <dataLink>
-      <writer instance="Table" operation="ready"></writer>
       <reader instance="Philosopher5" operation="ready"></reader>
     </dataLink>
 

@@ -18,6 +18,7 @@
 #include <sys/un.h>             // sockaddr_un
 #include <sys/time.h>           //struct val
 #include <fcntl.h>
+#include <netinet/in.h>
 
 /** Max size (in bytes) for the total size of the parameters of an operation (event, data, request or response) */
 #define SARC_LDP_MAX_OPERATION_SIZE 256*1024
@@ -69,11 +70,11 @@ extern const char *SARC_table_name_of_life_cycle_shift[8];
  * Simplified serialization API (without context, no error handling)
  * ======================================================================== */
 
-void SARC_serial_copy_or_swap_2bytes (void *dest, const void *src);
+void SARC_serial_copy_or_swap_2bytes (void *dest, const void *src, SARC_boolean8 with_swap);
 
-void SARC_serial_copy_or_swap_4bytes (void *dest, const void *src);
+void SARC_serial_copy_or_swap_4bytes (void *dest, const void *src, SARC_boolean8 with_swap);
 
-void SARC_serial_copy_or_swap_8bytes (void *dest, const void *src);
+void SARC_serial_copy_or_swap_8bytes (void *dest, const void *src, SARC_boolean8 with_swap);
 
 
 
@@ -96,11 +97,13 @@ typedef struct
   SARC_boolean8 error;
   /** True iff last called serialization routine detected an error */
   SARC_boolean8 local_error;
+  /** If swap is needed */
+  SARC_boolean8 with_swap;
 } SARC_SerializationContext;
 
 
 void
-SARC_serial_start_serialize (SARC_SerializationContext * s, void *buffer);
+SARC_serial_start_serialize (SARC_SerializationContext * s, void *buffer, SARC_boolean8 with_swap);
 
 void
 SARC_serial_check_serialize (SARC_SerializationContext * s,
@@ -139,6 +142,8 @@ typedef struct
    * process
    */
   SARC_boolean8 error;
+  /** If swap is needed */
+  SARC_boolean8 with_swap;
   /**
    * Flag to determine whether or not check procedure shall react on underflow
    * situations (too many bytes in the byte buffer)
@@ -148,7 +153,7 @@ typedef struct
 
 void
 SARC_serial_start_deserialize (SARC_DeserializationContext * s,
-                               const void *buffer, SARC_MwSize size);
+                               const void *buffer, SARC_MwSize size, SARC_boolean8 with_swap);
 
 void
 SARC_serial_check_deserialize (SARC_DeserializationContext * s,
@@ -517,6 +522,20 @@ typedef struct
   pthread_t thread;
 } SARC_Task;
 
+typedef enum {
+  SARC_NOT_CONNECTED = 0,
+  SARC_CONNECTED = 1,
+  SARC_UNKNOWN = -1
+} SARC_ExternalOperationState;
+
+/* Extern operations */
+typedef struct
+{
+  int fd;
+  struct sockaddr_in addr;
+  SARC_ExternalOperationState state;
+} SARC_ExternalOperationInfo;
+
 
 /*=============================================================================
  * Helper functions
@@ -578,5 +597,11 @@ SARC_Ecode SARC_map_initialize (void *address, SARC_uint32 size,
 SARC_Ecode SARC_map_add (void *address, SARC_int64 key, const void *value);
 
 SARC_Ecode SARC_map_remove (void *address, SARC_int64 key, void *value);
+
+SARC_Ecode SARC_tcp_send_data(int sockfd, SARC_uint16 oper_id, SARC_char8* data, SARC_uint32 data_size);
+
+SARC_Ecode SARC_get_port_info(const char* search_port_name, char* address_out, int* port_out);
+
+SARC_ExternalOperationInfo* SARC_tcp_get_socket_info(int sockfd);
 
 #endif

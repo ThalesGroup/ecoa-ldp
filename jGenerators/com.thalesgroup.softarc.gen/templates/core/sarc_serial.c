@@ -6,31 +6,84 @@
 
 
 void
-SARC_serial_copy_or_swap_2bytes (void *dest, const void *src)
+SARC_serial_copy_or_swap_2bytes (void *dest, const void *src, SARC_boolean8 with_swap)
 {
-  memcpy (dest, src, 2);
+    SARC_char8 *_dest = dest;
+    const SARC_char8 *_src = src;
+
+    if (with_swap != SARC_FALSE)
+      {
+        _dest[0] = _src[1];
+        _dest[1] = _src[0];
+      }
+    else
+      {
+        _dest[0] = _src[0];
+        _dest[1] = _src[1];
+      }
 }
 
 void
-SARC_serial_copy_or_swap_4bytes (void *dest, const void *src)
+SARC_serial_copy_or_swap_4bytes (void *dest, const void *src, SARC_boolean8 with_swap)
 {
-  memcpy (dest, src, 4);
+    SARC_char8 *_dest = dest;
+    const SARC_char8 *_src = src;
+
+    if (with_swap != SARC_FALSE)
+      {
+        _dest[0] = _src[3];
+        _dest[1] = _src[2];
+        _dest[2] = _src[1];
+        _dest[3] = _src[0];
+      }
+    else
+      {
+        _dest[0] = _src[0];
+        _dest[1] = _src[1];
+        _dest[2] = _src[2];
+        _dest[3] = _src[3];
+      }
 }
 
 void
-SARC_serial_copy_or_swap_8bytes (void *dest, const void *src)
+SARC_serial_copy_or_swap_8bytes (void *dest, const void *src, SARC_boolean8 with_swap)
 {
-  memcpy (dest, src, 8);
+    SARC_char8 *_dest = dest;
+    const SARC_char8 *_src = src;
+
+    if (with_swap != SARC_FALSE)
+      {
+        _dest[0] = _src[7];
+        _dest[1] = _src[6];
+        _dest[2] = _src[5];
+        _dest[3] = _src[4];
+        _dest[4] = _src[3];
+        _dest[5] = _src[2];
+        _dest[6] = _src[1];
+        _dest[7] = _src[0];
+      }
+    else
+      {
+        _dest[0] = _src[0];
+        _dest[1] = _src[1];
+        _dest[2] = _src[2];
+        _dest[3] = _src[3];
+        _dest[4] = _src[4];
+        _dest[5] = _src[5];
+        _dest[6] = _src[6];
+        _dest[7] = _src[7];
+      }
 }
 
 
 void
-SARC_serial_start_serialize (SARC_SerializationContext * s, void *buffer)
+SARC_serial_start_serialize (SARC_SerializationContext * s, void *buffer, SARC_boolean8 with_swap)
 {
   s->buffer = buffer;
   s->pos = 0;
   s->error = SARC_FALSE;
   s->local_error = SARC_FALSE;
+  s->with_swap = with_swap;
 }
 
 void
@@ -56,33 +109,35 @@ SARC_serial_serialize_1byte (SARC_SerializationContext * s, const void *src)
 void
 SARC_serial_serialize_2bytes (SARC_SerializationContext * s, const void *src)
 {
-  SARC_serial_copy_or_swap_2bytes (s->buffer + s->pos, src);
+  SARC_serial_copy_or_swap_2bytes (s->buffer + s->pos, src, s->with_swap);
   s->pos += 2;
 }
 
 void
 SARC_serial_serialize_4bytes (SARC_SerializationContext * s, const void *src)
 {
-  SARC_serial_copy_or_swap_4bytes (s->buffer + s->pos, src);
+  SARC_serial_copy_or_swap_4bytes (s->buffer + s->pos, src, s->with_swap);
   s->pos += 4;
 }
 
 void
 SARC_serial_serialize_8bytes (SARC_SerializationContext * s, const void *src)
 {
-  SARC_serial_copy_or_swap_8bytes (s->buffer + s->pos, src);
+  SARC_serial_copy_or_swap_8bytes (s->buffer + s->pos, src, s->with_swap);
   s->pos += 8;
 }
 
 void
 SARC_serial_start_deserialize (SARC_DeserializationContext * s,
-                               const void *buffer, SARC_MwSize size)
+                               const void *buffer, SARC_MwSize size,
+                               SARC_boolean8 with_swap)
 {
   s->buffer = buffer;
   s->raw_size = size;
   s->pos = 0;
   s->error = SARC_FALSE;
   s->check_underflow = SARC_TRUE;
+  s->with_swap = with_swap;
 }
 
 void
@@ -119,21 +174,21 @@ SARC_serial_deserialize_1byte (SARC_DeserializationContext * s, void *dest)
 void
 SARC_serial_deserialize_2bytes (SARC_DeserializationContext * s, void *dest)
 {
-  SARC_serial_copy_or_swap_2bytes (dest, s->buffer + s->pos);
+  SARC_serial_copy_or_swap_2bytes (dest, s->buffer + s->pos, s->with_swap);
   s->pos += 2;
 }
 
 void
 SARC_serial_deserialize_4bytes (SARC_DeserializationContext * s, void *dest)
 {
-  SARC_serial_copy_or_swap_4bytes (dest, s->buffer + s->pos);
+  SARC_serial_copy_or_swap_4bytes (dest, s->buffer + s->pos, s->with_swap);
   s->pos += 4;
 }
 
 void
 SARC_serial_deserialize_8bytes (SARC_DeserializationContext * s, void *dest)
 {
-  SARC_serial_copy_or_swap_8bytes (dest, s->buffer + s->pos);
+  SARC_serial_copy_or_swap_8bytes (dest, s->buffer + s->pos, s->with_swap);
   s->pos += 8;
 }
 

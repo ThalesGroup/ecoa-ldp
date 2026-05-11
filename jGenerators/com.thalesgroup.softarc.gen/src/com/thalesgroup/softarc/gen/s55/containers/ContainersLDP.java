@@ -12,13 +12,11 @@ import com.thalesgroup.softarc.sf.impl.*;
  * peut servir à plusieurs instances.
  */
 public class ContainersLDP extends ContainersCore {
-	
-	private static final int MIN_SIZE_BUFFER_OUT = 50000;
+
+    private static final int MIN_SIZE_BUFFER_OUT = 50000;
 
     @Override
     public void execute() throws IOException {
-
-        createPeriodicTriggersForLDP();
 
         computeIds();
 
@@ -55,37 +53,4 @@ public class ContainersLDP extends ContainersCore {
 
         computeObjectCounts();
     }
-
-    /**
-     * Create fake trigger objects for each PERIODIC_TRIGGER_MANAGER component. The 'callbackId' is used as an ID for the virtual
-     * event.
-     */
-    private void createPeriodicTriggersForLDP() {
-        for (Component c : context.system.getComponents()) {
-            if (c.getIsTimer()) {
-                for (OperationEvent event : c.getSentEvents()) {
-                    Trigger trig = new QTrigger();
-                    trig.setName(event.getName());
-                    trig.setEvent(event);
-                    c.getTriggers().add(trig);
-                }
-            }
-        }
-        for (Platform platform : context.system.getMapping().getPlatforms()) {
-            for (Executable exec : platform.getExecutables()) {
-                for (Instance instance : exec.getInstances()) {
-                    if (instance.getType().getIsTimer()) {
-                        // Attache a l'instance, les triggers créés pour les composants PERIODIC_TRIGGER_MANAGER
-                        for (OperationLink evt : instance.getSentEventLinks()) {
-                            TriggerInstance maTrig = new QTriggerInstance();
-                            maTrig.setName(evt.getEvent().getName());
-                            maTrig.setRequestId(evt.getCallbackId());
-                            instance.getTriggers().add(maTrig);
-                        }
-                    }
-                }
-            }
-        }
-    }
-
 }

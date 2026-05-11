@@ -4,11 +4,11 @@ package com.thalesgroup.softarc.gen.s30.gentype;
 
 import java.io.File;
 
-import com.thalesgroup.ecoa.model.Language;
-import com.thalesgroup.softarc.gen.common.AbstractGenerationPass;
-
 import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
+import com.thalesgroup.softarc.gen.common.AbstractGenerationPass;
 import com.thalesgroup.softarc.sf.Component;
 
 public class GenInitialize extends AbstractGenerationPass {
@@ -35,7 +35,8 @@ public class GenInitialize extends AbstractGenerationPass {
             || component.getIsRustComponent()) {
             // rien à faire
 
-        } else if (!component.getIsEcoa()){
+        } else if (!(context.isLDP && component.getIsEcoa())) {
+            // Note: initialize functions are not supported in ECOA by the LDP, because of multiple _initialize.h files with the same name
             generateFileFromTemplate(component, KindOfFile.COMPONENT_INITIALIZE_HEADER_FILE, "initializeHeader");
 
             if (!component.getTypes().isEmpty()) {
@@ -49,9 +50,16 @@ public class GenInitialize extends AbstractGenerationPass {
     private void generateFileFromTemplate(Component model, KindOfFile fileid, String templateName) throws IOException {
 
         File outfile = fpr.getFilePath(fileid, model);
-        Language lang = Language.valueOf(model.getLanguage());
+        Map<String, Object> attributes = new LinkedHashMap<String, Object>();
+        attributes.put("model", model);
+
+        String dirName = model.getIsEcoa() ? model.getApiVariant() : model.getLanguage();
+        // Il y a un paramètre supplémentaire "prefix" pour les templates C uniquement (pour GenLib)
+        if (dirName.equals("C")) {
+            attributes.put("prefix", "SARC");
+        }
         
-        createFileFromTemplate(outfile, "initialize/" + (model.getIsEcoa() ? model.getApiVariant() : lang.name()) + "/" + templateName, templateName, "model", model);
+        createFileFromTemplate(outfile, "initialize/" + dirName + "/" + templateName, templateName, attributes);
     }
 
 }

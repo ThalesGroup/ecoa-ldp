@@ -220,7 +220,7 @@ public class FilePathResolver {
                 if (lang == Language.JAVA) {
                     String pkgdir = "";
                     outfilename = "package-info.java";
-                    for (String pkgToken : component.getSplittedPackage()) {
+                    for (String pkgToken : component.getSplittedBindingPackage()) {
                         pkgdir = pkgdir + "/" + pkgToken;
                     }
                     outfilename = pkgdir + "/" + outfilename;
@@ -288,7 +288,7 @@ public class FilePathResolver {
     public File getJavaConstantsFilePath(Component component) {
         File dir = new File(component.getImplDir(), KindOfDirectory.SRC_GEN.getDirName());
 
-        for (String pkgToken : component.getSplittedPackage()) {
+        for (String pkgToken : component.getSplittedBindingPackage()) {
             dir = new File(dir, pkgToken);
         }
 
@@ -300,7 +300,7 @@ public class FilePathResolver {
 
         dir = new File(dir, KindOfDirectory.SRC_GEN.getDirName());
 
-        for (String pkgToken : component.getSplittedPackage()) {
+        for (String pkgToken : component.getSplittedBindingPackage()) {
             dir = new File(dir, pkgToken);
         }
 
@@ -310,7 +310,7 @@ public class FilePathResolver {
     public File getJavaRequestResponseHolderFilePath(Component component, OperationRequestResponse svc) {
         File dir = new File(component.getImplDir(), KindOfDirectory.SRC_GEN.getDirName());
 
-        for (String pkgToken : component.getSplittedPackage()) {
+        for (String pkgToken : component.getSplittedBindingPackage()) {
             dir = new File(dir, pkgToken);
         }
         return new File(dir, svc.getName() + "Holder.java");

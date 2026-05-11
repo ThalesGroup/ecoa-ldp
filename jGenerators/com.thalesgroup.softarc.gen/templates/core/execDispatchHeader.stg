@@ -1,0 +1,16 @@
+//@description Dispatch thread header
+
+//=================================================
+//@name Executable dispatch header global structure
+//@param exec Executable
+//@param dispatch Dispatcher
+execDispatchHeader(exec, dispatch) ::=<<
+
+#ifndef _<dispatch.id>_ROUTINE_H
+#define _<dispatch.id>_ROUTINE_H
+
+extern void SARC_<dispatch.id>_FUNCTION(void *parameter);
+
+#endif
+
+>>

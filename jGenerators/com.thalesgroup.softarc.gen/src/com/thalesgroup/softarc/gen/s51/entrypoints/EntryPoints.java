@@ -2,6 +2,7 @@
 
 package com.thalesgroup.softarc.gen.s51.entrypoints;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 
@@ -10,6 +11,8 @@ import com.thalesgroup.softarc.gen.common.IdAllocator;
 import com.thalesgroup.softarc.gen.common.MiddlewareConstants;
 import com.thalesgroup.softarc.gen.common.NameValidator;
 import java.io.IOException;
+import java.util.List;
+
 import com.thalesgroup.softarc.sf.EntryPoint;
 import com.thalesgroup.softarc.sf.Instance;
 import com.thalesgroup.softarc.sf.Mapping;
@@ -23,6 +26,7 @@ import com.thalesgroup.softarc.sf.PortEvent;
 import com.thalesgroup.softarc.sf.PortRequestResponse;
 import com.thalesgroup.softarc.sf.Topic;
 import com.thalesgroup.softarc.sf.TracePoint;
+import com.thalesgroup.softarc.sf.ObservationLevel;
 import com.thalesgroup.softarc.sf.impl.QEntryPoint;
 import com.thalesgroup.softarc.sf.impl.QParameter;
 import com.thalesgroup.softarc.sf.impl.QTracePoint;
@@ -32,7 +36,8 @@ import com.thalesgroup.softarc.sf.impl.QTracePoint;
 public class EntryPoints extends AbstractPass {
 
     Mapping mapping;
-    private IdAllocator allocator;
+    private IdAllocator observabilityAllocator;
+    private IdAllocator traceAllocator;
     private NameValidator nameValidator = new NameValidator(MiddlewareConstants.SARC_NAME_MAX_LENGTH - 1);
 
     @Override
@@ -40,7 +45,10 @@ public class EntryPoints extends AbstractPass {
 
         this.mapping = context.system.getMapping();
 
-        this.allocator = new IdAllocator("trace_points", 0);
+        this.observabilityAllocator = new IdAllocator("observability_points", 0);
+
+        this.traceAllocator = new IdAllocator("trace_points", 0);
+
 
         createSoftarcRuntimeTracePoint();
 
@@ -65,16 +73,26 @@ public class EntryPoints extends AbstractPass {
     }
 
     private TracePoint createTracePoint(String fullname, long initialState) throws IOException {
-        TracePoint obs = new QTracePoint();
-        // obs.setId(allocator.allocateFromString(fullname));
-        obs.setId(allocator.allocate());
+        TracePoint tracePoint = createInitialTracePoint(fullname, initialState);
+        tracePoint.setId(traceAllocator.allocate());
+        return tracePoint;
+    }
+
+    private TracePoint createObservabilityPoint(String fullname, long initialState) throws IOException {
+        TracePoint observabilityPoint = createInitialTracePoint(fullname, initialState);
+        observabilityPoint.setId(observabilityAllocator.allocate());
+        return observabilityPoint;
+    }
+
+    private TracePoint createInitialTracePoint(String fullname, long initialState) {
+        TracePoint tracePoint = new QTracePoint();
         String name = nameValidator.validate(fullname);
         if (!name.equals(fullname)) {
             gen.warning("trace point name '%s' is replaced by '%s'", fullname, name);
         }
-        obs.setName(name);
-        obs.setInitialState(initialState);
-        return obs;
+        tracePoint.setName(name);
+        tracePoint.setInitialState(initialState);
+        return tracePoint;
     }
 
     private void createInstanceTracePoint(Instance i) throws IOException {
@@ -122,7 +140,13 @@ public class EntryPoints extends AbstractPass {
                 QParameter param = new QParameter();
                 param.setType(op.getType());
                 param.setTypeName(op.getTypeName());
-                p.setObservation(createObservationData(i, op.getName(), ".publish", param));
+                QParameter flagParameter = new QParameter();
+                flagParameter.name = "flag";
+                flagParameter.qName = "flag";
+                flagParameter.typeName ="boolean8";
+                flagParameter.qType = "SARC_boolean8";
+                List<Parameter> dataParameter = new ArrayList<>(List.of(flagParameter, param));
+                p.setObservation(createObservationData(i, op.getName(), ".publish", dataParameter));
             }
             if (op.getIsRead()) {
                 QParameter param = new QParameter();
@@ -136,12 +160,18 @@ public class EntryPoints extends AbstractPass {
             if (op.getIsProvided()) {
                 EntryPoint ep = createEntryPoint(p, op.getName());
                 ep.setRequestResponse(op);
-                ep.setObservationBegin(createObservation(i, op.getName(), ".begin", op.getInParameters()));
+                QParameter requestIdParameter = createRequestIdParameter();
+                List<Parameter> inParametersWithRequestId = new ArrayList<>(List.of(requestIdParameter));
+                inParametersWithRequestId.addAll(op.getInParameters());
+                ep.setObservationBegin(createObservation(i, op.getName(), ".begin", inParametersWithRequestId));
+                List<Parameter> outParametersWithRequestId = new ArrayList<>(List.of(requestIdParameter));
+                outParametersWithRequestId.addAll(op.getOutParameters());
                 if (op.getIsDeferred()) {
                     ep.setObservationEnd(createObservation(i, op.getName(), ".end", null));
-                    p.setObservation(createObservation(i, op.getName(), ".reply", op.getOutParameters()));
+                    p.setObservation(createObservation(i, op.getName(), ".reply", outParametersWithRequestId));
                 } else {
-                    ep.setObservationEnd(createObservation(i, op.getName(), ".end", op.getOutParameters()));
+                    outParametersWithRequestId.addAll(op.getOutParameters());
+                    ep.setObservationEnd(createObservation(i, op.getName(), ".end", outParametersWithRequestId));
                 }
                 
                 i.getRequestResponseEntryPoints().add(ep);
@@ -150,20 +180,26 @@ public class EntryPoints extends AbstractPass {
         for (PortRequestResponse p : i.getPortsRequestResponse()) {
             OperationRequestResponse op = p.getRequestResponse();
             if (op.getIsRequired()) {
-                p.setObservation(createObservation(i, op.getName(), ".call", op.getInParameters()));
+                QParameter requestIdParameter = createRequestIdParameter();
+                List<Parameter> inParametersWithRequestId = new ArrayList<>(List.of(requestIdParameter));
+                inParametersWithRequestId.addAll(op.getInParameters());
+                p.setObservation(createObservation(i, op.getName(), ".call", inParametersWithRequestId));
                 if (op.getIsAsynchronous()) {
                     EntryPoint ep = createEntryPoint(p, op.getName());
                     ep.setRequestResponse(op);
                     i.getCallbackEntryPoints().add(ep);
-                    // ep.setObservationBegin(createObservation(i, op.getName(), ".begin", op.getOutParameters()));
-                    // ep.setObservationEnd(createObservation(i, op.getName(), ".end", null));
-                    // ep.setObservationBegin(createObservation(i, op.getName(), ".timeout_begin", null));
-                    // ep.setObservationEnd(createObservation(i, op.getName(), ".timeout_end", null));
-                } else {
-                    // ep.setObservationEnd(createObservation(i, op.getName(), ".timeout_end", null));
                 }
             }
         }
+    }
+
+    private static QParameter createRequestIdParameter() {
+        QParameter requestIdParameter = new QParameter();
+        requestIdParameter.name = "requestId";
+        requestIdParameter.qName = "requestId";
+        requestIdParameter.typeName ="uint32";
+        requestIdParameter.qType = "SARC_uint32";
+        return requestIdParameter;
     }
 
     private TracePoint createObservation(Instance i, String opName, String suffix, Collection<Parameter> params)
@@ -178,10 +214,32 @@ public class EntryPoints extends AbstractPass {
             opName = opName.substring(notifyPrefix.length());
         }
         String fullname = i.getName() + '.' + opName + suffix;
-        TracePoint obs = createTracePoint(fullname, i.getObservabilityLevel());
-        obs.setIsBinary(true);
-        mapping.getTracePoints().add(obs);
+        TracePoint obs = createObservabilityPoint(fullname, getObservabilityLevelPerInstance(i, fullname));
+        mapping.getObservabilityPoints().add(obs);
         addParameters(params, obs);
+        return obs;
+    }
+
+    private long getObservabilityLevelPerInstance(Instance instance, String observationName ){
+        for(ObservationLevel obsLevel : instance.getObservabilityLevelPerObservation()){
+            if (obsLevel.getName().equals(observationName)){
+                return obsLevel.getLevel();
+            }
+        }
+        return instance.getObservabilityLevel();
+    }
+
+    private TracePoint createObservationData(Instance i, String opName, String suffix, List<Parameter> param) throws IOException {
+
+        if (!mapping.getGenerateObservability()) {
+            return null;
+        }
+
+        String fullname = i.getName() + '.' + opName + suffix;
+        TracePoint obs = createObservabilityPoint(fullname, getObservabilityLevelPerInstance(i, fullname));
+        mapping.getObservabilityPoints().add(obs);
+        addParameters(param, obs);
+        obs.getParameters().iterator().next().setName("");
         return obs;
     }
 
@@ -192,9 +250,8 @@ public class EntryPoints extends AbstractPass {
         }
 
         String fullname = i.getName() + '.' + opName + suffix;
-        TracePoint obs = createTracePoint(fullname, i.getObservabilityLevel());
-        obs.setIsBinary(true);
-        mapping.getTracePoints().add(obs);
+        TracePoint obs = createObservabilityPoint(fullname, getObservabilityLevelPerInstance(i, fullname));
+        mapping.getObservabilityPoints().add(obs);
         addParameter(param, obs);
         obs.getParameters().iterator().next().setName("");
         return obs;

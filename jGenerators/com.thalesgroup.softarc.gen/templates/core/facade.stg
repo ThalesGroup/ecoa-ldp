@@ -46,12 +46,6 @@ void <instance.name>_EXTERNAL_routine();
 /*------ Supervisor-component routine call */
 void <instance.name>_SUPERVISOR_routine(SARC_int32 p_component_id, SARC_LifeCycleState p_current, SARC_LifeCycleState p_previous);
 <endif>
-/*------ Received events */
-<if(container.component.isTimer)>
-<container.component.sentEvents : {event |
-void instance_<instance.name>_<event.name>_EVENT_receive(const SARC_char8 * bufin, SARC_uint32 size);
-}>
-<endif>
 
 <instance.eventEntryPoints : {ep | 
 void instance_<instance.name>_<ep.event.name>_EVENT_receive(const SARC_char8 * bufin, SARC_uint32 size);}>
@@ -76,8 +70,7 @@ void instance_<instance.name>_<ep.requestResponse.name>_OUT_EVENT_timeout(SARC_u
 /*------ Provided "direct" services */
 <instance.directRequestResponseEntryPoints : {ep | 
 SARC_Ecode instance_direct_<instance.name>_<ep.requestResponse.name>_SERVICE_provide(
-  <if (options.simulation)>SARC_int32 caller_instance_id, SARC_int32 caller_activation_id, SARC_int32 * server_instance_id, SARC_int32 * server_activation_id<if (ep.requestResponse.hasInParameters || ep.requestResponse.hasOutParameters)>,
-  <endif><endif><inParametersVoid(ep.requestResponse.inParameters, ep.requestResponse.hasOutParameters)><outParametersVoid(ep.requestResponse.outParameters, false)>);
+  <inParametersVoid(ep.requestResponse.inParameters, ep.requestResponse.hasOutParameters)><outParametersVoid(ep.requestResponse.outParameters, false)>);
 }>
 <if(instance.writtenDataLinks)>
 /*------ Written data */

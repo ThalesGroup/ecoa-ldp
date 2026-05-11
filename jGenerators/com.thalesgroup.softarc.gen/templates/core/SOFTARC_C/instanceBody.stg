@@ -120,15 +120,6 @@ void
 <componentType.readData : { data | 
   tech_ctxt->r_access_<data.name>.remaining = <data.maxversions>;
 }>
-<instance.entryPoints : { ep | 
-<if(ep.highestRate)>
-{
-  static const SARC_Time timeframe = <to_sarc_time(ep.highestRate.timeFrame)>;
-  SARC_ratmon_initialize (&<instance.name>_rate_checker_<ep.name>,
-                          <ep.highestRate.numberOfOccurences>,
-                          &timeframe);
-\}
-<endif>}>
 <if (instance.Pinfos)>
 /* PINFO initialisation */
 <instance.Pinfos : { pinfo | 
@@ -168,41 +159,46 @@ implementComponentCommandFunctions(componentType, instance) ::=<<
 
 void instance_<instance.name>_Initialize_EVENT_receive() {
   <begin_entrypoint(instance, instance.initialize, "NULL", "0", "")>
-  
+<if(!componentType.isTimer)>
 <instance.requestResponseEntryPoints : {ep | 
 <if(ep.requestResponse.isDeferred)>
   SARC_map_initialize (<instance.name>_<ep.requestResponse.name>_map, sizeof (<instance.name>_<ep.requestResponse.name>_map), <ep.requestResponse.maxDeferred>, sizeof (SARC_RequestInfo));<endif>}>
 
   <instance.type.package>_initialize(&<instance.name>_global);
+<endif>
   <end_entrypoint(instance, instance.initialize)>
 \}
 
 void instance_<instance.name>_Start_EVENT_receive() {
   <begin_entrypoint(instance, instance.start, "NULL", "0", "")>
+<if(!componentType.isTimer)>
   <componentType.package>_start(&<instance.name>_global);
+<else>
+  <startAllTimers(componentType, instance)>
+<endif>
   <end_entrypoint(instance, instance.start)>
-  <if(componentType.isSupervisor)>
-  <componentType.package>_startSequence(&<instance.name>_global);
-  <endif>
 \}
 
 void instance_<instance.name>_Stop_EVENT_receive() {
   <begin_entrypoint(instance, instance.stop, "NULL", "0", "")>
+<if(!componentType.isTimer)>
   <componentType.package>_stop(&<instance.name>_global);
+<else>
+   <cancelAllTimers(componentType, instance)>
+<endif>
   <end_entrypoint(instance, instance.stop)>
 
   <dump_entrypoint_statistics(instance)>
 
-<instance.entryPoints : { ep | 
-<if(ep.highestRate)>
-  SARC_ratmon_reset (&<instance.name>_rate_checker_<ep.name>);
-<endif>
-}>
 \}
 
 void instance_<instance.name>_Shutdown_EVENT_receive() {
   <begin_entrypoint(instance, instance.shutdown, "NULL", "0", "")>
+<if(!componentType.isTimer)>
   <componentType.package>_shutdown(&<instance.name>_global);
+<else>
+  <cancelAllTimers(componentType, instance)>
+<endif>
 <if(componentType.data)>
   <componentType.package>_release_all_data_handles (&<instance.name>_global);
 <endif>
@@ -217,7 +213,12 @@ void instance_<instance.name>_Shutdown_EVENT_receive() {
 
 void instance_<instance.name>_Reset_EVENT_receive() {
   <begin_entrypoint(instance, instance.reset, "NULL", "0", "")>
+<if(!componentType.isTimer)>
   <componentType.package>_reset(&<instance.name>_global);
+<else>
+  <cancelAllTimers(componentType, instance)>
+  <startAllTimers(componentType, instance)>
+<endif>
   <end_entrypoint(instance, instance.reset)>
 \}
 >>
@@ -263,71 +264,6 @@ void
 <endif>
 >>
 
-
-//#############################################################################
-//@name Handlers reservation routine
-//@param componentType Component
-//@param instance Instance
-//@param ep EntryPoint
-reserveHandlers (componentType, instance, ep) ::=<<
-<if(ep.port.operation.accesses)>
-
-/* Reserve handlers */
-
-<ep.port.operation.accesses : {access | 
-
-<if(access.isWrite)>
-/* --- WRITE <access.data_action.name> */
-<componentType.package>_<access.data_action.name>_DATA_get_writer (&<instance.name>_global,
-  (t_<access.data_action.name>_handle *) &<instance.name>_global_tech.w_access_<access.data_action.name>.handle, SARC_DATA_<if(access.isWriteFromCurrentVersion)>CURRENT_VERSION<else>NO_VALUE<endif>);
-<instance.name>_global_tech.w_access_<access.data_action.name>.is_auto = SARC_TRUE;
-<instance.name>_global_tech.w_access_<access.data_action.name>.has_changed = SARC_FALSE;
-<else>
-/* --- READ <access.data_action.name> */
-<componentType.package>_<access.data_action.name>_DATA_get_reader (&<instance.name>_global,
-  (t_<access.data_action.name>_handle *) &<instance.name>_global_tech.r_access_<access.data_action.name>.handle);
-<instance.name>_global_tech.r_access_<access.data_action.name>.is_auto = SARC_TRUE;
-<endif>
-}>
-<endif>
->>
-
-//#####################################################################
-//@name Handler release routine
-//@param componentType Component
-//@param instance Instance
-//@param ep EntryPoint
-freeHandlers (componentType, instance, ep) ::=<<
-<if(ep.port.operation.accesses)>
-
-/* Free handlers */
-
-<ep.port.operation.accesses : {access | 
-
-<if(access.isWrite)>
-/* --- WRITE <access.data_action.name> */
-<instance.name>_global_tech.w_access_<access.data_action.name>.is_auto = SARC_FALSE;
-if (<instance.name>_global_tech.w_access_<access.data_action.name>.has_changed == SARC_TRUE)
-  {
-    <componentType.package>_<access.data_action.name>_DATA_publish (&<instance.name>_global,
-      (t_<access.data_action.name>_handle *) &<instance.name>_global_tech.w_access_<access.data_action.name>.handle);
-  \}
-else
-  {
-    <componentType.package>_<access.data_action.name>_DATA_cancel (&<instance.name>_global,
-      (t_<access.data_action.name>_handle *) &<instance.name>_global_tech.w_access_<access.data_action.name>.handle);
-  \}
-<instance.name>_global_tech.w_access_<access.data_action.name>.has_changed = SARC_FALSE;
-<else>
-/* --- READ <access.data_action.name> */
-<instance.name>_global_tech.r_access_<access.data_action.name>.is_auto = SARC_FALSE;
-<componentType.package>_<access.data_action.name>_DATA_release (&<instance.name>_global,
-  (t_<access.data_action.name>_handle *) &<instance.name>_global_tech.r_access_<access.data_action.name>.handle);
-<endif>
-}>
-<endif>
->>
-
 //#############################################################################
 //@name Received Events implementation
 //@param componentType Component
@@ -336,29 +272,26 @@ implementReceivedEvents(componentType, instance) ::=<<
 /*---------------------------------------------------------
  * Received events
  *---------------------------------------------------------*/
-<if (componentType.isTimer)>
-<componentType.sentEvents : { event |
-extern void <componentType.package>_<event.name>_EVENT_receive(<componentType.package>_context *context);
-
-void instance_<instance.name>_<event.name>_EVENT_receive(const SARC_char8 * bufin, SARC_uint32 size)
-{
-  <componentType.package>_<event.name>_EVENT_receive(&<instance.name>_global);
-\}
-}>
-<endif>
-
 <instance.eventEntryPoints : {ep | 
 /*----------------------------*/
 /* <instance.name> <ep.event.name> */
 void instance_<instance.name>_<ep.event.name>_EVENT_receive(const SARC_char8 * bufin, SARC_uint32 size)
 {
+<if(componentType.isTimer)>
+  (void) bufin;
+  (void) size;
+
+  SARC_int64 repeatTime = <ep.event.repeatTime> * 1000;
+  <container.component.package>_<ep.event.name>_TRIGGER_set(&<instance.name>_global, repeatTime);
+  <container.component.package>_<ep.event.name>_EVENT_send(&<instance.name>_global);
+<else>
 <if(ep.event.inParameters)>
 <ep.event.inParameters : {parameter | 
   <parameter.qType> usrparam_<parameter.name>;}>
   SARC_DeserializationContext s;
 <endif>
 <if(ep.event.inParameters)>
-  SARC_serial_start_deserialize (&s, bufin, size);
+  SARC_serial_start_deserialize (&s, bufin, size, SARC_FALSE);
 <ep.event.inParameters : {parameter | 
   <deserializeFunctionName(parameter.type)>(&s, &usrparam_<parameter.name>);
 }>
@@ -372,15 +305,13 @@ void instance_<instance.name>_<ep.event.name>_EVENT_receive(const SARC_char8 * b
   (void) bufin;
 <endif>
   <begin_entrypoint(instance, ep, "bufin", "size", "")>
-  <reserveHandlers (componentType, instance, ep)>
 
   /* Call manual code */
   <componentType.package>_<ep.event.name>_EVENT_receive(&<instance.name>_global<ep.event.inParameters : {parameter |,
     (const <parameter.qType>*) &usrparam_<parameter.name>}>);
 
-  <freeHandlers (componentType, instance, ep)>
-
   <end_entrypoint(instance, ep)>
+<endif>
 \}
 }>
 >>
@@ -418,7 +349,7 @@ instance_<instance.name>_<service.name>_SERVICE_call
   
   /* Deserialize input parameters */
   SARC_DeserializationContext s;
-  SARC_serial_start_deserialize (&s, bufin, size);
+  SARC_serial_start_deserialize (&s, bufin, size, SARC_FALSE);
   SARC_uint32_deserialize(&s, &oper_id);
   SARC_uint32_deserialize(&s, &request_id);
 <else>
@@ -429,7 +360,7 @@ instance_<instance.name>_<service.name>_SERVICE_call
 	
   /* Deserialize input parameters */
   SARC_DeserializationContext s;
-  SARC_serial_start_deserialize (&s, bufin, size);
+  SARC_serial_start_deserialize (&s, bufin, size, SARC_FALSE);
   SARC_uint32_deserialize(&s, &oper_id);
   SARC_uint32_deserialize(&s, &request_id);
 <service.inParameters : {parameter | 
@@ -457,8 +388,6 @@ instance_<instance.name>_<service.name>_SERVICE_call
     {
       <begin_entrypoint(instance, ep, "bufin", "size", "")>
 
-      <reserveHandlers (instance.type, instance, ep)>
-
       /* Call the service */
       <instance.type.package>_<service.name>_SERVICE_call
           (&<instance.name>_global,
@@ -466,7 +395,6 @@ instance_<instance.name>_<service.name>_SERVICE_call
            (const <parameter.qType>*) &usrparam_<parameter.name>}>);
            
       <instance.name>_global.tech->request_id++;
-      <freeHandlers (instance.type, instance, ep)>
 
       <end_entrypoint(instance, ep)>
     \}
@@ -496,7 +424,7 @@ instance_<instance.name>_<service.name>_SERVICE_provide
   <parameter.qType> usrparam_<parameter.name>;}>
 <endif>
 
-  SARC_serial_start_deserialize (&deser, bufin, sizein);
+  SARC_serial_start_deserialize (&deser, bufin, sizein, SARC_FALSE);
   SARC_uint32_deserialize(&deser, &request_id);
 <if(service.inParameters)>
   /* Deserialize input parameters */
@@ -513,23 +441,17 @@ instance_<instance.name>_<service.name>_SERVICE_provide
   (void) sizein;
 <endif>
 
-<if(service.outParameters && options.initializeParameters)>
-  /* Out parameters initialization */
-<endif>
 
   <begin_entrypoint(instance, ep, "bufin", "sizein", "0")>
-
-  <reserveHandlers (instance.type, instance, ep)>
 
   /* Call the service */
   <instance.type.package>_<service.name>_SERVICE_provide(&<instance.name>_global<service.inParameters : {parameter |,
     (const <parameter.qType>*) &usrparam_<parameter.name>}><service.outParameters : {parameter |,
     &usrparam_<parameter.name>}>);
-  <freeHandlers (instance.type, instance, ep)>
 
   <end_entrypoint(instance, ep)>
 
-  SARC_serial_start_serialize (&ser, bufout);
+  SARC_serial_start_serialize (&ser, bufout, SARC_FALSE);
   SARC_uint32_serialize (&ser, &request_id);
 <if (service.outParameters)>
   /* Write output parameters to output buffer */
@@ -563,11 +485,8 @@ SARC_Ecode instance_direct_<instance.name>_<ep.requestResponse.name>_SERVICE_pro
 {
   <begin_entrypoint(instance, ep, "NULL", "0", "SARC_FAILURE")>
 
-  <reserveHandlers (instance.type, instance, ep)>
-
   /* Call the manual code */
   <instance.type.package>_<ep.requestResponse.name>_SERVICE_provide(&<instance.name>_global<[ep.requestResponse.inParameters,ep.requestResponse.outParameters] : { param | , <param.name>}>);
-  <freeHandlers (instance.type, instance, ep)>
   <end_entrypoint(instance, ep)>
   return SARC_SUCCESS;
 \}
@@ -594,7 +513,7 @@ void instance_<instance.name>_<ep.requestResponse.name>_OUT_EVENT_receive(const 
   <parameter.qType> usrparam_<parameter.name>;}>
 
   /* Deserialize request ID */
-  SARC_serial_start_deserialize (&s, bufin, size);
+  SARC_serial_start_deserialize (&s, bufin, size, SARC_FALSE);
   SARC_uint32_deserialize(&s, &sarc_request_id);
   /* Deserialize out parameters */<ep.requestResponse.outParameters : {parameter | 
   <deserializeFunctionName(parameter.type)>(&s, &usrparam_<parameter.name>);}>
@@ -608,12 +527,10 @@ void instance_<instance.name>_<ep.requestResponse.name>_OUT_EVENT_receive(const 
   sarc_request_id = sarc_request_id & 0xFFFF;
 
   <begin_entrypoint(instance, ep, "bufin+4", "size-4", "")>
-  <reserveHandlers (instance.type, instance, ep)>
 
   /* Call the manual code */
   <instance.type.package>_<ep.requestResponse.name>_Callback(&<instance.name>_global, sarc_request_id<ep.requestResponse.outParameters : {parameter |,
     (const <parameter.qType>*) &usrparam_<parameter.name>}>);
-  <freeHandlers (instance.type, instance, ep)>
   <end_entrypoint(instance, ep)>
 \}
 <if(ep.requestResponse.isTimed)>
@@ -621,11 +538,9 @@ void instance_<instance.name>_<ep.requestResponse.name>_OUT_EVENT_receive(const 
 void instance_<instance.name>_<ep.requestResponse.name>_OUT_EVENT_timeout(SARC_uint32 sarc_requestId)
 {
   <begin_entrypoint(instance, ep, "NULL", "0", "")>
-  <reserveHandlers (instance.type, instance, ep)>
 
   /* Call the manual code */
   <instance.type.package>_<ep.requestResponse.name>_Timeout (&<instance.name>_global, sarc_requestId);
-  <freeHandlers (instance.type, instance, ep)>
   <end_entrypoint(instance, ep)>
 \}
 <endif>
@@ -649,5 +564,26 @@ void instance_<compoInst.name>_DATA_republish(void)
 \}
 <endif>
 
+>>
+
+
+startAllTimers(componentType, instance) ::=<<
+{
+<instance.type.sentEvents : { event |
+  <if(!event.virtual)>
+  <componentType.package>_<event.name>_TRIGGER_set(&<instance.name>_global, <event.delay>000L);
+<endif>
+  }>
+\}
+>>
+
+cancelAllTimers(componentType, instance) ::=<<
+{
+<instance.type.sentEvents : { event |
+  <if(!event.virtual)>
+  <componentType.package>_<event.name>_TRIGGER_cancel(&<instance.name>_global);
+<endif>
+  }>
+\}
 >>
 

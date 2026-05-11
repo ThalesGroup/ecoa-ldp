@@ -14,9 +14,16 @@ execMainBody(system) ::=<<
 #include "<componentType.typeName>_<componentType.implName>_facade.h"
 <endif>
 }>
+
+<system.mapping.globalExecutable.dispatches : { dispatch |
+#include "_<dispatch.name>_routine.h"
+}>
+#include \<arpa/inet.h\>
+#include \<netinet/in.h\>
 #include \<sys/wait.h>
 #include \<sys/prctl.h>
 #include \<fcntl.h>
+#include \<unistd.h>
 
 /*=============================================================================
  * Global constants or pseudo-constants
@@ -32,16 +39,37 @@ int SARC_socket_SYNC_<thread.name> = 0;
 const struct sockaddr_un SARC_socket_addr_<thread.name> =
   { AF_UNIX, "<thread.name>.socket" \};
 const struct sockaddr_un SARC_socket_addr_SYNC_<thread.name> =
-  { AF_UNIX, "SYNC_<thread.name>.socket" \};  
-
+  { AF_UNIX, "SYNC_<thread.name>.socket" \};
 }>
+
+<system.mapping.globalExecutable.channels : { channel |
+<if ((channel.directionIn) && (channel.directionOut))>
+int SARC_socket_<channel.name>_EXTERN = 0;
+struct sockaddr_in SARC_socket_addr_<channel.name>_EXTERN;
+int SARC_socket_<channel.name>_EXTERN_OUT = 0;
+struct sockaddr_in SARC_socket_addr_<channel.name>_EXTERN_OUT;
+<else>
+<if (channel.directionIn)>
+int SARC_socket_<channel.name>_EXTERN = 0;
+struct sockaddr_in SARC_socket_addr_<channel.name>_EXTERN;
+<else>
+int SARC_socket_<channel.name>_EXTERN_OUT = 0;
+struct sockaddr_in SARC_socket_addr_<channel.name>_EXTERN_OUT;
+<endif>
+<endif>
+}>
+
+SARC_ExternalOperationInfo SARC_external_socket_out_info[SARC_MAX_SOCKET];
+
+SARC_uint32 SARC_nb_external_socket = 0;
+
 const SARC_int32 SARC_table_task_of_instance[SARC_MAX_NB_COMPONENT] =
   { 
 <system.mapping.globalExecutable.threads : { thread |
 <thread.instances : { instance |
   [<instance.idNo>] = <thread.idNo>,
 }>}>
-  \};
+\};
 
 const struct sockaddr_un *SARC_table_socket_addr_of_task[SARC_MAX_NB_TASK] =
   {
@@ -111,40 +139,38 @@ SARC_gen_handle_lifecycle_command (int instanceId, SARC_LifeCycleState *state, S
       SARC_log_warning ("transition %s not allowed for component %s(%d) from state %s", SARC_table_name_of_life_cycle_shift[command],
               SARC_table_name_of_instance[instanceId], instanceId, SARC_table_name_of_life_cycle_state[*state]);
     \}
-  else
+  else if (next_state.state != *state || command == SARC_LIFE_CYCLE_SHIFT_RESET)
     {
+      SARC_log_info ("new state for component %s(%d): %s", SARC_table_name_of_instance[instanceId], instanceId, SARC_table_name_of_life_cycle_state[next_state.state]);
+
       if (command >= SARC_LIFE_CYCLE_SHIFT_INITIALIZE && command \<= SARC_LIFE_CYCLE_SHIFT_SHUTDOWN)
         {
           lifecycle_entrypoints[command - SARC_LIFE_CYCLE_SHIFT_INITIALIZE] ();
         \}
-      if (next_state.is_state_changed)
-        {
-	      *state = next_state.state;
-          // broadcast state change:
-	      SARC_log_info ("new state for component %s(%d): %s", SARC_table_name_of_instance[instanceId], instanceId, SARC_table_name_of_life_cycle_state[next_state.state]);
-          SARC_int32 sarc_buffer[3] =
-            { SARC_OP_LIFECYCLE_INFO, instanceId, next_state.state \};
-          // send to all other tasks
-          for (int i = 0; i \< SARC_MAX_NB_TASK; i++)
-            {
-              if (SARC_table_socket_addr_of_task[i] != NULL && i != SARC_table_task_of_instance[i])
-                {
-                  int err = sendto (SARC_socket_out, sarc_buffer, 3 * 4, 0,
-                                    (const struct sockaddr*) SARC_table_socket_addr_of_task[i],
-                                    sizeof(struct sockaddr_un));
-                  if (err \< 0)
-                    {
-                      if (errno == EAGAIN ) {
-                        perror("SARC_gen_handle_lifecycle_command:sendto, SARC_socket_out full");
-                        abort();
-                      \}
 
-                      perror ("SARC_gen_handle_lifecycle_command:sendto");
-                      abort();
-                    \}
+      *state = next_state.state;
+
+      // broadcast state change:
+      SARC_int32 sarc_buffer[3] =
+        { SARC_OP_LIFECYCLE_INFO, instanceId, next_state.state \};
+      // send to all tasks
+      for (int i = 0; i \< SARC_MAX_NB_TASK; i++)
+        {
+          if (SARC_table_socket_addr_of_task[i] != NULL)
+            {
+              int err = sendto (SARC_socket_out, sarc_buffer, 3 * 4, 0,
+                                (const struct sockaddr*) SARC_table_socket_addr_of_task[i],
+                                sizeof(struct sockaddr_un));
+              if (err \< 0)
+                {
+                  if (errno == EAGAIN ) {
+                    perror("SARC_gen_handle_lifecycle_command:sendto, SARC_socket_out full");
+                    abort();
+                  \}
+                  perror ("SARC_gen_handle_lifecycle_command:sendto");
+                  abort();
                 \}
             \}
-            usleep(50000); //50 ms, let other task to be updated.
         \}
     \}
 \}
@@ -167,6 +193,7 @@ SARC_gen_send_lifecycle_command (SARC_int32 instance, SARC_LifeCycleShift comman
 static void
 cleanup ()
 {
+/* Close inter routine socket */
 <system.mapping.globalExecutable.threads : { thread |
   remove (SARC_socket_addr_<thread.name>.sun_path);
 <if (thread.hasSyncRequiredRequestResponses)>
@@ -181,6 +208,96 @@ SARC_gen_startup_exec_<exec.name>()
 {
 <if(exec.isDispatcher)>
   /* main process */
+
+  /*===========================================================================
+   * Start dispatch threads
+   *===========================================================================*/
+<if (system.mapping.globalExecutable.hasChannels)>
+  int port = 0;
+  SARC_char8 addr[64];
+  SARC_Ecode ecode = SARC_FAILURE;
+<endif>
+<system.mapping.globalExecutable.channels : { channel |
+<if (channel.directionIn)>
+  ecode = SARC_get_port_info("<channel.name>", addr, &port);
+  if (ecode == SARC_SUCCESS)
+    {
+      SARC_socket_addr_<channel.name>_EXTERN.sin_family = AF_INET;
+      SARC_socket_addr_<channel.name>_EXTERN.sin_port = htons(port);
+      SARC_socket_addr_<channel.name>_EXTERN.sin_addr.s_addr = INADDR_ANY;
+    \}
+  else
+    {
+      SARC_log_error ("Error on reading configuration for port : <channel.name>\n");
+    \}
+
+  SARC_socket_<channel.name>_EXTERN = socket (AF_INET, SOCK_STREAM, 0);
+  if (SARC_socket_<channel.name>_EXTERN  \< 0)
+    {
+      perror ("socket");
+    \}
+<endif>}>
+
+<system.mapping.globalExecutable.dispatches :  { dispatch |
+  SARC_task_start (<dispatch.idNo>, &SARC_<dispatch.id>_FUNCTION);
+}>
+
+  //Attente pour laisser les threads de dispatches se lancer.
+  usleep(10000);
+
+ /*===========================================================================
+  * Create sockets for external operations
+  *===========================================================================*/
+
+<system.mapping.globalExecutable.channels : { channel |
+<if((channel.directionOut) && (channel.directionIn))>
+  /* In/Out channel */
+  ecode = SARC_get_port_info("<channel.name>_OUT", addr, &port);
+  if (ecode == SARC_SUCCESS)
+    {
+      SARC_socket_addr_<channel.name>_EXTERN_OUT.sin_family = AF_INET;
+      SARC_socket_addr_<channel.name>_EXTERN_OUT.sin_port = htons(port);
+      SARC_socket_addr_<channel.name>_EXTERN_OUT.sin_addr.s_addr = inet_addr(addr);
+    \}
+  else
+    {
+      SARC_log_error ("Error on reading configuration for port : <channel.name>_OUT\n");
+    \}
+<else>
+<if(channel.directionOut)>
+  /* Out channel */
+  ecode = SARC_get_port_info("<channel.name>", addr, &port);
+  if (ecode == SARC_SUCCESS)
+    {
+      SARC_socket_addr_<channel.name>_EXTERN_OUT.sin_family = AF_INET;
+      SARC_socket_addr_<channel.name>_EXTERN_OUT.sin_port = htons(port);
+      SARC_socket_addr_<channel.name>_EXTERN_OUT.sin_addr.s_addr = inet_addr(addr);
+    \}
+  else
+    {
+      SARC_log_error ("Error on reading configuration for port : <channel.name>\n");
+    \}
+<endif>
+<endif>}>
+
+SARC_nb_external_socket = 0;
+
+<system.mapping.globalExecutable.channels :  { channel |
+<if(channel.directionOut)>
+  SARC_socket_<channel.name>_EXTERN_OUT = socket (AF_INET, SOCK_STREAM, 0);
+  if (SARC_socket_<channel.name>_EXTERN_OUT  \< 0)
+    {
+      perror ("socket");
+    \}
+  else
+    {
+       SARC_external_socket_out_info[SARC_nb_external_socket].fd = SARC_socket_<channel.name>_EXTERN_OUT;
+       SARC_external_socket_out_info[SARC_nb_external_socket].addr = SARC_socket_addr_<channel.name>_EXTERN_OUT;
+       SARC_external_socket_out_info[SARC_nb_external_socket].state = SARC_UNKNOWN;
+       SARC_nb_external_socket+=1 ;
+    \}
+<endif>
+}>
 <else>
   /* create child process */
   if (fork () == 0)
@@ -193,43 +310,44 @@ SARC_gen_startup_exec_<exec.name>()
    *===========================================================================*/
 
 <exec.componentTypes : {componentType |
-  <componentType.typeName>_<componentType.implName>_instance_initialize ();
+     <componentType.typeName>_<componentType.implName>_instance_initialize ();
 }>
   /*===========================================================================
    * Start threads
    *===========================================================================*/
 <exec.threads :  {thread |
-  SARC_task_start (<thread.idNo>, &SARC_routine_<thread.name>);
+      SARC_task_start (<thread.idNo>, &SARC_routine_<thread.name>);
 }>
 
 <exec.instances : { instance |
 <if (instance.type.isExternal)>
 <if (instance.externalThread.isPrompt)>
-  /* External Thread autostart for instance <instance.name> */
-  SARC_task_start (<instance.externalThread.idNo>, &<instance.name>_EXTERNAL_routine);
+      /* External Thread autostart for instance <instance.name> */
+      SARC_task_start (<instance.externalThread.idNo>, &<instance.name>_EXTERNAL_routine);
 <endif>
 <endif>
 }>
-
-  if (errno)
-    {
-      perror ("pthread_create");
-      abort();
-    \}
+      if (errno)
+        {
+          perror ("pthread_create");
+          abort();
+        \}
 
 <if(exec.isDispatcher)>
 <else>
-  /* main thread of child process does nothing else but wait */
-  for(;;) wait(NULL);
-  \}
-  else {
-    if (errno)
-    {
-      SARC_log_error ("fork: %s", strerror (errno));
+      /* main thread of child process does nothing else but wait */
+      pause();
     \}
-  \}
+  else
+    {
+      if (errno)
+        {
+          SARC_log_error ("fork: %s", strerror (errno));
+        \}
+    \}
 <endif>
 \}
+
 }>
 
 /*=============================================================================
@@ -309,9 +427,9 @@ main (int argc __attribute__ ((unused)), const char *argv[] __attribute__ ((unus
       abort();
     \}
   \}
-<endif>  
-
+<endif>
 }>
+
   /*===========================================================================
    * Start executables
    *===========================================================================*/

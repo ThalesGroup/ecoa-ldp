@@ -43,6 +43,9 @@ public abstract class AbstractValueReader {
             case "char8":
                 value = readCharacter(type);
                 break;
+            case "uint64":
+                value = readUnsignedInt64(type);
+                break;
             default:
                 value = readInteger(type);
                 break;
@@ -118,6 +121,8 @@ public abstract class AbstractValueReader {
 
     protected abstract Value readFloat(TypeDefinition type) throws SyntaxError;
 
+    protected abstract Value readUnsignedInt64(TypeDefinition type) throws SyntaxError;
+    
     protected abstract Value readInteger(TypeDefinition type) throws SyntaxError;
 
     protected abstract Value readBoolean(TypeDefinition type) throws SyntaxError;

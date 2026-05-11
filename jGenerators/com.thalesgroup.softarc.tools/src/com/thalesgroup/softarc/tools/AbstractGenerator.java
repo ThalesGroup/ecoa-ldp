@@ -16,7 +16,7 @@ import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -72,7 +72,7 @@ public abstract class AbstractGenerator extends AbstractLogger {
      * Map used as input of templates. Id : name of the attribute used in templates. Value : Value
      * of this attribute for his template instance.
      */
-    private final Map<String, Object> _tmplAttrs = new HashMap<String, Object>();
+    private final Map<String, Object> _tmplAttrs = new LinkedHashMap<String, Object>();
 
     /** Used to know wether the generator is launched from a jar or not */
     private String tmpDir = null;
@@ -264,11 +264,18 @@ public abstract class AbstractGenerator extends AbstractLogger {
 
             initialize();
             generate();
-            if (_nbGenerationErrors == 0) {
-                info("successfully done.");
+            
+            if (getErrorCount() > 0) {
+            	info("Generation ended with " + getErrorCount() + " errors(s)");
+            }
+            
+            if (getWarningCount() > 0) {
+            	info("Generation ended with " + getWarningCount() + " warnings(s)");
+            }
+                        
+            if (getErrorCount() == 0) {
+                info("Successfully done.");
                 retCode = 0;
-            } else {
-                info("generation failed : %d error(s) raised.", _nbGenerationErrors);
             }
         }
 
@@ -513,7 +520,6 @@ public abstract class AbstractGenerator extends AbstractLogger {
                             outputFile.toURI().getPath());
                 }
             }
-            _nbGenerationErrors++;
             report(outputFile, ReportStatus.ERROR);
         } else {
             report(
@@ -588,11 +594,9 @@ public abstract class AbstractGenerator extends AbstractLogger {
     protected boolean _debug = false;
     /** template files root path. */
     protected String _templatesRoot;
-    /** Number of errors raised during generation process */
-    protected int _nbGenerationErrors = 0;
 
     /** Loaded templates cache */
-    protected Map<String, STGroupFile> templatesCache = new HashMap<String, STGroupFile>();
+    protected Map<String, STGroupFile> templatesCache = new LinkedHashMap<String, STGroupFile>();
 
     public static final String ARGUMENT_KEY_DEBUG = "debug";
     public static final char ARGUMENT_KEY_SHORT_DEBUG = 'g';

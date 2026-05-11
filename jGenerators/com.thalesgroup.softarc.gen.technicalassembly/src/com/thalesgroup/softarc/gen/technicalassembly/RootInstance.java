@@ -16,7 +16,6 @@ import technology.ecoa.model.deployment.DEApplication;
 import technology.ecoa.model.deployment.IOInterface;
 import technology.ecoa.model.deployment.IOOperation;
 import technology.ecoa.model.deployment.IOSection;
-import com.thalesgroup.softarc.gen.technicalassembly.Wire.Kind;
 import com.thalesgroup.softarc.tools.InconsistentModelError;
 
 class RootInstance extends CompositeInstance {
@@ -24,6 +23,11 @@ class RootInstance extends CompositeInstance {
     RootInstance(Assembly internalAssembly, GenTechnicalAssembly gen, File assemblyFile) throws Exception {
 
         super(null, null, internalAssembly, gen, assemblyFile);
+    }
+    
+    RootInstance(Assembly internalAssembly, GenTechnicalAssembly gen, File assemblyFile, boolean isTechnicalAssembly) throws Exception {
+
+        super(null, null, internalAssembly, gen, assemblyFile, isTechnicalAssembly);
     }
 
     void removeIdenticalWires() {
@@ -126,7 +130,7 @@ class RootInstance extends CompositeInstance {
     private void checkExternalRequestResponseLinks() throws Exception {
         LinkedHashSet<Operation> set = new LinkedHashSet<Operation>();
         for (Wire w : wires) {
-            if (w.kind.equals(Kind.SERVICE)) {
+            if (w.kind.equals(EDR.RequestResponse)) {
                 if (w.target.instance == this) {
                     if (set.add(w.target) == false) {
                         throw new InconsistentModelError(String.format(
@@ -175,7 +179,7 @@ class RootInstance extends CompositeInstance {
 
             /* for each wire corresponding to a service operation with an external client */
             for (Wire w : wires) {
-                if (w.kind.equals(Kind.SERVICE) && w.source.instance == this) {
+                if (w.kind.equals(EDR.RequestResponse) && w.source.instance == this) {
                     toBeRemoved.add(w);
                     String opName = w.source.name;
                     for (IOInterface inChannel : allInPorts) {

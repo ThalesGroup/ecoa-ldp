@@ -7,7 +7,6 @@ public class GenerationOptions {
     public boolean checkWCET;
     public boolean checkOccurenceRate;
     public boolean hasSafeReaders;
-    public boolean simulation;
     public boolean observeWithMetrics = false;
     public boolean initializeParameters;
 

@@ -12,6 +12,8 @@ import com.thalesgroup.ecoa.model.Workspace;
 import com.thalesgroup.softarc.gen.s30.gentype.KindOfDirectory;
 import com.thalesgroup.softarc.sf.Component;
 import com.thalesgroup.softarc.sf.Container;
+import com.thalesgroup.softarc.sf.Dispatch;
+import com.thalesgroup.softarc.sf.Executable;
 import com.thalesgroup.softarc.sf.Thread;
 import com.thalesgroup.softarc.tools.InconsistentModelError;
 
@@ -118,6 +120,7 @@ public class FilepathResolver {
             switch (lang) {
             case C:
                 path.add(SRC_GEN);
+                path.add(cmpName);
                 path.add(filePrefix + "_container.h");
                 break;
             default:
@@ -197,6 +200,33 @@ public class FilepathResolver {
     /**
      * @return Given file absolute file path
      */
+    public String getFilePath(KindOfFile kind, Executable exec, Dispatch dispatch) throws IOException {
+        List<Object> path = new ArrayList<Object>();
+        String execName = exec.getName();
+
+        path.add(ws.getExeDir(execName));
+
+        switch (kind) {
+            case EXEC_DISPATCH_SOURCE_FILE:
+                path.add(SRC_GEN);
+                path.add(execName + "_" + dispatch.getName() + "_routine.c");
+                break;
+
+            case EXEC_DISPATCH_HEADER_FILE:
+                path.add(INC_GEN);
+                path.add(execName + "_" + dispatch.getName() + "_routine.h");
+                break;
+
+            default:
+                return null;
+        }
+
+        return computePath(path);
+    }
+
+    /**
+     * @return Given file absolute file path
+     */
     public String getFilePath(KindOfFile kind) throws IOException {
 
         List<Object> path = new ArrayList<Object>();
@@ -213,7 +243,9 @@ public class FilepathResolver {
 				path.add(INC_GEN);
 				path.add("sarc_ldp.h"); 
 				break;
-		    	
+            case LDP_EXTERNAL_CONF_FILE:
+                path.add("external_conf.txt");
+                break;
 	        default:
 	            return null;
 	        }

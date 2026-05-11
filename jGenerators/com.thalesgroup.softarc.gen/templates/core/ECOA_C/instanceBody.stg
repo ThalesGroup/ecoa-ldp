@@ -3,13 +3,9 @@
 import "../../serialize/C/common.stg"
 import "signatures.stg"
 
-//####################################################################
-//@name Instance body main structure
-//@param container Container
-//@param options NON-CERT
 instanceBody(container, options) ::=<<
 
-<includes(container.component, container.parent)>
+<includes(container.component)>
 <declareGlobalVariables(container.component, container.instances)>
 <if(options.hasSafeReaders)>
 <declareSafeReaderVariables(container.component, container.operationMap)>
@@ -22,7 +18,6 @@ instanceBody(container, options) ::=<<
  *=============================================================================*/
 
 <implementComponentCommandFunctions(container.component, instance)>
-<implementTimerManagerFunctions(instance)>
 <implementExternalRoutineCall(instance)>
 <implementReceivedEvents(container.component, instance)>
 <implementProvidedRequestResponses(instance)>
@@ -36,14 +31,15 @@ instanceBody(container, options) ::=<<
 //#############################################################################
 //@name Instance body include directives
 //@param componentType Component
-//@param exec Executable
-includes(componentType, exec) ::=<<
+includes(componentType) ::=<<
 #include "sarc_ldp.h"
 <componentType.usedLibraries: {component |
 <if (!component.isEcoa)>
 #include "<component.fileprefix>_serialize.h"
 <endif>
+<! NOTE: generation of initialize files for ecoa is disabled for now.
 #include "<component.fileprefix>_initialize.h"
+!>
 }>
 #include "<componentType.typeName>_<componentType.implName>_facade.h"
 #include "<componentType.fileprefix>_container.h"
@@ -72,22 +68,13 @@ const <attribute.qType> K_ATT_<instance.name>_<attribute.name> = <attribute.valu
 <declareEntrypointVariables(instance)>}>
 
 /* Variable characteristics for each instance of <componentType.package> (if any) */
-<instances : {instance | <instance.variables : {variable | 
-
-const SARC_int32 K_VAR_<instance.name>_<variable.name> = <variable.id>;}>}>
 
 /* Deferred service maps (if any) between server and client request identifiers */
 <instances : {instance | 
 <instance.requestResponseEntryPoints : {ep | 
 <if(ep.requestResponse.isDeferred)>
 SARC_int64 <instance.name>_<ep.requestResponse.name>_map[1 + (6 + <ep.requestResponse.maxDeferred>) / 2 + <ep.requestResponse.maxDeferred> * (1 + (sizeof (SARC_RequestInfo) + 7) / 8)];<endif>}>}>
-
-/* Pending async requests service maps (if any) for handling timeouts */
-<instances : {instance | 
-<instance.callbackEntryPoints : {ep | <if(ep.requestResponse.isTimed)>
-SARC_int64 <instance.name>_<ep.requestResponse.name>_timeout_info_table[<ep.requestResponse.maxRequests>];<endif>}>}>
 >>
-
 
 declareSafeReaderVariables(componentType, operationsMap) ::=<<
 <if (componentType.readData)>
@@ -110,7 +97,6 @@ extern SARC_Counter <linkedInstance.instance.id>_<data.operation.name>_index[<da
 //@name Instance initialization functions implementation
 //@param componentType Component
 //@param instances Instance[*]
-//@param options NON-CERT
 implementInstancesInitFunction(componentType, instances, operationsMap, options) ::=<<
 /*=============================================================================
  * Instance(s) init function
@@ -123,14 +109,6 @@ void
 <if(componentType.isSupervisor)>
   SARC_uint32 i = 0;
 <endif>
-<if(options.hasSafeReaders && componentType.readData)>
-<operationsMap.readData : {data | 
-<data.linkedInstances : {linkedInstance | 
-  memset(<linkedInstance.instance.id>_<data.operation.name>_buffer, 0, sizeof(<linkedInstance.instance.id>_<data.operation.name>_buffer));
-  memset(<linkedInstance.instance.id>_<data.operation.name>_ptr, 0, sizeof(<linkedInstance.instance.id>_<data.operation.name>_ptr));
-  memset(<linkedInstance.instance.id>_<data.operation.name>_index, 0, sizeof(<linkedInstance.instance.id>_<data.operation.name>_index));
-}>}>
-<endif>
 <instances : {instance | 
   memset (&<instance.name>_global, 0, sizeof (<componentType.package>_context));
   tech_ctxt = &<instance.name>_global_tech;
@@ -139,11 +117,11 @@ void
   tech_ctxt->request_id = 0;
   tech_ctxt->lifecycle_entrypoints[0] = instance_<instance.name>_Initialize_EVENT_receive;
   tech_ctxt->lifecycle_entrypoints[1] = instance_<instance.name>_Start_EVENT_receive;
-  tech_ctxt->lifecycle_entrypoints[3] = instance_<instance.name>_Stop_EVENT_receive;
-  tech_ctxt->lifecycle_entrypoints[4] = instance_<instance.name>_Shutdown_EVENT_receive;
 <if (componentType.hasReset)>
   tech_ctxt->lifecycle_entrypoints[2] = instance_<instance.name>_Reset_EVENT_receive;
 <endif>
+  tech_ctxt->lifecycle_entrypoints[3] = instance_<instance.name>_Stop_EVENT_receive;
+  tech_ctxt->lifecycle_entrypoints[4] = instance_<instance.name>_Shutdown_EVENT_receive;
 <if (componentType.isExternal)>
   tech_ctxt->external_task_index = <instance.externalThread.idNo>;
 <componentType.data : { data |
@@ -156,7 +134,6 @@ void
 <componentType.readData : { data | 
   tech_ctxt->r_access_<data.name>.remaining = <data.maxversions>;
 }>
-
 <if (instance.Pinfos)>
 /* PINFO initialisation */
 <instance.Pinfos : { pinfo | 
@@ -169,55 +146,9 @@ void
 
 
 declareEntrypointVariables(instance) ::=<<
-<instance.entryPoints : { ep | <if(ep.checkWCET)>
-SARC_Time <instance.name>_max_cpu_time_<ep.name> = {0, 0\};
-<endif>}>
-<instance.entryPoints : { ep | <if(ep.highestRate)>
-SARC_RatmonContext <instance.name>_rate_checker_<ep.name>;
-<endif>}>
 >>
 
 begin_entrypoint(instance, ep, buffer, size, return_value_on_abort) ::=<<
-<if(ep.abortable)>
-SARC_boolean8 abort_activation = SARC_FALSE;
-<endif>
-<if(ep.checkRate)>
-{
-  SARC_boolean8 _sarc_is_saturated = SARC_FALSE;
-  SARC_ratmon_test_and_add (&<instance.name>_rate_checker_<ep.name>, &_sarc_is_saturated);
-  if (_sarc_is_saturated != SARC_FALSE)
-    {
-      SARC_monitor_rate_violation ("<instance.name>", "<ep.name>");
-<if(ep.abortable)>
-      abort_activation = SARC_TRUE;
-<endif>
-    \}
-\}
-
-<endif>
-<if(ep.checkWCET)>
-/* for WCET check */
-SARC_clock_read (SARC_CLOCK_TASK, &<instance.name>_global_tech.activation_cpu_time);
-<endif>
-<if(ep.observationBegin)>
-<if(options.observeWithMetrics)>
-if (SARC_is_observed (<ep.observationBegin.id>) >= SARC_TRACE_INFO)
-  {
-    metrics_probe(PI_BEGIN, <ep.observationBegin.name>);
-  \}
-<else>
-SARC_observe (<ep.observationBegin.id>, &<instance.exec.name>_<instance.thread.name>_OBSERVE_TRACE, <buffer>, <size>);
-<endif>
-<endif>
-<if(ep.abortable)>
-if(abort_activation) return <return_value_on_abort>;
-<endif>
-<if(ep.wasteTimeBefore)>
-{
-const SARC_Time extra_cpu = <to_sarc_time(ep.wasteTimeBefore.nanoseconds)>;
-SARC_task_waste<if(ep.wasteTimeBefore.isRandom)>_random<endif>_time (&extra_cpu);
-\}
-<endif>
 >>
 
 to_sarc_time(nanoseconds) ::=<<
@@ -225,47 +156,9 @@ to_sarc_time(nanoseconds) ::=<<
 >>
 
 end_entrypoint(instance, ep) ::=<<
-<if(ep.wasteTimeUntil)>
-{
-SARC_Time extra_cpu = <to_sarc_time(ep.wasteTimeUntil.nanoseconds)>;
-SARC_task_waste<if(ep.wasteTimeUntil.isRandom)>_random<endif>_time_until (&extra_cpu, &<instance.name>_global_tech.activation_cpu_time);
-\}
-<endif>
-<if(ep.observationEnd)>
-<if(options.observeWithMetrics)>
-if (SARC_observe_get_status (<ep.observationBegin.id>) >= SARC_TRACE_INFO)
-  {
-    metrics_probe(PI_END, <ep.observationEnd.name>);
-  \}
-<else>
-SARC_observe(<ep.observationEnd.id>, &<instance.exec.name>_<instance.thread.name>_OBSERVE_TRACE, NULL, 0);
-<endif>
-<endif>
-<if(ep.checkWCET)>
-/* WCET check */
-{
-static const SARC_Time limit_cpu = <to_sarc_time(ep.wcet)>;
-SARC_Time delta_cpu;
-SARC_boolean8 is_violation;
-SARC_monitor_check_wcet_violation(
-  &<instance.name>_global_tech.activation_cpu_time,
-  &limit_cpu,
-  &delta_cpu,
-  &<instance.name>_max_cpu_time_<ep.name>,
-  &is_violation);
-if (is_violation != SARC_FALSE) {
-   SARC_monitor_wcet_violation ("<instance.name>", "<ep.name>", &delta_cpu, &limit_cpu);
-\}
-\}
-<endif>
 >>
 
 dump_entrypoint_statistics(instance) ::=<<
-<instance.entryPoints : { ep | 
-<if(ep.checkWCET)>
-SARC_monitor_max_cpu_time("<instance.name>","<ep.name>", &<instance.name>_max_cpu_time_<ep.name>);
-<endif>
-}>
 >>
 
 
@@ -294,9 +187,6 @@ void instance_<instance.name>_Start_EVENT_receive() {
   <begin_entrypoint(instance, instance.start, "NULL", "0", "")>
   <componentType.package>__START__received(&<instance.name>_global);
   <end_entrypoint(instance, instance.start)>
-  <if(componentType.isSupervisor)>
-  <componentType.package>_startSequence(&<instance.name>_global);
-  <endif>
 \}
 
 void instance_<instance.name>_Stop_EVENT_receive() {
@@ -305,12 +195,6 @@ void instance_<instance.name>_Stop_EVENT_receive() {
   <end_entrypoint(instance, instance.stop)>
 
   <dump_entrypoint_statistics(instance)>
-
-<instance.entryPoints : { ep | 
-<if(ep.highestRate)>
-  SARC_ratmon_reset (&<instance.name>_rate_checker_<ep.name>);
-<endif>
-}>
 \}
 
 void instance_<instance.name>_Shutdown_EVENT_receive() {
@@ -334,25 +218,6 @@ void instance_<instance.name>_Reset_EVENT_receive() {
   <componentType.package>__RESET__received(&<instance.name>_global);
   <end_entrypoint(instance, instance.reset)>
 \}
-<endif>
->>
-
-//#############################################################################
-//@name Timer manager functions implementation
-//@param instance Instance
-implementTimerManagerFunctions(instance) ::=<<
-<if (instance.type.isTimer)>
-/*---------------------------------------------------------
- * TIMERMANAGER component specific routines
- *---------------------------------------------------------*/
-
-void <instance.name>_TIMER_routine()
-{
-<if (!options.simulation)>
-  <instance.type.package>_timer_routine(&<instance.name>_global);
-<endif>
-\}
-
 <endif>
 >>
 
@@ -388,8 +253,6 @@ void
 
   (void) p_previous;
 
-  /* Only stable states are transmitted to SUPERVISOR callback */
-  if (SARC_life_cycle_is_stable_state (p_state))
     {
       <instance.name>_global_tech.componentStableState[p_component_id] = p_state;
       <instance.type.package>_onStateChange (&<instance.name>_global, p_component_id, p_state, previous_stable);
@@ -400,69 +263,6 @@ void
 >>
 
 
-//#############################################################################
-//@name Handlers reservation routine
-//@param componentType Component
-//@param instance Instance
-//@param ep EntryPoint
-reserveHandlers (componentType, instance, ep) ::=<<
-<if(ep.port.operation.accesses)>
-
-/* Reserve handlers */
-
-<ep.port.operation.accesses : {access | 
-
-<if(access.isWrite)>
-/* --- WRITE <access.data_action.name> */
-<componentType.package>_container__<access.data_action.name>__get_write_access (&<instance.name>_global,
-  (<componentType.package>_container__<access.data_action.name>_handle *) &<instance.name>_global_tech.w_access_<access.data_action.name>.handle);
-<instance.name>_global_tech.w_access_<access.data_action.name>.is_auto = ECOA__TRUE;
-<instance.name>_global_tech.w_access_<access.data_action.name>.has_changed = ECOA__FALSE;
-<else>
-/* --- READ <access.data_action.name> */
-<componentType.package>_container__<access.data_action.name>__get_read_access (&<instance.name>_global,
-  (<componentType.package>_container__<access.data_action.name>_handle *) &<instance.name>_global_tech.r_access_<access.data_action.name>.handle);
-<instance.name>_global_tech.r_access_<access.data_action.name>.is_auto = ECOA__TRUE;
-<endif>
-}>
-<endif>
->>
-
-//#####################################################################
-//@name Handler release routine
-//@param componentType Component
-//@param instance Instance
-//@param ep EntryPoint
-freeHandlers (componentType, instance, ep) ::=<<
-<if(ep.port.operation.accesses)>
-
-/* Free handlers */
-
-<ep.port.operation.accesses : {access | 
-
-<if(access.isWrite)>
-/* --- WRITE <access.data_action.name> */
-<instance.name>_global_tech.w_access_<access.data_action.name>.is_auto = ECOA__FALSE;
-if (<instance.name>_global_tech.w_access_<access.data_action.name>.has_changed == ECOA__TRUE)
-  {
-    <componentType.package>_container__<access.data_action.name>__publish_write_access (&<instance.name>_global,
-      (<componentType.package>_container__<access.data_action.name>_handle *) &<instance.name>_global_tech.w_access_<access.data_action.name>.handle);
-  \}
-else
-  {
-    <componentType.package>_container__<access.data_action.name>__cancel_write_access (&<instance.name>_global,
-      (<componentType.package>_container__<access.data_action.name>_handle *) &<instance.name>_global_tech.w_access_<access.data_action.name>.handle);
-  \}
-<instance.name>_global_tech.w_access_<access.data_action.name>.has_changed = ECOA__FALSE;
-<else>
-/* --- READ <access.data_action.name> */
-<instance.name>_global_tech.r_access_<access.data_action.name>.is_auto = ECOA__FALSE;
-<componentType.package>_container__<access.data_action.name>__release_read_access (&<instance.name>_global,
-  (<componentType.package>_container__<access.data_action.name>_handle *) &<instance.name>_global_tech.r_access_<access.data_action.name>.handle);
-<endif>
-}>
-<endif>
->>
 
 //#############################################################################
 //@name Received Events implementation
@@ -484,7 +284,7 @@ void instance_<instance.name>_<ep.event.name>_EVENT_receive(const SARC_char8 * b
   SARC_DeserializationContext s;
 <endif>
 <if(ep.event.inParameters)>
-  SARC_serial_start_deserialize (&s, bufin, size);
+  SARC_serial_start_deserialize (&s, bufin, size, SARC_FALSE);
 <ep.event.inParameters : {parameter | 
   <deserializeFunctionName(parameter.type)>(&s, (<parameter.type.cName>*) &usrparam_<parameter.name>);
 }>
@@ -498,7 +298,6 @@ void instance_<instance.name>_<ep.event.name>_EVENT_receive(const SARC_char8 * b
   (void) bufin;
 <endif>
   <begin_entrypoint(instance, ep, "bufin", "size", "")>
-  <reserveHandlers (componentType, instance, ep)>
 
   /* Call manual code */
 <if(ep.event.dataNotification)>
@@ -509,7 +308,6 @@ void instance_<instance.name>_<ep.event.name>_EVENT_receive(const SARC_char8 * b
     (&<instance.name>_global<ep.event.inParameters : {parameter |,
     <parameterByValueOrAdress(parameter)>}>);
 
-  <freeHandlers (componentType, instance, ep)>
 
   <end_entrypoint(instance, ep)>
 \}
@@ -549,7 +347,7 @@ instance_<instance.name>_<service.name>_SERVICE_call
   
   /* Deserialize input parameters */
   SARC_DeserializationContext s;
-  SARC_serial_start_deserialize (&s, bufin, size);
+  SARC_serial_start_deserialize (&s, bufin, size, SARC_FALSE);
   SARC_uint32_deserialize(&s, &oper_id);
   SARC_uint32_deserialize(&s, &request_id);
 <else>
@@ -559,7 +357,7 @@ instance_<instance.name>_<service.name>_SERVICE_call
 	
   /* Deserialize input parameters */
   SARC_DeserializationContext s;
-  SARC_serial_start_deserialize (&s, bufin, size);
+  SARC_serial_start_deserialize (&s, bufin, size, SARC_FALSE);
   SARC_uint32_deserialize(&s, &oper_id);
   SARC_uint32_deserialize(&s, &request_id);
 <service.inParameters : {parameter | 
@@ -587,7 +385,6 @@ instance_<instance.name>_<service.name>_SERVICE_call
     {
       <begin_entrypoint(instance, ep, "bufin", "size", "")>
 
-      <reserveHandlers (instance.type, instance, ep)>
 
       /* Call the service */
       <instance.type.package>__<service.name>__request_received
@@ -596,7 +393,6 @@ instance_<instance.name>_<service.name>_SERVICE_call
            <parameterByValueOrAdress(parameter)>}>);
            
       <instance.name>_global.platform_hook->request_id++;
-      <freeHandlers (instance.type, instance, ep)>
 
       <end_entrypoint(instance, ep)>
     \}
@@ -609,7 +405,8 @@ SARC_uint32
 instance_<instance.name>_<service.name>_SERVICE_provide
   (const SARC_char8 * bufin,
    SARC_uint32 sizein,
-   SARC_char8 * bufout)
+   SARC_char8 * bufout
+  )
 {
   SARC_SerializationContext ser; 
 <if(service.outParameters)>
@@ -625,7 +422,7 @@ instance_<instance.name>_<service.name>_SERVICE_provide
   <parameter.qType> usrparam_<parameter.name>;}>
 <endif>
 
-  SARC_serial_start_deserialize (&deser, bufin, sizein);
+  SARC_serial_start_deserialize (&deser, bufin, sizein, SARC_FALSE);
   SARC_uint32_deserialize(&deser, &request_id);
   
 <if(service.inParameters)>
@@ -643,25 +440,17 @@ instance_<instance.name>_<service.name>_SERVICE_provide
   (void) sizein;
 <endif>
 
-<if(service.outParameters && options.initializeParameters)>
-  /* Out parameters initialization */
-  <service.outParameters : {parameter | 
-  <parameter.qType>__initialize(&usrparam_<parameter.name>);}>
-<endif>
-
   <begin_entrypoint(instance, ep, "bufin", "sizein", "0")>
 
-  <reserveHandlers (instance.type, instance, ep)>
 
   /* Call the service */
   <instance.type.package>__<service.name>__request_received(&<instance.name>_global<service.inParameters : {parameter |,
     <parameterByValueOrAdress(parameter)>}><service.outParameters : {parameter |,
     &usrparam_<parameter.name>}>);
-  <freeHandlers (instance.type, instance, ep)>
 
   <end_entrypoint(instance, ep)>
 
-  SARC_serial_start_serialize (&ser, bufout);
+  SARC_serial_start_serialize (&ser, bufout, SARC_FALSE);
   SARC_uint32_serialize (&ser, &request_id);
 <if (service.outParameters)>
   /* Write output parameters to output buffer */
@@ -691,17 +480,14 @@ implementProvidedDirectRequestResponses(instance) ::=<<
 <instance.directRequestResponseEntryPoints : {ep | 
 /*----------------------------*/
 /* <instance.name> <ep.requestResponse.name> */
-SARC_Ecode instance_direct_<instance.name>_<ep.requestResponse.name>_SERVICE_provide(<if (options.simulation)>SARC_int32 caller_instance_id, SARC_int32 caller_activation_id, SARC_int32 * server_instance_id, SARC_int32 server_activation_id<if (ep.requestResponse.inParameters || ep.requestResponse.outParameters)>,
-    <endif><endif><inParametersVoid(ep.requestResponse.inParameters, ep.requestResponse.hasOutParameters)><outParametersVoid(ep.requestResponse.outParameters, false)>)
+SARC_Ecode instance_direct_<instance.name>_<ep.requestResponse.name>_SERVICE_provide(<inParametersVoid(ep.requestResponse.inParameters, ep.requestResponse.hasOutParameters)><outParametersVoid(ep.requestResponse.outParameters, false)>)
 {
   <parametersByValue(ep.requestResponse.inParameters)>
   <begin_entrypoint(instance, ep, "NULL", "0", "SARC_FAILURE")>
 
-  <reserveHandlers (instance.type, instance, ep)>
 
   /* Call the manual code */
   <instance.type.package>__<ep.requestResponse.name>__request_received(&<instance.name>_global<[ep.requestResponse.inParameters,ep.requestResponse.outParameters] : { param | , <param.name>}>);
-  <freeHandlers (instance.type, instance, ep)>
   <end_entrypoint(instance, ep)>
 
   return SARC_SUCCESS;
@@ -729,7 +515,7 @@ void instance_<instance.name>_<ep.requestResponse.name>_OUT_EVENT_receive(const 
   <parameter.qType> usrparam_<parameter.name>;}>
 
   /* Deserialize request ID */
-  SARC_serial_start_deserialize (&s, bufin, size);
+  SARC_serial_start_deserialize (&s, bufin, size, SARC_FALSE);
   SARC_uint32_deserialize(&s, &sarc_request_id);
   /* Deserialize out parameters */<ep.requestResponse.outParameters : {parameter | 
   <deserializeFunctionName(parameter.type)>(&s, &usrparam_<parameter.name>);}>
@@ -739,17 +525,15 @@ void instance_<instance.name>_<ep.requestResponse.name>_OUT_EVENT_receive(const 
       return;
     \}
 
-  <begin_entrypoint(instance, ep, "bufin+4", "size-4", "")>
-  <reserveHandlers (instance.type, instance, ep)>
   
   // Get the real request id stock in the last 16 bits.
   sarc_request_id = sarc_request_id & 0xFFFF;
+  <begin_entrypoint(instance, ep, "bufin+4", "size-4", "")>
 
   /* Call the manual code */
   <instance.type.package>__<ep.requestResponse.name>__response_received(&<instance.name>_global, sarc_request_id,
     ECOA__return_status_OK<ep.requestResponse.outParameters : {parameter |,
     <parameterByValueOrAdress(parameter)>}>);
-  <freeHandlers (instance.type, instance, ep)>
   <end_entrypoint(instance, ep)>
 \}
 <if(ep.requestResponse.isTimed)>
@@ -757,16 +541,12 @@ void instance_<instance.name>_<ep.requestResponse.name>_OUT_EVENT_receive(const 
 void instance_<instance.name>_<ep.requestResponse.name>_OUT_EVENT_timeout(SARC_uint32 sarc_requestId)
 {
   <begin_entrypoint(instance, ep, "NULL", "0", "")>
-  <reserveHandlers (instance.type, instance, ep)>
-  <ep.requestResponse.outParameters : {parameter | 
-  <parameter.qType> usrparam_<parameter.name>;}>
 
   /* Call the manual code */
   <instance.type.package>__<ep.requestResponse.name>__response_received(&<instance.name>_global, sarc_requestId,
     ECOA__return_status_NO_RESPONSE<ep.requestResponse.outParameters : {parameter |,
     <parameterByValueOrAdress(parameter)>}>);
 
-  <freeHandlers (instance.type, instance, ep)>
   <end_entrypoint(instance, ep)>
 \}
 <endif>

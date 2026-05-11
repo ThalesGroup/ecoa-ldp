@@ -37,8 +37,18 @@ public class TypeSizer {
         }
 
         type.setAlignment(result.alignment);
-        type.setSize(result.raw_size);
+        type.setSize(result.rawSize);
         type.setSizeof(result.sizeof);
+    }
+
+    public static long alignedSize(long size, long alignment) {
+        return alignment * ((size + alignment - 1) / alignment);
+    }
+
+    public static long alignedNonZeroSize(long size, long alignment) {
+        if (size == 0)
+            size = 8;
+        return alignedSize(size, alignment);
     }
 
     // Dimensionne un tableau de taille fixe
@@ -49,7 +59,7 @@ public class TypeSizer {
 
         // array elements
         computeTypeSize(type.getBaseType(), innerTypeSizeCtxt);
-        result.add_array(maxNumber, innerTypeSizeCtxt);
+        result.addArray(maxNumber, innerTypeSizeCtxt);
     }
 
     // Dimensionne un tableau de taille variable
@@ -62,11 +72,11 @@ public class TypeSizer {
 
         // array header : number of elements
         computePredefTypeSize("int32", count_size);
-        result.add_field(count_size);
+        result.addField(count_size);
 
         // array elements
         computeTypeSize(type.getBaseType(), element_size);
-        result.add_array(maxNumber, element_size);
+        result.addArray(maxNumber, element_size);
 
         result.finalize();
     }
@@ -78,25 +88,25 @@ public class TypeSizer {
         TypeSizeContext uint32 = new TypeSizeContext();
         TypeSizeContext item = new TypeSizeContext();
         long capacity = type.getArraySize();
-        long raw_size = result.raw_size;
+        long raw_size = result.rawSize;
 
         computePredefTypeSize("uint32", uint32);
 
         // First, compute list size as a uint64 C array
         list.alignment = 8;
-        list.add_array(5 + capacity, uint32);
+        list.addArray(5 + capacity, uint32);
 
         computeTypeSize(type.getBaseType(), item);
-        list.add_array(capacity, item);
+        list.addArray(capacity, item);
 
         list.finalize();
 
         // Then, insert such array in more global type
-        result.add_field(list);
+        result.addField(list);
         result.finalize();
 
         // The index is not serialized
-        result.raw_size = raw_size + 4 + item.raw_size * capacity;
+        result.rawSize = raw_size + 4 + item.rawSize * capacity;
     }
 
     // Dimensionne une map
@@ -109,7 +119,7 @@ public class TypeSizer {
         TypeSizeContext value = new TypeSizeContext();
         TypeSizeContext item = new TypeSizeContext();
         long capacity = type.getArraySize();
-        long raw_size = result.raw_size;
+        long raw_size = result.rawSize;
 
         computePredefTypeSize("uint32", uint32);
         computePredefTypeSize("uint64", uint64);
@@ -121,21 +131,21 @@ public class TypeSizer {
         // keys
 
         // A map is implemented as a list of (uint64, value) items
-        item.add_field(uint64);
-        item.add_field(value);
+        item.addField(uint64);
+        item.addField(value);
         item.finalize();
 
         map.alignment = 8;
-        map.add_array(7 + capacity, uint32);
-        map.add_array(capacity, item);
+        map.addArray(7 + capacity, uint32);
+        map.addArray(capacity, item);
         map.finalize();
 
         // Insert map inside more global type
-        result.add_field(map);
+        result.addField(map);
         result.finalize();
 
         // The index is not serialized, and the size used by keys is specific
-        result.raw_size = raw_size + uint32.raw_size + capacity * (key.raw_size + value.raw_size);
+        result.rawSize = raw_size + uint32.rawSize + capacity * (key.rawSize + value.rawSize);
     }
 
     // Dimensionne une structure (sans discriminant)
@@ -146,7 +156,7 @@ public class TypeSizer {
             TypeSizeContext fieldTypeSizeCtxt = new TypeSizeContext();
 
             computeTypeSize(field.getType(), fieldTypeSizeCtxt);
-            result.add_field(fieldTypeSizeCtxt);
+            result.addField(fieldTypeSizeCtxt);
         }
 
         result.finalize();
@@ -160,7 +170,7 @@ public class TypeSizer {
             TypeSizeContext selectTypeSizeCtxt = new TypeSizeContext();
 
             computeTypeSize(type.getBaseType(), selectTypeSizeCtxt);
-            result.add_field(selectTypeSizeCtxt);
+            result.addField(selectTypeSizeCtxt);
         }
 
         // champs fixes
@@ -168,7 +178,7 @@ public class TypeSizer {
             TypeSizeContext fieldTypeSizeCtxt = new TypeSizeContext();
 
             computeTypeSize(field.getType(), fieldTypeSizeCtxt);
-            result.add_field(fieldTypeSizeCtxt);
+            result.addField(fieldTypeSizeCtxt);
         }
 
         // champs variables
@@ -180,7 +190,7 @@ public class TypeSizer {
 
                 computeTypeSize(union.getType(), unionTypeSizeCtxt);
 
-                worst.raw_size = Math.max(worst.raw_size, unionTypeSizeCtxt.raw_size);
+                worst.rawSize = Math.max(worst.rawSize, unionTypeSizeCtxt.rawSize);
                 worst.alignment = Math.max(worst.alignment, unionTypeSizeCtxt.alignment);
                 worst.sizeof = Math.max(worst.sizeof, unionTypeSizeCtxt.sizeof);
             }
@@ -191,7 +201,7 @@ public class TypeSizer {
             worst.finalize();
 
             // On ajoute ce proto champ
-            result.add_field(worst);
+            result.addField(worst);
         }
 
         result.finalize();
@@ -211,20 +221,20 @@ public class TypeSizer {
         computePredefTypeSize("char8", char_size);
 
         // Compute serialized size
-        raw.add_field(cur_len_size); // current length
-        raw.add_array(maxNumber + 1, char_size); // data
+        raw.addField(cur_len_size); // current length
+        raw.addArray(maxNumber + 1, char_size); // data
 
         // Compute memory size
-        memory.add_field(cur_len_size); // max length
-        memory.add_field(cur_len_size); // current length
-        memory.add_array(maxNumber + 1, char_size); // data
+        memory.addField(cur_len_size); // max length
+        memory.addField(cur_len_size); // current length
+        memory.addArray(maxNumber + 1, char_size); // data
         memory.finalize();
 
         // Merge both
-        memory.raw_size = raw.raw_size;
+        memory.rawSize = raw.rawSize;
 
         // Insert string inside more global type
-        result.add_field(memory);
+        result.addField(memory);
         result.finalize();
     }
 
@@ -234,25 +244,25 @@ public class TypeSizer {
         if (typeName.equals("int8") || typeName.equals("uint8") || typeName.equals("char8") || typeName.equals("boolean8")
                 || typeName.equals("uchar8")) {
 
-            result.raw_size = 1;
+            result.rawSize = 1;
             result.alignment = 1;
             result.sizeof = 1;
         }
 
         else if (typeName.equals("int16") || typeName.equals("uint16")) {
-            result.raw_size = 2;
+            result.rawSize = 2;
             result.alignment = 2;
             result.sizeof = 2;
         }
 
         else if (typeName.equals("int32") || typeName.equals("uint32") || typeName.equals("float32")) {
-            result.raw_size = 4;
+            result.rawSize = 4;
             result.alignment = 4;
             result.sizeof = 4;
         }
 
         else if (typeName.equals("int64") || typeName.equals("uint64") || typeName.equals("double64")) {
-            result.raw_size = 8;
+            result.rawSize = 8;
             result.alignment = 8;
             result.sizeof = 8;
         }

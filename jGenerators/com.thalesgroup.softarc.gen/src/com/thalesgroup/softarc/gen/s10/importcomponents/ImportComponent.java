@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import com.thalesgroup.ecoa.model.ComponentType;
@@ -269,8 +270,8 @@ public class ImportComponent extends AbstractPass {
     public void computeGenLibPackage(Component component) {
         String[] split = patternDot.split(component.getPackage());
         component.setJniPackage(StringJoiner.stringJoin(split, "/"));
-        component.getSplittedPackage().clear();
-        Collections.addAll(component.getSplittedPackage(), split);
+        component.getSplittedBindingPackage().clear();
+        Collections.addAll(component.getSplittedBindingPackage(), split);
     }
 
     private void checkComponentConstraints(Component component) throws IOException {
@@ -292,13 +293,19 @@ public class ImportComponent extends AbstractPass {
         }
     }
 
-    private String findMetaData(String key, List<MetaData> meta, String defaultValue) {
+    private String findMetaData(String key, List<MetaData> meta, String defaultValue, String typeName) {
+    	String result = null;
         for (MetaData m : meta)
             if (key.equals(m.getName())) {
                 info("Metadata %s='%s' overrides default value '%s'", key, m.getValue(), defaultValue);
-                return m.getValue();
+                if (result != null) {
+                	warning("Metadata '%s' is present more than once for %s", key, typeName);
+                }
+                result = m.getValue();
             }
-        return defaultValue;
+        if (result == null)
+        	result = defaultValue;
+        return result;
     }
 
     private void addExtra(Collection<Extra> collection, String string) {
@@ -329,9 +336,10 @@ public class ImportComponent extends AbstractPass {
                 component.setFileprefix(fullname);
             }
             else {
-                component.setPackage(findMetaData(apiVariant + "_package", ct.getMeta(), findMetaData(languagePrefix + "package", ct.getMeta(), typeName)));
-                component.setFileprefix(findMetaData(apiVariant + "_fileprefix", ct.getMeta(), findMetaData(languagePrefix + "fileprefix", ct.getMeta(), component.getPackage())));
+                component.setPackage(findMetaData(apiVariant + "_package", ct.getMeta(), findMetaData(languagePrefix + "package", ct.getMeta(), typeName, typeName), typeName));
+                component.setFileprefix(findMetaData(apiVariant + "_fileprefix", ct.getMeta(), findMetaData(languagePrefix + "fileprefix", ct.getMeta(), component.getPackage(), typeName), typeName));
             }
+            component.setBindingPackage(component.getPackage());
             component.setImplDir(context.workspace.getLibraryDir(typeName, apiVariant).getPath());
             importDoc(ct.getDoc(), component.getDoc());
             importTypes(ct.getLibraryTypes(), component);
@@ -340,28 +348,35 @@ public class ImportComponent extends AbstractPass {
             importUsedLibraries(component, new Library(typeName, ct));
             for (MetaData m : ct.getMeta())
             {
-                if (m.getName().startsWith(languagePrefix)) {
-                    switch (m.getName().substring(languagePrefix.length())) {
-                    case "srcDir":
+            	String metaValue = m.getName().toLowerCase();
+                if (metaValue.startsWith(languagePrefix.toLowerCase())) {
+                    switch (metaValue.substring(languagePrefix.length())) {
+                    case "srcdir":
                         addExtra(component.getSrcdir(), m.getValue());
                         break;
-                    case "incDir":
+                    case "incdir":
                         addExtra(component.getIncdir(), m.getValue());
                         break;
-                    case "compilationFlags":
+                    case "compilationflags":
                         addExtra(component.getCompilationFlags(), m.getValue());
                         break;
-                    case "linkFlags":
+                    case "linkflags":
                         addExtra(component.getCompilationFlags(), m.getValue());
                         break;
-                    case "usedLibrary":
+                    case "usedlibrary":
                         Component lib = importLibrary(m.getValue(), apiVariant);
                         component.getUsedLibraries().add(lib);
                         break;
                     }
-                } else if (m.getName().equals("usedLibrary")) {
+                } else if (metaValue.equals("usedlibrary")) {
                     Component lib = importLibrary(m.getValue(), apiVariant);
                     component.getUsedLibraries().add(lib);
+                } else if (m.getName().endsWith("_package") 
+                		|| m.getName().equals("_fileprefix")) {
+                	// OK
+                }
+                else {
+                	warning("Unhandled metadata value '" + m.getName() + "' for " + typeName);
                 }
             }
         }
@@ -390,7 +405,8 @@ public class ImportComponent extends AbstractPass {
             }
             if (ci.getLanguageCpp() != null) {
                 genericLanguage = ci.getLanguageCpp();
-                component.setPackage(ci.getLanguageCpp().getNamespace());
+                component.setBindingPackage(ci.getLanguageCpp().getNamespace());
+                component.setPackage(component.getBindingPackage().replace("::", "_"));
                 if (ci.getLanguageCpp().getFilePrefix() != null) {
                     component.setFileprefix(ci.getLanguageCpp().getFilePrefix());
                 }
@@ -416,7 +432,8 @@ public class ImportComponent extends AbstractPass {
             }
             if (ci.getLanguageJava() != null) {
                 genericLanguage = ci.getLanguageJava();
-                component.setPackage(ci.getLanguageJava().getPackageName());
+                component.setBindingPackage(ci.getLanguageJava().getPackageName());
+                component.setPackage(component.getBindingPackage());
                 component.setLanguage(Language.JAVA.name());
             }
             if (ci.getLanguagePython() != null) {
@@ -447,6 +464,11 @@ public class ImportComponent extends AbstractPass {
                 importExtra(genericLanguage.getSrcDir(), component.getSrcdir());
                 component.setStack(genericLanguage.getStack());
                 component.setExternalStack(genericLanguage.getExternalStack());
+            }
+            
+            // Temporary inhibition of some languages
+            if (component.getLanguage().equals(Language.PYTHON.name())) {
+            	throw new Error(component.getLanguage() + " is currently inhibited.");
             }
 
             if (context.args.containsKey(PASS_ARG_KEY_FORCE_IMPLEMENTATION_LANGUAGE)) {
@@ -501,23 +523,29 @@ public class ImportComponent extends AbstractPass {
                     component.getTopics().add(topic);
                 }
             }
+            Set<String> setOptions = new HashSet<String>();
             for (CTOption o : ci.getOption()) {
-            	if(o.isValue()) {
-            		switch (o.getName()) {
-                        case "autostartExternalThread":
-                            component.setAutoStartExternalThread(true);
-                            break;
-                        case "hasReset":
-                            component.setHasReset(true);
-                            break;
-                        case "hasWarmStartContext":
-                            component.setHasWarmStartContext(true);
-                            break;
-                        case "needsUTCTime":
-                            component.setNeedsUTCTime(true);
-                            break;
-                    }
+            	if (setOptions.contains(o.getName().toLowerCase())) {
+            		warning("Option '%s' is present more than once for %s", o.getName(), typeName);
             	}
+            	setOptions.add(o.getName().toLowerCase());
+        		switch (o.getName().toLowerCase()) {
+                    case "autostartexternalthread":
+                        component.setAutoStartExternalThread(o.isValue());
+                        break;
+                    case "hasreset":
+                        component.setHasReset(o.isValue());
+                        break;
+                    case "haswarmstartcontext":
+                        component.setHasWarmStartContext(o.isValue());
+                        break;
+                    case "needsutctime":
+                        component.setNeedsUTCTime(o.isValue());
+                        break;
+                    default:
+						warning("Unhandled option '" + o.getName() + "' in " + typeName + "/" + implName);
+                    	break;
+                }
             }
 
             for (technology.ecoa.model.implementation.MetaData m : ci.getMeta()) {
@@ -612,13 +640,13 @@ public class ImportComponent extends AbstractPass {
         assert !component.getPackage().isEmpty();
         switch (Language.valueOf(component.getLanguage())) {
         case CPP:
-            Collections.addAll(component.getSplittedPackage(), patternColonColon.split(component.getPackage()));
+            Collections.addAll(component.getSplittedBindingPackage(), patternColonColon.split(component.getBindingPackage()));
             if (component.getFileprefix().isEmpty()) {
-                component.setFileprefix(patternColonColon.matcher(component.getPackage()).replaceAll("_"));
+                component.setFileprefix(component.getPackage());
             }
             break;
         case JAVA:
-            Collections.addAll(component.getSplittedPackage(), patternDot.split(component.getPackage()));
+            Collections.addAll(component.getSplittedBindingPackage(), patternDot.split(component.getPackage()));
             component.setFileprefix(component.getPackage().replace(".", "/"));
             break;
         case ADA:
