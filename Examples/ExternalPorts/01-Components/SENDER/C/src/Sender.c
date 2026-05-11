@@ -35,22 +35,13 @@ void Sender__START__received(Sender_context* context)
 {
   for (int i=0; i<4; i++) {
 
-  usleep(1000000);
+    usleep(1000000);
 
-  send(context, 1); 
-  send(context, 10); 
-  send(context, 100); 
-  send(context, 1000); 
+    send(context, 1); 
+    send(context, 10); 
+    send(context, 100); 
+    send(context, 1000); 
   }
-
-  // send(context, 64000);      usleep(1000000);
-  // send(context, 256000);  usleep(1000000);
-  // send(context, 0);  usleep(1000000);
-  // send(context, 64000);  usleep(1000000);
-  // send(context, 256000);  usleep(1000000);
-  // send(context, 0);  usleep(1000000);
-  // send(context, 320000);  usleep(1000000);
-  // send(context, 0);  usleep(1000000);
 
   {
     ECOA__log log;

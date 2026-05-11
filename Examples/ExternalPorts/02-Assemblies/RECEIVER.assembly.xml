@@ -7,7 +7,7 @@
   <links>
     <eventLink>
       <sender instance="extern" operation="msg"/>
-      <receiver instance="RECEIVER" operation="msg"/>
+      <receiver instance="RECEIVER" operation="msg" fifoSize="1"/>
     </eventLink>
   </links>
 
